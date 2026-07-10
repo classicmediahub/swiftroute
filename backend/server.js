@@ -8,6 +8,7 @@ const authRoutes = require("./routes/auth");
 const deliveryRoutes = require("./routes/deliveries");
 const adminRoutes = require("./routes/admin");
 const webhookRoutes = require("./routes/webhooks");
+const publicRoutes = require("./routes/public");
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.get("/api/health", (req, res) => res.json({ ok: true, service: "SwiftRoute A
 app.use("/api/auth", authRoutes);
 app.use("/api/deliveries", deliveryRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/public", publicRoutes);
 
 app.use((req, res) => res.status(404).json({ error: "Not found" }));
 // eslint-disable-next-line no-unused-vars
