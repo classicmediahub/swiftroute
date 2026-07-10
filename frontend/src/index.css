@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Space Grotesk", "Inter", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+
+  --color-ink: #0b1220;
+  --color-ink-soft: #131e33;
+  --color-route: #ffc63d;
+  --color-route-dark: #e6ac1f;
+  --color-signal: #ff6b35;
+  --color-paper: #f7f7f5;
+  --color-slate: #5b6472;
+  --color-slate-light: #9aa3b2;
+  --color-delivered: #1fae6b;
+  --color-line: #223049;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Route line signature animation */
+.route-dash {
+  stroke-dasharray: 8 8;
+  animation: dash-move 1.4s linear infinite;
+}
+@keyframes dash-move {
+  to { stroke-dashoffset: -32; }
+}
+.route-pulse {
+  animation: pulse-travel 3.2s ease-in-out infinite;
+}
+@keyframes pulse-travel {
+  0%   { offset-distance: 0%; opacity: 0; }
+  8%   { opacity: 1; }
+  92%  { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+
+::selection {
+  background: var(--color-route);
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-route);
+  outline-offset: 2px;
+}
