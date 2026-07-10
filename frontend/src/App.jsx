@@ -12,6 +12,8 @@ import CustomerDashboard from "./pages/CustomerDashboard";
 import AgentDashboard from "./pages/AgentDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import PaymentCallback from "./pages/PaymentCallback";
+import TrackPublic from "./pages/TrackPublic";
+import WhatsAppButton from "./components/WhatsAppButton";
 
 export default function App() {
   return (
@@ -25,6 +27,7 @@ export default function App() {
           <Route path="/signup/customer" element={<SignupCustomer />} />
           <Route path="/signup/agent" element={<SignupAgent />} />
           <Route path="/signup/admin" element={<SignupAdmin />} />
+          <Route path="/track" element={<TrackPublic />} />
 
           <Route path="/customer/dashboard" element={
             <ProtectedRoute role="customer"><CustomerDashboard /></ProtectedRoute>
@@ -42,6 +45,7 @@ export default function App() {
           <Route path="*" element={<Landing />} />
         </Routes>
       </main>
+      <WhatsAppButton />
     </div>
   );
 }

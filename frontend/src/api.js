@@ -51,4 +51,8 @@ export const api = {
   setUserStatus: (token, id, status) =>
     request(`/admin/users/${id}/status`, { method: "PATCH", body: { status }, token }),
   adminDeliveries: (token) => request("/admin/deliveries", { token }),
+
+  publicStats: () => request("/public/stats"),
+  publicEstimate: (payload) => request("/public/estimate", { method: "POST", body: payload }),
+  publicTrack: (code) => request(`/public/track/${code}`),
 };
