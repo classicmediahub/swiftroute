@@ -2,14 +2,19 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 
-require("./db"); // ensures tables are created on boot
+const { initSchema } = require("./db");
 
 const authRoutes = require("./routes/auth");
 const deliveryRoutes = require("./routes/deliveries");
 const adminRoutes = require("./routes/admin");
 
 const app = express();
-app.use(cors());
+
+// In development this allows any origin. In production, set ALLOWED_ORIGIN
+// to your Netlify URL (e.g. https://your-site.netlify.app) so only your
+// frontend can call this API.
+const allowedOrigin = process.env.ALLOWED_ORIGIN;
+app.use(cors(allowedOrigin ? { origin: allowedOrigin } : {}));
 app.use(express.json());
 
 app.get("/api/health", (req, res) => res.json({ ok: true, service: "SwiftRoute API" }));
@@ -26,4 +31,13 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`SwiftRoute API running on http://localhost:${PORT}`));
+
+(async () => {
+  try {
+    await initSchema();
+    app.listen(PORT, () => console.log(`SwiftRoute API running on http://localhost:${PORT}`));
+  } catch (err) {
+    console.error("Failed to start server:", err);
+    process.exit(1);
+  }
+})();
