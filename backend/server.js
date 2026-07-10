@@ -7,6 +7,7 @@ const { initSchema } = require("./db");
 const authRoutes = require("./routes/auth");
 const deliveryRoutes = require("./routes/deliveries");
 const adminRoutes = require("./routes/admin");
+const webhookRoutes = require("./routes/webhooks");
 
 const app = express();
 
@@ -15,6 +16,11 @@ const app = express();
 // frontend can call this API.
 const allowedOrigin = process.env.ALLOWED_ORIGIN;
 app.use(cors(allowedOrigin ? { origin: allowedOrigin } : {}));
+
+// Paystack webhooks must be verified against the exact raw bytes of the
+// request body, so this is mounted BEFORE express.json() parses anything.
+app.use("/api/webhooks", express.raw({ type: "application/json" }), webhookRoutes);
+
 app.use(express.json());
 
 app.get("/api/health", (req, res) => res.json({ ok: true, service: "SwiftRoute API" }));

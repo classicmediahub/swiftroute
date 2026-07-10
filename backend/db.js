@@ -71,6 +71,15 @@ async function initSchema() {
     );
   `);
 
+  // Payment columns were added after the first release — these migrations
+  // bring older databases up to date without touching existing data.
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'unpaid';`);
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS paystack_reference TEXT;`);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS deliveries_paystack_reference_idx
+    ON deliveries(paystack_reference) WHERE paystack_reference IS NOT NULL;
+  `);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS delivery_events (
       id TEXT PRIMARY KEY,

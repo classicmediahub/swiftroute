@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require("uuid");
 const { pool } = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { estimatePrice, trackingCode } = require("../pricing");
+const { initializeTransaction, verifyTransaction } = require("../paystack");
 
 const router = express.Router();
 
@@ -11,6 +12,15 @@ async function logEvent(deliveryId, status, note) {
     `INSERT INTO delivery_events (id, delivery_id, status, note) VALUES ($1, $2, $3, $4)`,
     [uuidv4(), deliveryId, status, note || null]
   );
+}
+
+function paymentReference() {
+  return `SRPAY-${uuidv4().replace(/-/g, "").slice(0, 20).toUpperCase()}`;
+}
+
+function callbackUrl() {
+  const base = process.env.FRONTEND_URL || "http://localhost:5173";
+  return `${base.replace(/\/$/, "")}/payment/callback`;
 }
 
 // ---------- PRICE ESTIMATE ----------
@@ -23,7 +33,9 @@ router.post("/estimate", requireAuth, (req, res) => {
   res.json({ price });
 });
 
-// ---------- CREATE DELIVERY (customer) ----------
+// ---------- CREATE DELIVERY (customer) — creates the delivery as unpaid,
+// then starts a Paystack transaction and hands back the checkout URL.
+// The delivery only becomes visible to agents once payment is confirmed. ----------
 router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
   try {
     const {
@@ -42,25 +54,106 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
     const price = estimatePrice({ pickup_city, dropoff_city, vehicle_type: vehicle });
     const id = uuidv4();
     const code = trackingCode();
+    const reference = paymentReference();
 
     await pool.query(
       `INSERT INTO deliveries (
         id, customer_id, package_type, package_note,
         pickup_address, pickup_city, dropoff_address, dropoff_city,
-        recipient_name, recipient_phone, preferred_vehicle, price, tracking_code
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+        recipient_name, recipient_phone, preferred_vehicle, price, tracking_code,
+        payment_status, paystack_reference
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'unpaid',$14)`,
       [id, req.user.id, package_type, package_note || null,
        pickup_address, pickup_city, dropoff_address, dropoff_city,
-       recipient_name, recipient_phone, vehicle, price, code]
+       recipient_name, recipient_phone, vehicle, price, code, reference]
     );
 
-    await logEvent(id, "pending", "Delivery request created");
+    await logEvent(id, "pending", "Delivery request created — awaiting payment");
+
+    let authorization_url;
+    try {
+      const paystackData = await initializeTransaction({
+        email: req.user.email,
+        amountNaira: price,
+        reference,
+        callback_url: callbackUrl(),
+        metadata: { delivery_id: id, tracking_code: code },
+      });
+      authorization_url = paystackData.authorization_url;
+    } catch (err) {
+      console.error("Paystack initialize failed:", err.message);
+      // The delivery row exists but is unpaid — the customer can retry
+      // payment from their dashboard via /retry-payment below.
+      const { rows } = await pool.query("SELECT * FROM deliveries WHERE id = $1", [id]);
+      return res.status(502).json({
+        error: "We couldn't start payment right now. Your delivery was saved — try paying again from your dashboard.",
+        delivery: rows[0],
+      });
+    }
 
     const { rows } = await pool.query("SELECT * FROM deliveries WHERE id = $1", [id]);
-    res.status(201).json(rows[0]);
+    res.status(201).json({ delivery: rows[0], authorization_url });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong creating the delivery" });
+  }
+});
+
+// ---------- RETRY PAYMENT (customer) — for deliveries stuck unpaid/failed,
+// e.g. the customer closed the Paystack tab before finishing. ----------
+router.post("/:id/retry-payment", requireAuth, requireRole("customer"), async (req, res) => {
+  try {
+    const { rows } = await pool.query("SELECT * FROM deliveries WHERE id = $1", [req.params.id]);
+    const delivery = rows[0];
+    if (!delivery) return res.status(404).json({ error: "Delivery not found" });
+    if (delivery.customer_id !== req.user.id) return res.status(403).json({ error: "Not your delivery" });
+    if (delivery.payment_status === "paid") return res.status(409).json({ error: "This delivery is already paid for" });
+
+    const reference = paymentReference();
+    await pool.query("UPDATE deliveries SET paystack_reference = $1, payment_status = 'unpaid' WHERE id = $2", [reference, delivery.id]);
+
+    const paystackData = await initializeTransaction({
+      email: req.user.email,
+      amountNaira: delivery.price,
+      reference,
+      callback_url: callbackUrl(),
+      metadata: { delivery_id: delivery.id, tracking_code: delivery.tracking_code },
+    });
+
+    res.json({ authorization_url: paystackData.authorization_url });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Could not restart payment. Please try again." });
+  }
+});
+
+// ---------- VERIFY PAYMENT (customer) — called by the frontend when
+// Paystack redirects back after checkout. Always re-checks with Paystack's
+// API using our secret key rather than trusting the URL parameters. ----------
+router.get("/verify/:reference", requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query("SELECT * FROM deliveries WHERE paystack_reference = $1", [req.params.reference]);
+    const delivery = rows[0];
+    if (!delivery) return res.status(404).json({ error: "No delivery found for this payment reference" });
+    if (delivery.customer_id !== req.user.id) return res.status(403).json({ error: "Not your delivery" });
+
+    if (delivery.payment_status === "paid") {
+      return res.json({ delivery, payment_status: "paid" });
+    }
+
+    const txn = await verifyTransaction(req.params.reference);
+    if (txn.status === "success") {
+      await pool.query("UPDATE deliveries SET payment_status = 'paid' WHERE id = $1", [delivery.id]);
+      await logEvent(delivery.id, "payment_confirmed", "Payment verified via Paystack");
+    } else {
+      await pool.query("UPDATE deliveries SET payment_status = 'failed' WHERE id = $1", [delivery.id]);
+    }
+
+    const { rows: updated } = await pool.query("SELECT * FROM deliveries WHERE id = $1", [delivery.id]);
+    res.json({ delivery: updated[0], payment_status: updated[0].payment_status });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong verifying payment" });
   }
 });
 
@@ -80,7 +173,7 @@ router.get("/mine", requireAuth, requireRole("customer"), async (req, res) => {
   }
 });
 
-// ---------- AVAILABLE DELIVERIES FOR AGENTS ----------
+// ---------- AVAILABLE DELIVERIES FOR AGENTS — paid only ----------
 router.get("/available", requireAuth, requireRole("agent"), async (req, res) => {
   try {
     const { rows: profileRows } = await pool.query("SELECT * FROM agent_profiles WHERE user_id = $1", [req.user.id]);
@@ -94,6 +187,7 @@ router.get("/available", requireAuth, requireRole("agent"), async (req, res) => 
       `SELECT d.*, u.full_name AS customer_name, u.phone AS customer_phone
        FROM deliveries d JOIN users u ON u.id = d.customer_id
        WHERE d.status = 'pending'
+         AND d.payment_status = 'paid'
          AND (d.preferred_vehicle = 'any' OR d.preferred_vehicle = $1)
        ORDER BY d.created_at ASC`,
       [profile.vehicle_type]
@@ -138,6 +232,10 @@ router.post("/:id/accept", requireAuth, requireRole("agent"), async (req, res) =
     if (!delivery) {
       await client.query("ROLLBACK");
       return res.status(404).json({ error: "Delivery not found" });
+    }
+    if (delivery.payment_status !== "paid") {
+      await client.query("ROLLBACK");
+      return res.status(402).json({ error: "This delivery hasn't been paid for yet" });
     }
     if (delivery.status !== "pending") {
       await client.query("ROLLBACK");

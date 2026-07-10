@@ -35,6 +35,8 @@ export const api = {
   myDeliveries: (token) => request("/deliveries/mine", { token }),
   cancelDelivery: (token, id) => request(`/deliveries/${id}/cancel`, { method: "PATCH", token }),
   trackDelivery: (token, code) => request(`/deliveries/track/${code}`, { token }),
+  retryPayment: (token, id) => request(`/deliveries/${id}/retry-payment`, { method: "POST", token }),
+  verifyPayment: (token, reference) => request(`/deliveries/verify/${reference}`, { token }),
 
   availableDeliveries: (token) => request("/deliveries/available", { token }),
   assignedDeliveries: (token) => request("/deliveries/assigned", { token }),

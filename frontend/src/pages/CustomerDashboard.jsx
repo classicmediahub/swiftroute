@@ -67,7 +67,15 @@ export default function CustomerDashboard() {
     setError("");
     setSubmitting(true);
     try {
-      await api.createDelivery(token, form);
+      const data = await api.createDelivery(token, form);
+      if (data.authorization_url) {
+        // Full-page redirect to Paystack's hosted checkout. Don't reset
+        // submitting/state here — the browser is about to navigate away.
+        window.location.href = data.authorization_url;
+        return;
+      }
+      // Shouldn't normally happen, but handle it rather than leaving the
+      // button stuck in a loading state.
       setForm(emptyForm);
       setEstimate(null);
       await loadDeliveries();
@@ -75,6 +83,15 @@ export default function CustomerDashboard() {
       setError(err.message);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleRetryPayment(id) {
+    try {
+      const data = await api.retryPayment(token, id);
+      window.location.href = data.authorization_url;
+    } catch (err) {
+      alert(err.message);
     }
   }
 
@@ -156,7 +173,7 @@ export default function CustomerDashboard() {
           {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
           <button disabled={submitting} className="w-full bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-2.5 transition-colors disabled:opacity-60">
-            {submitting ? "Posting…" : "Post delivery request"}
+            {submitting ? "Redirecting to payment…" : "Continue to payment"}
           </button>
         </form>
 
@@ -177,7 +194,10 @@ export default function CustomerDashboard() {
                       <div className="font-mono text-xs text-slate mb-1">{d.tracking_code}</div>
                       <div className="font-semibold text-sm">{d.package_type} · {d.pickup_city} → {d.dropoff_city}</div>
                     </div>
-                    <StatusBadge status={d.status} />
+                    <div className="flex flex-col items-end gap-1.5">
+                      <StatusBadge status={d.status} />
+                      {d.payment_status !== "paid" && <StatusBadge status={d.payment_status} />}
+                    </div>
                   </div>
                   <div className="text-xs text-slate space-y-0.5 mb-2">
                     <div>Pickup: {d.pickup_address}</div>
@@ -186,11 +206,18 @@ export default function CustomerDashboard() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-sm font-semibold">₦{d.price.toLocaleString()}</span>
-                    {["pending", "accepted"].includes(d.status) && (
-                      <button onClick={() => handleCancel(d.id)} className="text-xs text-red-600 font-medium hover:underline">
-                        Cancel
-                      </button>
-                    )}
+                    <div className="flex items-center gap-3">
+                      {["unpaid", "failed"].includes(d.payment_status) && d.status !== "cancelled" && (
+                        <button onClick={() => handleRetryPayment(d.id)} className="text-xs bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-3 py-1.5 transition-colors">
+                          Complete payment
+                        </button>
+                      )}
+                      {["pending", "accepted"].includes(d.status) && (
+                        <button onClick={() => handleCancel(d.id)} className="text-xs text-red-600 font-medium hover:underline">
+                          Cancel
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}

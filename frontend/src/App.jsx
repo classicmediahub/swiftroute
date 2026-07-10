@@ -11,6 +11,7 @@ import SignupAdmin from "./pages/SignupAdmin";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import AgentDashboard from "./pages/AgentDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import PaymentCallback from "./pages/PaymentCallback";
 
 export default function App() {
   return (
@@ -27,6 +28,9 @@ export default function App() {
 
           <Route path="/customer/dashboard" element={
             <ProtectedRoute role="customer"><CustomerDashboard /></ProtectedRoute>
+          } />
+          <Route path="/payment/callback" element={
+            <ProtectedRoute role="customer"><PaymentCallback /></ProtectedRoute>
           } />
           <Route path="/agent/dashboard" element={
             <ProtectedRoute role="agent"><AgentDashboard /></ProtectedRoute>
