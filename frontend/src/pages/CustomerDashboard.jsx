@@ -6,7 +6,7 @@ import { Field, inputClass } from "../components/AuthLayout";
 import StarRating from "../components/StarRating";
 import ReviewForm from "../components/ReviewForm";
 
-const CITIES = ["Lagos", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City"];
+const CITIES = ["Lagos", "Ogun", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City"];
 const PACKAGE_TYPES = ["Documents", "Small parcel", "Food", "Electronics", "Fragile item", "Other"];
 const VEHICLES = [
   { value: "any", label: "Any available" },

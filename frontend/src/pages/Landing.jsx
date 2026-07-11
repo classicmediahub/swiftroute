@@ -156,7 +156,7 @@ export default function Landing() {
       <footer className="bg-ink border-t border-line text-slate-light">
         <div className="max-w-6xl mx-auto px-5 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm font-mono">
           <span>© {new Date().getFullYear()} SwiftRoute — Built for Nigerian logistics.</span>
-          <span>Lagos · Abuja · Port Harcourt</span>
+          <span>Lagos · Ogun · Abuja · Port Harcourt</span>
         </div>
       </footer>
     </div>

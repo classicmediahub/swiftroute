@@ -10,7 +10,7 @@ const VEHICLES = [
   { value: "cab", label: "Cab", detail: "Car / bulkier loads" },
 ];
 
-const CITIES = ["Lagos", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City"];
+const CITIES = ["Lagos", "Ogun", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City"];
 
 export default function SignupAgent() {
   const [form, setForm] = useState({
