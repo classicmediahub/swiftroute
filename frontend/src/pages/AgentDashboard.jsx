@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import StatusBadge from "../components/StatusBadge";
+import StarRating from "../components/StarRating";
 
 const NEXT_LABEL = {
   accepted: "Mark picked up",
@@ -71,10 +72,23 @@ export default function AgentDashboard() {
       <h1 className="font-display text-3xl font-semibold mb-6">Your jobs</h1>
 
       {/* Profile summary */}
-      <div className="grid sm:grid-cols-4 gap-4 mb-8">
+      <div className="grid sm:grid-cols-5 gap-4 mb-8">
         <SummaryCard label="Vehicle" value={agentProfile.vehicle_type} />
         <SummaryCard label="Approval" custom={<StatusBadge status={agentProfile.approval_status} />} />
         <SummaryCard label="Deliveries done" value={agentProfile.total_deliveries} />
+        <SummaryCard
+          label="Rating"
+          custom={
+            agentProfile.total_deliveries > 0 ? (
+              <div className="flex items-center gap-1.5">
+                <StarRating value={Math.round(agentProfile.rating)} readOnly size={14} />
+                <span className="font-mono text-xs text-slate">{Number(agentProfile.rating).toFixed(1)}</span>
+              </div>
+            ) : (
+              <span className="text-xs text-slate">No reviews yet</span>
+            )
+          }
+        />
         <SummaryCard label="Wallet balance" value={`₦${agentProfile.wallet_balance.toLocaleString()}`} />
       </div>
 

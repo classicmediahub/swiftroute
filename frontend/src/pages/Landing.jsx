@@ -3,6 +3,8 @@ import RouteSignature from "../components/RouteSignature";
 import PriceCalculator from "../components/PriceCalculator";
 import StatsBar from "../components/StatsBar";
 import TrackingDemo from "../components/TrackingDemo";
+import HowItWorksDiagram from "../components/HowItWorksDiagram";
+import ReviewsSection from "../components/ReviewsSection";
 
 const ROLE_CARDS = [
   {
@@ -26,13 +28,6 @@ const ROLE_CARDS = [
     cta: "Admin access",
     to: "/signup/admin",
   },
-];
-
-const STEPS = [
-  { label: "Book", text: "Tell us what you're sending, where it's going, and pay upfront — no calls needed." },
-  { label: "Pickup", text: "The nearest approved agent — bike, cab, or self — accepts and collects it." },
-  { label: "Track", text: "Follow it live through pickup and transit with your own waybill code." },
-  { label: "Delivered", text: "Recipient confirms, agent gets paid, you get a receipt." },
 ];
 
 const VEHICLES = [
@@ -126,16 +121,8 @@ export default function Landing() {
       <section className="bg-ink-soft/[0.03] border-y border-slate-200">
         <div className="max-w-6xl mx-auto px-5 py-16">
           <div className="font-mono text-xs text-slate mb-2">THE ROUTE</div>
-          <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-10">From booking to proof of delivery</h2>
-          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-6">
-            {STEPS.map((step, i) => (
-              <div key={step.label}>
-                <div className="font-mono text-xs text-signal mb-2">STEP {i + 1}</div>
-                <h3 className="font-display font-semibold mb-1.5">{step.label}</h3>
-                <p className="text-sm text-slate">{step.text}</p>
-              </div>
-            ))}
-          </div>
+          <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-12">From booking to proof of delivery</h2>
+          <HowItWorksDiagram />
         </div>
       </section>
 
@@ -152,6 +139,8 @@ export default function Landing() {
           ))}
         </div>
       </section>
+
+      <ReviewsSection />
 
       {/* FOOTER CTA */}
       <section className="bg-ink text-paper">

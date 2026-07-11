@@ -3,6 +3,8 @@ import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import StatusBadge from "../components/StatusBadge";
 import { Field, inputClass } from "../components/AuthLayout";
+import StarRating from "../components/StarRating";
+import ReviewForm from "../components/ReviewForm";
 
 const CITIES = ["Lagos", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City"];
 const PACKAGE_TYPES = ["Documents", "Small parcel", "Food", "Electronics", "Fragile item", "Other"];
@@ -219,6 +221,17 @@ export default function CustomerDashboard() {
                       )}
                     </div>
                   </div>
+
+                  {d.status === "delivered" && (
+                    d.review_rating ? (
+                      <div className="border-t border-slate-100 mt-3 pt-3 flex items-center gap-2">
+                        <StarRating value={d.review_rating} readOnly size={16} />
+                        {d.review_comment && <span className="text-xs text-slate">"{d.review_comment}"</span>}
+                      </div>
+                    ) : (
+                      <ReviewForm deliveryId={d.id} token={token} onSubmitted={loadDeliveries} />
+                    )
+                  )}
                 </div>
               ))}
             </div>

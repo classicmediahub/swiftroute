@@ -37,6 +37,7 @@ export const api = {
   trackDelivery: (token, code) => request(`/deliveries/track/${code}`, { token }),
   retryPayment: (token, id) => request(`/deliveries/${id}/retry-payment`, { method: "POST", token }),
   verifyPayment: (token, reference) => request(`/deliveries/verify/${reference}`, { token }),
+  submitReview: (token, id, payload) => request(`/deliveries/${id}/review`, { method: "POST", body: payload, token }),
 
   availableDeliveries: (token) => request("/deliveries/available", { token }),
   assignedDeliveries: (token) => request("/deliveries/assigned", { token }),
@@ -55,4 +56,5 @@ export const api = {
   publicStats: () => request("/public/stats"),
   publicEstimate: (payload) => request("/public/estimate", { method: "POST", body: payload }),
   publicTrack: (code) => request(`/public/track/${code}`),
+  publicReviews: () => request("/public/reviews"),
 };
