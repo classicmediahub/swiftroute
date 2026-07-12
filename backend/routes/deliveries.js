@@ -2,8 +2,10 @@ const express = require("express");
 const { v4: uuidv4 } = require("uuid");
 const { pool } = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
-const { estimatePrice, trackingCode } = require("../pricing");
+const { trackingCode } = require("../pricing");
+const { getQuote } = require("../quote");
 const { initializeTransaction, verifyTransaction } = require("../paystack");
+const { notifyCustomer } = require("../notify");
 
 const router = express.Router();
 
@@ -24,13 +26,13 @@ function callbackUrl() {
 }
 
 // ---------- PRICE ESTIMATE ----------
-router.post("/estimate", requireAuth, (req, res) => {
-  const { pickup_city, dropoff_city, preferred_vehicle } = req.body;
+router.post("/estimate", requireAuth, async (req, res) => {
+  const { pickup_city, dropoff_city, pickup_address, dropoff_address, preferred_vehicle } = req.body;
   if (!pickup_city || !dropoff_city) {
     return res.status(400).json({ error: "pickup_city and dropoff_city are required" });
   }
-  const price = estimatePrice({ pickup_city, dropoff_city, vehicle_type: preferred_vehicle || "any" });
-  res.json({ price });
+  const quote = await getQuote({ pickup_address, pickup_city, dropoff_address, dropoff_city, vehicle_type: preferred_vehicle || "any" });
+  res.json(quote);
 });
 
 // ---------- CREATE DELIVERY (customer) — creates the delivery as unpaid,
@@ -51,7 +53,8 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
     }
 
     const vehicle = preferred_vehicle && ["self", "bike", "cab", "any"].includes(preferred_vehicle) ? preferred_vehicle : "any";
-    const price = estimatePrice({ pickup_city, dropoff_city, vehicle_type: vehicle });
+    const quote = await getQuote({ pickup_address, pickup_city, dropoff_address, dropoff_city, vehicle_type: vehicle });
+    const price = quote.price;
     const id = uuidv4();
     const code = trackingCode();
     const reference = paymentReference();
@@ -61,11 +64,11 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
         id, customer_id, package_type, package_note,
         pickup_address, pickup_city, dropoff_address, dropoff_city,
         recipient_name, recipient_phone, preferred_vehicle, price, tracking_code,
-        payment_status, paystack_reference
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'unpaid',$14)`,
+        payment_status, paystack_reference, distance_km
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'unpaid',$14,$15)`,
       [id, req.user.id, package_type, package_note || null,
        pickup_address, pickup_city, dropoff_address, dropoff_city,
-       recipient_name, recipient_phone, vehicle, price, code, reference]
+       recipient_name, recipient_phone, vehicle, price, code, reference, quote.distanceKm]
     );
 
     await logEvent(id, "pending", "Delivery request created — awaiting payment");
@@ -145,6 +148,7 @@ router.get("/verify/:reference", requireAuth, async (req, res) => {
     if (txn.status === "success") {
       await pool.query("UPDATE deliveries SET payment_status = 'paid' WHERE id = $1", [delivery.id]);
       await logEvent(delivery.id, "payment_confirmed", "Payment verified via Paystack");
+      notifyCustomer(delivery, "payment_confirmed"); // fire-and-forget
     } else {
       await pool.query("UPDATE deliveries SET payment_status = 'failed' WHERE id = $1", [delivery.id]);
     }
@@ -161,8 +165,11 @@ router.get("/verify/:reference", requireAuth, async (req, res) => {
 router.get("/mine", requireAuth, requireRole("customer"), async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT d.*, u.full_name AS agent_name, u.phone AS agent_phone
-       FROM deliveries d LEFT JOIN users u ON u.id = d.agent_id
+      `SELECT d.*, u.full_name AS agent_name, u.phone AS agent_phone,
+              r.rating AS review_rating, r.comment AS review_comment
+       FROM deliveries d
+       LEFT JOIN users u ON u.id = d.agent_id
+       LEFT JOIN reviews r ON r.delivery_id = d.id
        WHERE d.customer_id = $1 ORDER BY d.created_at DESC`,
       [req.user.id]
     );
@@ -170,6 +177,46 @@ router.get("/mine", requireAuth, requireRole("customer"), async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong loading your deliveries" });
+  }
+});
+
+// ---------- LEAVE A REVIEW (customer, delivered deliveries only, one per delivery) ----------
+router.post("/:id/review", requireAuth, requireRole("customer"), async (req, res) => {
+  try {
+    const ratingNum = Number(req.body.rating);
+    if (!Number.isInteger(ratingNum) || ratingNum < 1 || ratingNum > 5) {
+      return res.status(400).json({ error: "Rating must be a whole number from 1 to 5" });
+    }
+    const comment = (req.body.comment || "").trim().slice(0, 500) || null;
+
+    const { rows } = await pool.query("SELECT * FROM deliveries WHERE id = $1", [req.params.id]);
+    const delivery = rows[0];
+    if (!delivery) return res.status(404).json({ error: "Delivery not found" });
+    if (delivery.customer_id !== req.user.id) return res.status(403).json({ error: "Not your delivery" });
+    if (delivery.status !== "delivered") {
+      return res.status(409).json({ error: "You can only review a delivery after it's been delivered" });
+    }
+    if (!delivery.agent_id) return res.status(409).json({ error: "This delivery has no agent to review" });
+
+    const existing = await pool.query("SELECT id FROM reviews WHERE delivery_id = $1", [delivery.id]);
+    if (existing.rows.length) return res.status(409).json({ error: "You've already reviewed this delivery" });
+
+    const id = uuidv4();
+    await pool.query(
+      `INSERT INTO reviews (id, delivery_id, customer_id, agent_id, rating, comment) VALUES ($1,$2,$3,$4,$5,$6)`,
+      [id, delivery.id, req.user.id, delivery.agent_id, ratingNum, comment]
+    );
+
+    // Recompute the agent's overall rating from all their reviews.
+    await pool.query(
+      `UPDATE agent_profiles SET rating = (SELECT ROUND(AVG(rating)::numeric, 2) FROM reviews WHERE agent_id = $1) WHERE user_id = $1`,
+      [delivery.agent_id]
+    );
+
+    res.status(201).json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong submitting your review" });
   }
 });
 
@@ -251,6 +298,7 @@ router.post("/:id/accept", requireAuth, requireRole("agent"), async (req, res) =
     await logEvent(delivery.id, "accepted", `Accepted by agent ${req.user.full_name}`);
 
     const { rows: updatedRows } = await pool.query("SELECT * FROM deliveries WHERE id = $1", [delivery.id]);
+    notifyCustomer(updatedRows[0], "accepted"); // fire-and-forget
     res.json(updatedRows[0]);
   } catch (err) {
     await client.query("ROLLBACK").catch(() => {});
@@ -294,6 +342,7 @@ router.patch("/:id/advance", requireAuth, requireRole("agent"), async (req, res)
 
     await logEvent(delivery.id, next);
     const { rows: updatedRows } = await pool.query("SELECT * FROM deliveries WHERE id = $1", [delivery.id]);
+    notifyCustomer(updatedRows[0], next); // fire-and-forget
     res.json(updatedRows[0]);
   } catch (err) {
     console.error(err);
@@ -314,6 +363,7 @@ router.patch("/:id/cancel", requireAuth, requireRole("customer"), async (req, re
     await pool.query(`UPDATE deliveries SET status = 'cancelled', cancelled_at = now() WHERE id = $1`, [delivery.id]);
     await logEvent(delivery.id, "cancelled", "Cancelled by customer");
     const { rows: updatedRows } = await pool.query("SELECT * FROM deliveries WHERE id = $1", [delivery.id]);
+    notifyCustomer(updatedRows[0], "cancelled"); // fire-and-forget
     res.json(updatedRows[0]);
   } catch (err) {
     console.error(err);

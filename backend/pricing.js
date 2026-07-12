@@ -1,6 +1,12 @@
 // Simple, transparent pricing model (Naira).
-// Base fare depends on whether pickup/dropoff are in the same city,
-// then a multiplier is applied based on vehicle type.
+//
+// PRIMARY MODEL: priceFromDistance() — base fare + per-km rate, using real
+// driving distance from Mapbox. This is what actually gets used whenever
+// Mapbox is configured and can geocode both ends of the trip.
+//
+// FALLBACK MODEL: estimatePrice() — a flat same-city/intercity guess, used
+// only when Mapbox isn't set up yet or a specific address can't be
+// geocoded (typo, obscure location, etc.), so quoting never just breaks.
 
 const VEHICLE_MULTIPLIER = {
   self: 1,      // walking/self agent - small, local errands
@@ -20,6 +26,19 @@ function estimatePrice({ pickup_city, dropoff_city, vehicle_type }) {
   return price;
 }
 
+// Naira per km, by vehicle type — set to roughly match typical Nigerian
+// dispatch pricing. Adjust these as you learn your real costs.
+const BASE_FARE = 500;
+const PER_KM_RATE = { self: 100, bike: 130, cab: 220, any: 150 };
+const MIN_FARE = 800;
+
+function priceFromDistance({ distanceKm, vehicle_type }) {
+  const rate = PER_KM_RATE[vehicle_type] || PER_KM_RATE.any;
+  let price = BASE_FARE + distanceKm * rate;
+  price = Math.round(price / 50) * 50; // round to nearest 50 naira
+  return Math.max(price, MIN_FARE);
+}
+
 function trackingCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "SR-";
@@ -27,4 +46,4 @@ function trackingCode() {
   return code;
 }
 
-module.exports = { estimatePrice, trackingCode };
+module.exports = { estimatePrice, priceFromDistance, trackingCode };

@@ -2,6 +2,7 @@ const express = require("express");
 const { v4: uuidv4 } = require("uuid");
 const { pool } = require("../db");
 const { verifyWebhookSignature } = require("../paystack");
+const { notifyCustomer } = require("../notify");
 
 const router = express.Router();
 
@@ -36,6 +37,7 @@ router.post("/paystack", async (req, res) => {
           `INSERT INTO delivery_events (id, delivery_id, status, note) VALUES ($1, $2, $3, $4)`,
           [uuidv4(), delivery.id, "payment_confirmed", "Payment confirmed via Paystack webhook"]
         );
+        notifyCustomer(delivery, "payment_confirmed"); // fire-and-forget
       }
     } catch (err) {
       console.error("Paystack webhook processing error:", err);

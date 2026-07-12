@@ -27,6 +27,7 @@ export default function CustomerDashboard() {
   const { token } = useAuth();
   const [form, setForm] = useState(emptyForm);
   const [estimate, setEstimate] = useState(null);
+  const [estimateDistance, setEstimateDistance] = useState(null);
   const [deliveries, setDeliveries] = useState([]);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -50,15 +51,23 @@ export default function CustomerDashboard() {
     const t = setTimeout(async () => {
       try {
         const res = await api.estimate(token, {
-          pickup_city: form.pickup_city, dropoff_city: form.dropoff_city, preferred_vehicle: form.preferred_vehicle,
+          pickup_city: form.pickup_city,
+          dropoff_city: form.dropoff_city,
+          preferred_vehicle: form.preferred_vehicle,
+          // Only send addresses once they're reasonably complete — avoids
+          // geocoding "1" or "12 A" while the person is still typing.
+          pickup_address: form.pickup_address.trim().length > 5 ? form.pickup_address : undefined,
+          dropoff_address: form.dropoff_address.trim().length > 5 ? form.dropoff_address : undefined,
         });
         setEstimate(res.price);
+        setEstimateDistance(res.distanceKm);
       } catch {
         setEstimate(null);
+        setEstimateDistance(null);
       }
-    }, 300);
+    }, 500);
     return () => clearTimeout(t);
-  }, [form.pickup_city, form.dropoff_city, form.preferred_vehicle, token]);
+  }, [form.pickup_city, form.dropoff_city, form.pickup_address, form.dropoff_address, form.preferred_vehicle, token]);
 
   function update(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -80,6 +89,7 @@ export default function CustomerDashboard() {
       // button stuck in a loading state.
       setForm(emptyForm);
       setEstimate(null);
+      setEstimateDistance(null);
       await loadDeliveries();
     } catch (err) {
       setError(err.message);
@@ -167,7 +177,12 @@ export default function CustomerDashboard() {
 
           {estimate !== null && (
             <div className="flex items-center justify-between bg-paper border border-slate-200 rounded-lg px-4 py-3 mb-4">
-              <span className="text-sm text-slate">Estimated price</span>
+              <div>
+                <span className="text-sm text-slate">Estimated price</span>
+                {estimateDistance !== null && (
+                  <div className="text-xs text-slate">≈ {estimateDistance} km driving distance</div>
+                )}
+              </div>
               <span className="font-mono font-semibold text-lg">₦{estimate.toLocaleString()}</span>
             </div>
           )}
@@ -194,7 +209,10 @@ export default function CustomerDashboard() {
                   <div className="flex items-start justify-between mb-2">
                     <div>
                       <div className="font-mono text-xs text-slate mb-1">{d.tracking_code}</div>
-                      <div className="font-semibold text-sm">{d.package_type} · {d.pickup_city} → {d.dropoff_city}</div>
+                      <div className="font-semibold text-sm">
+                        {d.package_type} · {d.pickup_city} → {d.dropoff_city}
+                        {d.distance_km && <span className="text-slate font-normal"> · {d.distance_km} km</span>}
+                      </div>
                     </div>
                     <div className="flex flex-col items-end gap-1.5">
                       <StatusBadge status={d.status} />

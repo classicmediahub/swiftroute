@@ -75,6 +75,7 @@ async function initSchema() {
   // bring older databases up to date without touching existing data.
   await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'unpaid';`);
   await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS paystack_reference TEXT;`);
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS distance_km REAL;`);
   await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS deliveries_paystack_reference_idx
     ON deliveries(paystack_reference) WHERE paystack_reference IS NOT NULL;
@@ -86,6 +87,18 @@ async function initSchema() {
       delivery_id TEXT NOT NULL REFERENCES deliveries(id) ON DELETE CASCADE,
       status TEXT NOT NULL,
       note TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS reviews (
+      id TEXT PRIMARY KEY,
+      delivery_id TEXT NOT NULL UNIQUE REFERENCES deliveries(id) ON DELETE CASCADE,
+      customer_id TEXT NOT NULL REFERENCES users(id),
+      agent_id TEXT NOT NULL REFERENCES users(id),
+      rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+      comment TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);

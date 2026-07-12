@@ -123,7 +123,10 @@ export default function AgentDashboard() {
                   <div key={d.id} className="border border-slate-200 rounded-xl p-4 bg-white flex items-start justify-between gap-4">
                     <div>
                       <div className="font-mono text-xs text-slate mb-1">{d.tracking_code}</div>
-                      <div className="font-semibold text-sm mb-1">{d.package_type} · {d.pickup_city} → {d.dropoff_city}</div>
+                      <div className="font-semibold text-sm mb-1">
+                        {d.package_type} · {d.pickup_city} → {d.dropoff_city}
+                        {d.distance_km && <span className="text-slate font-normal"> · {d.distance_km} km</span>}
+                      </div>
                       <div className="text-xs text-slate space-y-0.5">
                         <div>Pickup: {d.pickup_address}</div>
                         <div>Drop-off: {d.dropoff_address}</div>
@@ -153,7 +156,10 @@ export default function AgentDashboard() {
                   <div className="flex items-start justify-between mb-2">
                     <div>
                       <div className="font-mono text-xs text-slate mb-1">{d.tracking_code}</div>
-                      <div className="font-semibold text-sm">{d.package_type} · {d.pickup_city} → {d.dropoff_city}</div>
+                      <div className="font-semibold text-sm">
+                      {d.package_type} · {d.pickup_city} → {d.dropoff_city}
+                      {d.distance_km && <span className="text-slate font-normal"> · {d.distance_km} km</span>}
+                    </div>
                     </div>
                     <StatusBadge status={d.status} />
                   </div>

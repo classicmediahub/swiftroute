@@ -1,6 +1,6 @@
 const express = require("express");
 const { pool } = require("../db");
-const { estimatePrice } = require("../pricing");
+const { getQuote } = require("../quote");
 
 const router = express.Router();
 
@@ -32,13 +32,13 @@ router.get("/stats", async (req, res) => {
 });
 
 // ---------- PRICE ESTIMATE (landing page calculator — no login required) ----------
-router.post("/estimate", (req, res) => {
+router.post("/estimate", async (req, res) => {
   const { pickup_city, dropoff_city, preferred_vehicle } = req.body;
   if (!pickup_city || !dropoff_city) {
     return res.status(400).json({ error: "pickup_city and dropoff_city are required" });
   }
-  const price = estimatePrice({ pickup_city, dropoff_city, vehicle_type: preferred_vehicle || "any" });
-  res.json({ price });
+  const quote = await getQuote({ pickup_city, dropoff_city, vehicle_type: preferred_vehicle || "any" });
+  res.json(quote);
 });
 
 // ---------- TRACK A DELIVERY BY CODE (no login required — the tracking
@@ -62,6 +62,25 @@ router.get("/track/:code", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong looking up this delivery" });
+  }
+});
+
+// ---------- RECENT CUSTOMER REVIEWS (for the landing page — only real,
+// commented reviews are shown; nothing fabricated) ----------
+router.get("/reviews", async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT r.rating, r.comment, r.created_at, c.full_name AS customer_name
+      FROM reviews r
+      JOIN users c ON c.id = r.customer_id
+      WHERE r.comment IS NOT NULL AND r.comment != ''
+      ORDER BY r.created_at DESC
+      LIMIT 6
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong loading reviews" });
   }
 });
 

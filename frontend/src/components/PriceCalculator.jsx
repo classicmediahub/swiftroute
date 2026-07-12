@@ -15,6 +15,7 @@ export default function PriceCalculator() {
   const [dropoff, setDropoff] = useState("Lagos");
   const [vehicle, setVehicle] = useState("any");
   const [price, setPrice] = useState(null);
+  const [distanceKm, setDistanceKm] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -22,8 +23,14 @@ export default function PriceCalculator() {
     const t = setTimeout(() => {
       api
         .publicEstimate({ pickup_city: pickup, dropoff_city: dropoff, preferred_vehicle: vehicle })
-        .then((res) => setPrice(res.price))
-        .catch(() => setPrice(null))
+        .then((res) => {
+          setPrice(res.price);
+          setDistanceKm(res.distanceKm);
+        })
+        .catch(() => {
+          setPrice(null);
+          setDistanceKm(null);
+        })
         .finally(() => setLoading(false));
     }, 250);
     return () => clearTimeout(t);
@@ -58,6 +65,9 @@ export default function PriceCalculator() {
           <div className="font-mono font-semibold text-2xl">
             {loading ? "…" : price !== null ? `₦${price.toLocaleString()}` : "—"}
           </div>
+          {!loading && distanceKm !== null && (
+            <div className="text-xs text-slate mt-1">≈ {distanceKm} km driving distance</div>
+          )}
         </div>
         <Link
           to="/signup/customer"
@@ -66,7 +76,11 @@ export default function PriceCalculator() {
           Book this delivery
         </Link>
       </div>
-      <p className="text-xs text-slate mt-3">Final price is confirmed at checkout based on your exact pickup and drop-off details.</p>
+      <p className="text-xs text-slate mt-3">
+        {distanceKm !== null
+          ? "Price is based on real driving distance between city centers. Your final price uses your exact pickup and drop-off addresses."
+          : "Final price is confirmed at checkout based on your exact pickup and drop-off details."}
+      </p>
     </div>
   );
 }
