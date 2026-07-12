@@ -64,11 +64,13 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
         id, customer_id, package_type, package_note,
         pickup_address, pickup_city, dropoff_address, dropoff_city,
         recipient_name, recipient_phone, preferred_vehicle, price, tracking_code,
-        payment_status, paystack_reference, distance_km
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'unpaid',$14,$15)`,
+        payment_status, paystack_reference, distance_km,
+        pickup_lat, pickup_lng, dropoff_lat, dropoff_lng
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'unpaid',$14,$15,$16,$17,$18,$19)`,
       [id, req.user.id, package_type, package_note || null,
        pickup_address, pickup_city, dropoff_address, dropoff_city,
-       recipient_name, recipient_phone, vehicle, price, code, reference, quote.distanceKm]
+       recipient_name, recipient_phone, vehicle, price, code, reference, quote.distanceKm,
+       quote.origin?.lat ?? null, quote.origin?.lng ?? null, quote.destination?.lat ?? null, quote.destination?.lng ?? null]
     );
 
     await logEvent(id, "pending", "Delivery request created — awaiting payment");
@@ -158,6 +160,36 @@ router.get("/verify/:reference", requireAuth, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong verifying payment" });
+  }
+});
+
+// ---------- UPDATE LIVE LOCATION (agent, own delivery, active states only) ----------
+const ACTIVE_STATUSES = ["accepted", "picked_up", "in_transit"];
+
+router.patch("/:id/location", requireAuth, requireRole("agent"), async (req, res) => {
+  try {
+    const lat = Number(req.body.lat);
+    const lng = Number(req.body.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return res.status(400).json({ error: "Invalid coordinates" });
+    }
+
+    const { rows } = await pool.query("SELECT * FROM deliveries WHERE id = $1", [req.params.id]);
+    const delivery = rows[0];
+    if (!delivery) return res.status(404).json({ error: "Delivery not found" });
+    if (delivery.agent_id !== req.user.id) return res.status(403).json({ error: "Not your delivery" });
+    if (!ACTIVE_STATUSES.includes(delivery.status)) {
+      return res.status(409).json({ error: "Location can only be shared on an active delivery" });
+    }
+
+    await pool.query(
+      "UPDATE deliveries SET current_lat = $1, current_lng = $2, location_updated_at = now() WHERE id = $3",
+      [lat, lng, delivery.id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong updating location" });
   }
 });
 

@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import StatusBadge from "../components/StatusBadge";
+import { lazy, Suspense } from "react";
+const DeliveryMap = lazy(() => import("../components/DeliveryMap"));
 
 const STAGE_ORDER = ["pending", "accepted", "picked_up", "in_transit", "delivered"];
 const STAGE_LABELS = {
@@ -11,6 +13,7 @@ const STAGE_LABELS = {
   in_transit: "In transit",
   delivered: "Delivered",
 };
+const ACTIVE_STATUSES = ["accepted", "picked_up", "in_transit"];
 
 export default function TrackPublic() {
   const [params] = useSearchParams();
@@ -19,24 +22,39 @@ export default function TrackPublic() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const runTrack = useCallback(async (trackCode, { silent } = {}) => {
+    if (!trackCode.trim()) return;
+    if (!silent) {
+      setError("");
+      setLoading(true);
+      setResult(null);
+    }
+    try {
+      const data = await api.publicTrack(trackCode.trim().toUpperCase());
+      setResult(data);
+      if (!silent) setError("");
+    } catch (err) {
+      if (!silent) setError(err.message);
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, []);
+
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!code.trim()) return;
-    setError("");
-    setLoading(true);
-    setResult(null);
-    try {
-      const data = await api.publicTrack(code.trim().toUpperCase());
-      setResult(data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    runTrack(code);
   }
 
   const delivery = result?.delivery;
   const currentStageIndex = delivery ? STAGE_ORDER.indexOf(delivery.status) : -1;
+  const isActive = delivery && ACTIVE_STATUSES.includes(delivery.status);
+
+  // Keep the map and status fresh while the delivery is actively moving.
+  useEffect(() => {
+    if (!isActive) return;
+    const t = setInterval(() => runTrack(code, { silent: true }), 8000);
+    return () => clearInterval(t);
+  }, [isActive, code, runTrack]);
 
   return (
     <div className="max-w-xl mx-auto px-5 py-16">
@@ -72,24 +90,44 @@ export default function TrackPublic() {
           {delivery.status === "cancelled" ? (
             <p className="text-sm text-slate">This delivery was cancelled.</p>
           ) : (
-            <div className="space-y-0">
-              {STAGE_ORDER.map((stage, i) => {
-                const done = i <= currentStageIndex;
-                return (
-                  <div key={stage} className="flex gap-4">
-                    <div className="flex flex-col items-center">
-                      <div className={`w-3.5 h-3.5 rounded-full border-2 ${done ? "bg-delivered border-delivered" : "border-slate-300"}`} />
-                      {i < STAGE_ORDER.length - 1 && (
-                        <div className={`w-0.5 h-8 ${done && i < currentStageIndex ? "bg-delivered" : "bg-slate-200"}`} />
-                      )}
+            <>
+              <div className="space-y-0 mb-2">
+                {STAGE_ORDER.map((stage, i) => {
+                  const done = i <= currentStageIndex;
+                  return (
+                    <div key={stage} className="flex gap-4">
+                      <div className="flex flex-col items-center">
+                        <div className={`w-3.5 h-3.5 rounded-full border-2 ${done ? "bg-delivered border-delivered" : "border-slate-300"}`} />
+                        {i < STAGE_ORDER.length - 1 && (
+                          <div className={`w-0.5 h-8 ${done && i < currentStageIndex ? "bg-delivered" : "bg-slate-200"}`} />
+                        )}
+                      </div>
+                      <div className="pb-6 -mt-0.5">
+                        <div className={`text-sm font-medium ${done ? "text-ink" : "text-slate-light"}`}>{STAGE_LABELS[stage]}</div>
+                      </div>
                     </div>
-                    <div className="pb-6 -mt-0.5">
-                      <div className={`text-sm font-medium ${done ? "text-ink" : "text-slate-light"}`}>{STAGE_LABELS[stage]}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+
+              {isActive && (
+                <div className="mt-2">
+                  <Suspense fallback={<div style={{ height: 260 }} className="rounded-xl bg-paper border border-slate-200 animate-pulse" />}>
+                    <DeliveryMap
+                      height={260}
+                      pickup={delivery.pickup_lat != null ? { lat: delivery.pickup_lat, lng: delivery.pickup_lng } : null}
+                      dropoff={delivery.dropoff_lat != null ? { lat: delivery.dropoff_lat, lng: delivery.dropoff_lng } : null}
+                      current={delivery.current_lat != null ? { lat: delivery.current_lat, lng: delivery.current_lng } : null}
+                    />
+                  </Suspense>
+                  {delivery.current_lat != null && (
+                    <p className="text-xs text-slate mt-1.5">
+                      Agent location last updated {new Date(delivery.location_updated_at).toLocaleTimeString()}
+                    </p>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

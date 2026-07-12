@@ -22,6 +22,8 @@ async function getQuote({ pickup_address, pickup_city, dropoff_address, dropoff_
             price: priceFromDistance({ distanceKm, vehicle_type: vehicle }),
             distanceKm: Math.round(distanceKm * 10) / 10,
             method: "distance",
+            origin,
+            destination,
           };
         }
       }
@@ -34,6 +36,8 @@ async function getQuote({ pickup_address, pickup_city, dropoff_address, dropoff_
     price: estimatePrice({ pickup_city, dropoff_city, vehicle_type: vehicle }),
     distanceKm: null,
     method: "flat",
+    origin: null,
+    destination: null,
   };
 }
 

@@ -5,6 +5,8 @@ import StatusBadge from "../components/StatusBadge";
 import { Field, inputClass } from "../components/AuthLayout";
 import StarRating from "../components/StarRating";
 import ReviewForm from "../components/ReviewForm";
+import { lazy, Suspense } from "react";
+const DeliveryMap = lazy(() => import("../components/DeliveryMap"));
 
 const CITIES = ["Lagos", "Ogun", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City"];
 const PACKAGE_TYPES = ["Documents", "Small parcel", "Food", "Electronics", "Fragile item", "Other"];
@@ -45,6 +47,16 @@ export default function CustomerDashboard() {
   }, [token]);
 
   useEffect(() => { loadDeliveries(); }, [loadDeliveries]);
+
+  // Poll for updates while at least one delivery is actively moving, so the
+  // agent's live position and status stay reasonably fresh without the
+  // customer needing to manually refresh.
+  useEffect(() => {
+    const hasActive = deliveries.some((d) => ["accepted", "picked_up", "in_transit"].includes(d.status));
+    if (!hasActive) return;
+    const t = setInterval(loadDeliveries, 8000);
+    return () => clearInterval(t);
+  }, [deliveries, loadDeliveries]);
 
   useEffect(() => {
     if (!form.pickup_city || !form.dropoff_city) return;
@@ -224,6 +236,24 @@ export default function CustomerDashboard() {
                     <div>Drop-off: {d.dropoff_address} · to {d.recipient_name}</div>
                     {d.agent_name && <div>Agent: {d.agent_name} · {d.agent_phone}</div>}
                   </div>
+
+                  {["accepted", "picked_up", "in_transit"].includes(d.status) && (
+                    <div className="mb-3">
+                      <Suspense fallback={<div style={{ height: 220 }} className="rounded-xl bg-paper border border-slate-200 animate-pulse" />}>
+                        <DeliveryMap
+                          height={220}
+                          pickup={d.pickup_lat != null ? { lat: d.pickup_lat, lng: d.pickup_lng } : null}
+                          dropoff={d.dropoff_lat != null ? { lat: d.dropoff_lat, lng: d.dropoff_lng } : null}
+                          current={d.current_lat != null ? { lat: d.current_lat, lng: d.current_lng } : null}
+                        />
+                      </Suspense>
+                      {d.current_lat != null && (
+                        <p className="text-xs text-slate mt-1.5">
+                          Agent location last updated {new Date(d.location_updated_at).toLocaleTimeString()}
+                        </p>
+                      )}
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-sm font-semibold">₦{d.price.toLocaleString()}</span>
                     <div className="flex items-center gap-3">

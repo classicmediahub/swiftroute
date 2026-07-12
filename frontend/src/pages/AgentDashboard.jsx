@@ -3,6 +3,7 @@ import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import StatusBadge from "../components/StatusBadge";
 import StarRating from "../components/StarRating";
+import ShareLocationToggle from "../components/ShareLocationToggle";
 
 const NEXT_LABEL = {
   accepted: "Mark picked up",
@@ -179,6 +180,13 @@ export default function AgentDashboard() {
                         {busyId === d.id ? "Updating…" : NEXT_LABEL[d.status]}
                       </button>
                     )}
+                  </div>
+                  <div className="border-t border-slate-100 mt-3 pt-3">
+                    <ShareLocationToggle
+                      deliveryId={d.id}
+                      token={token}
+                      active={["accepted", "picked_up", "in_transit"].includes(d.status)}
+                    />
                   </div>
                 </div>
               ))}
