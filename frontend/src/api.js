@@ -32,6 +32,7 @@ export const api = {
 
   estimate: (token, payload) => request("/deliveries/estimate", { method: "POST", body: payload, token }),
   createDelivery: (token, payload) => request("/deliveries", { method: "POST", body: payload, token }),
+  bulkCreateDeliveries: (token, deliveries) => request("/deliveries/bulk", { method: "POST", body: { deliveries }, token }),
   myDeliveries: (token) => request("/deliveries/mine", { token }),
   cancelDelivery: (token, id) => request(`/deliveries/${id}/cancel`, { method: "PATCH", token }),
   trackDelivery: (token, code) => request(`/deliveries/track/${code}`, { token }),

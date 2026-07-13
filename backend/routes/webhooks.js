@@ -29,15 +29,10 @@ router.post("/paystack", async (req, res) => {
   if (event.event === "charge.success") {
     const reference = event.data && event.data.reference;
     try {
-      const { rows } = await pool.query("SELECT * FROM deliveries WHERE paystack_reference = $1", [reference]);
-      const delivery = rows[0];
-      if (delivery && delivery.payment_status !== "paid") {
-        await pool.query("UPDATE deliveries SET payment_status = 'paid' WHERE id = $1", [delivery.id]);
-        await pool.query(
-          `INSERT INTO delivery_events (id, delivery_id, status, note) VALUES ($1, $2, $3, $4)`,
-          [uuidv4(), delivery.id, "payment_confirmed", "Payment confirmed via Paystack webhook"]
-        );
-        notifyCustomer(delivery, "payment_confirmed"); // fire-and-forget
+      if (reference && reference.startsWith("PAEWALLET-")) {
+        await confirmWalletTopup(reference);
+      } else {
+        await confirmDeliveryPayment(reference);
       }
     } catch (err) {
       console.error("Paystack webhook processing error:", err);
@@ -48,5 +43,39 @@ router.post("/paystack", async (req, res) => {
 
   res.sendStatus(200);
 });
+
+async function confirmDeliveryPayment(reference) {
+  const { rows } = await pool.query("SELECT * FROM deliveries WHERE paystack_reference = $1", [reference]);
+  const delivery = rows[0];
+  if (delivery && delivery.payment_status !== "paid") {
+    await pool.query("UPDATE deliveries SET payment_status = 'paid' WHERE id = $1", [delivery.id]);
+    await pool.query(
+      `INSERT INTO delivery_events (id, delivery_id, status, note) VALUES ($1, $2, $3, $4)`,
+      [uuidv4(), delivery.id, "payment_confirmed", "Payment confirmed via Paystack webhook"]
+    );
+    notifyCustomer(delivery, "payment_confirmed"); // fire-and-forget
+  }
+}
+
+async function confirmWalletTopup(reference) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { rows } = await client.query("SELECT * FROM wallet_transactions WHERE reference = $1 FOR UPDATE", [reference]);
+    const txn = rows[0];
+    if (txn && txn.status === "pending") {
+      const { rows: userRows } = await client.query("SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE", [txn.user_id]);
+      const newBalance = Number(userRows[0].wallet_balance) + Number(txn.amount);
+      await client.query("UPDATE users SET wallet_balance = $1 WHERE id = $2", [newBalance, txn.user_id]);
+      await client.query("UPDATE wallet_transactions SET status = 'success', balance_after = $1 WHERE id = $2", [newBalance, txn.id]);
+    }
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+}
 
 module.exports = router;

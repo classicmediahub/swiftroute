@@ -16,18 +16,24 @@ function signToken(user) {
 }
 
 function publicUser(u) {
-  return { id: u.id, role: u.role, full_name: u.full_name, email: u.email, phone: u.phone, status: u.status };
+  return {
+    id: u.id, role: u.role, full_name: u.full_name, email: u.email, phone: u.phone, status: u.status,
+    account_type: u.account_type, company_name: u.company_name,
+  };
 }
 
 // ---------- CUSTOMER SIGNUP ----------
 router.post("/signup/customer", async (req, res) => {
   try {
-    const { full_name, email, phone, password } = req.body;
+    const { full_name, email, phone, password, is_business, company_name } = req.body;
     if (!full_name || !email || !phone || !password) {
       return res.status(400).json({ error: "All fields are required" });
     }
     if (password.length < 6) {
       return res.status(400).json({ error: "Password must be at least 6 characters" });
+    }
+    if (is_business && !company_name) {
+      return res.status(400).json({ error: "Company name is required for a business account" });
     }
 
     const existing = await pool.query("SELECT id FROM users WHERE email = $1", [email.toLowerCase()]);
@@ -35,9 +41,11 @@ router.post("/signup/customer", async (req, res) => {
 
     const id = uuidv4();
     const hash = bcrypt.hashSync(password, 10);
+    const accountType = is_business ? "business" : "individual";
     await pool.query(
-      `INSERT INTO users (id, role, full_name, email, phone, password_hash) VALUES ($1, 'customer', $2, $3, $4, $5)`,
-      [id, full_name, email.toLowerCase(), phone, hash]
+      `INSERT INTO users (id, role, full_name, email, phone, password_hash, account_type, company_name)
+       VALUES ($1, 'customer', $2, $3, $4, $5, $6, $7)`,
+      [id, full_name, email.toLowerCase(), phone, hash, accountType, is_business ? company_name : null]
     );
 
     const { rows } = await pool.query("SELECT * FROM users WHERE id = $1", [id]);

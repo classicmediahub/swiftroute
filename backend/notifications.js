@@ -1,5 +1,5 @@
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const RESEND_FROM = process.env.RESEND_FROM_EMAIL || "SwiftRoute <onboarding@resend.dev>";
+const RESEND_FROM = process.env.RESEND_FROM_EMAIL || "PickAndEarn <onboarding@resend.dev>";
 
 const TERMII_API_KEY = process.env.TERMII_API_KEY;
 const TERMII_SENDER_ID = process.env.TERMII_SENDER_ID || "Termii";

@@ -109,6 +109,28 @@ async function initSchema() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
+
+  // Wallet: lets customers top up a balance and pay for deliveries
+  // instantly instead of going through Paystack checkout every time.
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_balance REAL NOT NULL DEFAULT 0;`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS account_type TEXT NOT NULL DEFAULT 'individual';`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS company_name TEXT;`);
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS payment_method TEXT NOT NULL DEFAULT 'paystack';`);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS wallet_transactions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      type TEXT NOT NULL CHECK (type IN ('topup','delivery_payment','refund')),
+      amount REAL NOT NULL, -- positive for topup/refund, negative for delivery_payment
+      balance_after REAL NOT NULL,
+      status TEXT NOT NULL DEFAULT 'success' CHECK (status IN ('pending','success','failed')),
+      reference TEXT UNIQUE, -- Paystack reference, only set for topups
+      delivery_id TEXT REFERENCES deliveries(id),
+      note TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
 }
 
 module.exports = { pool, initSchema };

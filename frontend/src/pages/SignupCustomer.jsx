@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import AuthLayout, { Field, inputClass } from "../components/AuthLayout";
 
 export default function SignupCustomer() {
-  const [form, setForm] = useState({ full_name: "", email: "", phone: "", password: "" });
+  const [form, setForm] = useState({ full_name: "", email: "", phone: "", password: "", is_business: false, company_name: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -45,6 +45,25 @@ export default function SignupCustomer() {
         <Field label="Password">
           <input required type="password" minLength={6} className={inputClass} value={form.password} onChange={(e) => update("password", e.target.value)} placeholder="At least 6 characters" />
         </Field>
+
+        <label className="flex items-start gap-2.5 mb-4 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.is_business}
+            onChange={(e) => update("is_business", e.target.checked)}
+            className="mt-0.5"
+          />
+          <span className="text-sm text-ink">
+            I'm signing up as a business
+            <span className="block text-xs text-slate">Unlocks bulk delivery uploads, invoices, and spend reports.</span>
+          </span>
+        </label>
+
+        {form.is_business && (
+          <Field label="Company name">
+            <input required className={inputClass} value={form.company_name} onChange={(e) => update("company_name", e.target.value)} placeholder="Obi Trading Co" />
+          </Field>
+        )}
 
         {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 

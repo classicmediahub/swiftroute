@@ -41,7 +41,7 @@ function priceFromDistance({ distanceKm, vehicle_type }) {
 
 function trackingCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "SR-";
+  let code = "PAE-";
   for (let i = 0; i < 7; i++) code += chars[Math.floor(Math.random() * chars.length)];
   return code;
 }

@@ -6,6 +6,9 @@ import { Field, inputClass } from "../components/AuthLayout";
 import StarRating from "../components/StarRating";
 import ReviewForm from "../components/ReviewForm";
 import WalletPanel from "../components/WalletPanel";
+import BulkUpload from "../components/BulkUpload";
+import Invoices from "../components/Invoices";
+import Reports from "../components/Reports";
 import { lazy, Suspense } from "react";
 const DeliveryMap = lazy(() => import("../components/DeliveryMap"));
 
@@ -27,7 +30,10 @@ const emptyForm = {
 };
 
 export default function CustomerDashboard() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const isBusiness = user?.account_type === "business";
+  const [tab, setTab] = useState("send");
+
   const [form, setForm] = useState(emptyForm);
   const [estimate, setEstimate] = useState(null);
   const [estimateDistance, setEstimateDistance] = useState(null);
@@ -37,9 +43,11 @@ export default function CustomerDashboard() {
   const [submitting, setSubmitting] = useState(false);
   const [loadingList, setLoadingList] = useState(true);
 
-  useEffect(() => {
+  const refreshWallet = useCallback(() => {
     api.getWallet(token).then((w) => setWalletBalance(w.balance)).catch(() => {});
   }, [token]);
+
+  useEffect(() => { refreshWallet(); }, [refreshWallet]);
 
   const loadDeliveries = useCallback(async () => {
     try {
@@ -108,8 +116,7 @@ export default function CustomerDashboard() {
       setEstimate(null);
       setEstimateDistance(null);
       await loadDeliveries();
-      const w = await api.getWallet(token);
-      setWalletBalance(w.balance);
+      refreshWallet();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -130,19 +137,16 @@ export default function CustomerDashboard() {
     try {
       await api.cancelDelivery(token, id);
       await loadDeliveries();
+      refreshWallet();
     } catch (err) {
       alert(err.message);
     }
   }
 
-  return (
-    <div className="max-w-6xl mx-auto px-5 py-10">
-      <div className="font-mono text-xs text-slate mb-2">CUSTOMER DASHBOARD</div>
-      <h1 className="font-display text-3xl font-semibold mb-8">Send a new delivery</h1>
-
-      <div className="grid lg:grid-cols-5 gap-8">
-        <div className="lg:col-span-2">
-          <WalletPanel token={token} />
+  const sendDeliveryView = (
+    <div className="grid lg:grid-cols-5 gap-8">
+      <div className="lg:col-span-2">
+        <WalletPanel token={token} />
         <form onSubmit={handleSubmit} className="border border-slate-200 rounded-2xl p-6 bg-white h-fit">
           <Field label="What are you sending?">
             <select className={inputClass} value={form.package_type} onChange={(e) => update("package_type", e.target.value)}>
@@ -240,88 +244,130 @@ export default function CustomerDashboard() {
             {submitting ? "Redirecting to payment…" : form.payment_method === "wallet" ? "Pay from wallet" : "Continue to payment"}
           </button>
         </form>
-        </div>
-
-        <div className="lg:col-span-3">
-          <h2 className="font-display text-lg font-semibold mb-4">Your deliveries</h2>
-          {loadingList ? (
-            <p className="text-sm text-slate">Loading…</p>
-          ) : deliveries.length === 0 ? (
-            <div className="border border-dashed border-slate-300 rounded-2xl p-8 text-center text-slate text-sm">
-              No deliveries yet. Post your first one on the left.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {deliveries.map((d) => (
-                <div key={d.id} className="border border-slate-200 rounded-xl p-4 bg-white">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <div className="font-mono text-xs text-slate mb-1">{d.tracking_code}</div>
-                      <div className="font-semibold text-sm">
-                        {d.package_type} · {d.pickup_city} → {d.dropoff_city}
-                        {d.distance_km && <span className="text-slate font-normal"> · {d.distance_km} km</span>}
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1.5">
-                      <StatusBadge status={d.status} />
-                      {d.payment_status !== "paid" && <StatusBadge status={d.payment_status} />}
-                    </div>
-                  </div>
-                  <div className="text-xs text-slate space-y-0.5 mb-2">
-                    <div>Pickup: {d.pickup_address}</div>
-                    <div>Drop-off: {d.dropoff_address} · to {d.recipient_name}</div>
-                    {d.agent_name && <div>Agent: {d.agent_name} · {d.agent_phone}</div>}
-                  </div>
-
-                  {["accepted", "picked_up", "in_transit"].includes(d.status) && (
-                    <div className="mb-3">
-                      <Suspense fallback={<div style={{ height: 220 }} className="rounded-xl bg-paper border border-slate-200 animate-pulse" />}>
-                        <DeliveryMap
-                          height={220}
-                          pickup={d.pickup_lat != null ? { lat: d.pickup_lat, lng: d.pickup_lng } : null}
-                          dropoff={d.dropoff_lat != null ? { lat: d.dropoff_lat, lng: d.dropoff_lng } : null}
-                          current={d.current_lat != null ? { lat: d.current_lat, lng: d.current_lng } : null}
-                        />
-                      </Suspense>
-                      {d.current_lat != null && (
-                        <p className="text-xs text-slate mt-1.5">
-                          Agent location last updated {new Date(d.location_updated_at).toLocaleTimeString()}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-sm font-semibold">₦{d.price.toLocaleString()}</span>
-                    <div className="flex items-center gap-3">
-                      {["unpaid", "failed"].includes(d.payment_status) && d.status !== "cancelled" && (
-                        <button onClick={() => handleRetryPayment(d.id)} className="text-xs bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-3 py-1.5 transition-colors">
-                          Complete payment
-                        </button>
-                      )}
-                      {["pending", "accepted"].includes(d.status) && (
-                        <button onClick={() => handleCancel(d.id)} className="text-xs text-red-600 font-medium hover:underline">
-                          Cancel
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {d.status === "delivered" && (
-                    d.review_rating ? (
-                      <div className="border-t border-slate-100 mt-3 pt-3 flex items-center gap-2">
-                        <StarRating value={d.review_rating} readOnly size={16} />
-                        {d.review_comment && <span className="text-xs text-slate">"{d.review_comment}"</span>}
-                      </div>
-                    ) : (
-                      <ReviewForm deliveryId={d.id} token={token} onSubmitted={loadDeliveries} />
-                    )
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
+
+      <div className="lg:col-span-3">
+        <h2 className="font-display text-lg font-semibold mb-4">Your deliveries</h2>
+        {loadingList ? (
+          <p className="text-sm text-slate">Loading…</p>
+        ) : deliveries.length === 0 ? (
+          <div className="border border-dashed border-slate-300 rounded-2xl p-8 text-center text-slate text-sm">
+            No deliveries yet. Post your first one on the left.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {deliveries.map((d) => (
+              <div key={d.id} className="border border-slate-200 rounded-xl p-4 bg-white">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <div className="font-mono text-xs text-slate mb-1">{d.tracking_code}</div>
+                    <div className="font-semibold text-sm">
+                      {d.package_type} · {d.pickup_city} → {d.dropoff_city}
+                      {d.distance_km && <span className="text-slate font-normal"> · {d.distance_km} km</span>}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1.5">
+                    <StatusBadge status={d.status} />
+                    {d.payment_status !== "paid" && <StatusBadge status={d.payment_status} />}
+                  </div>
+                </div>
+                <div className="text-xs text-slate space-y-0.5 mb-2">
+                  <div>Pickup: {d.pickup_address}</div>
+                  <div>Drop-off: {d.dropoff_address} · to {d.recipient_name}</div>
+                  {d.agent_name && <div>Agent: {d.agent_name} · {d.agent_phone}</div>}
+                </div>
+
+                {["accepted", "picked_up", "in_transit"].includes(d.status) && (
+                  <div className="mb-3">
+                    <Suspense fallback={<div style={{ height: 220 }} className="rounded-xl bg-paper border border-slate-200 animate-pulse" />}>
+                      <DeliveryMap
+                        height={220}
+                        pickup={d.pickup_lat != null ? { lat: d.pickup_lat, lng: d.pickup_lng } : null}
+                        dropoff={d.dropoff_lat != null ? { lat: d.dropoff_lat, lng: d.dropoff_lng } : null}
+                        current={d.current_lat != null ? { lat: d.current_lat, lng: d.current_lng } : null}
+                      />
+                    </Suspense>
+                    {d.current_lat != null && (
+                      <p className="text-xs text-slate mt-1.5">
+                        Agent location last updated {new Date(d.location_updated_at).toLocaleTimeString()}
+                      </p>
+                    )}
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-sm font-semibold">₦{d.price.toLocaleString()}</span>
+                  <div className="flex items-center gap-3">
+                    {["unpaid", "failed"].includes(d.payment_status) && d.status !== "cancelled" && (
+                      <button onClick={() => handleRetryPayment(d.id)} className="text-xs bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-3 py-1.5 transition-colors">
+                        Complete payment
+                      </button>
+                    )}
+                    {["pending", "accepted"].includes(d.status) && (
+                      <button onClick={() => handleCancel(d.id)} className="text-xs text-red-600 font-medium hover:underline">
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {d.status === "delivered" && (
+                  d.review_rating ? (
+                    <div className="border-t border-slate-100 mt-3 pt-3 flex items-center gap-2">
+                      <StarRating value={d.review_rating} readOnly size={16} />
+                      {d.review_comment && <span className="text-xs text-slate">"{d.review_comment}"</span>}
+                    </div>
+                  ) : (
+                    <ReviewForm deliveryId={d.id} token={token} onSubmitted={loadDeliveries} />
+                  )
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="max-w-6xl mx-auto px-5 py-10">
+      <div className="font-mono text-xs text-slate mb-2">
+        {isBusiness ? `BUSINESS DASHBOARD · ${user.company_name}` : "CUSTOMER DASHBOARD"}
+      </div>
+      <h1 className="font-display text-3xl font-semibold mb-8">
+        {tab === "send" ? "Send a new delivery" : tab === "bulk" ? "Bulk upload" : tab === "invoices" ? "Invoices" : "Reports"}
+      </h1>
+
+      {isBusiness && (
+        <div className="flex gap-2 mb-8 border-b border-slate-200">
+          {[
+            { id: "send", label: "Send a delivery" },
+            { id: "bulk", label: "Bulk upload" },
+            { id: "invoices", label: "Invoices" },
+            { id: "reports", label: "Reports" },
+          ].map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                tab === t.id ? "border-ink text-ink" : "border-transparent text-slate hover:text-ink"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {tab === "send" && sendDeliveryView}
+      {tab === "bulk" && isBusiness && (
+        <BulkUpload
+          token={token}
+          walletBalance={walletBalance}
+          onComplete={() => { loadDeliveries(); refreshWallet(); }}
+        />
+      )}
+      {tab === "invoices" && isBusiness && <Invoices deliveries={deliveries} />}
+      {tab === "reports" && isBusiness && <Reports deliveries={deliveries} />}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 {
-  "name": "swiftroute-backend",
+  "name": "pickandearn-backend",
   "version": "1.0.0",
-  "description": "SwiftRoute logistics & delivery platform API",
+  "description": "PickAndEarn logistics & delivery platform API",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {

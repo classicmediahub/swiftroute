@@ -4,32 +4,32 @@ const { sendEmail, sendSMS } = require("./notifications");
 const MESSAGES = {
   payment_confirmed: {
     subject: (d) => `Payment received — ${d.tracking_code}`,
-    sms: (d) => `SwiftRoute: Payment received for ${d.tracking_code}. We're finding you an agent now.`,
+    sms: (d) => `PickAndEarn: Payment received for ${d.tracking_code}. We're finding you an agent now.`,
     html: (d) => `<p>We've received payment for your delivery <strong>${d.tracking_code}</strong> (${d.pickup_city} → ${d.dropoff_city}). We're matching you with a nearby agent now.</p>`,
   },
   accepted: {
     subject: (d) => `Agent assigned — ${d.tracking_code}`,
-    sms: (d) => `SwiftRoute: An agent has been assigned to ${d.tracking_code} and is heading to pickup.`,
+    sms: (d) => `PickAndEarn: An agent has been assigned to ${d.tracking_code} and is heading to pickup.`,
     html: (d) => `<p>Good news — an agent has accepted your delivery <strong>${d.tracking_code}</strong> and is on the way to pickup.</p>`,
   },
   picked_up: {
     subject: (d) => `Picked up — ${d.tracking_code}`,
-    sms: (d) => `SwiftRoute: Your package for ${d.tracking_code} has been picked up and is on its way.`,
+    sms: (d) => `PickAndEarn: Your package for ${d.tracking_code} has been picked up and is on its way.`,
     html: (d) => `<p>Your package for <strong>${d.tracking_code}</strong> has been picked up and is on its way to ${d.dropoff_city}.</p>`,
   },
   in_transit: {
     subject: (d) => `On the way — ${d.tracking_code}`,
-    sms: (d) => `SwiftRoute: ${d.tracking_code} is in transit to ${d.dropoff_city}.`,
+    sms: (d) => `PickAndEarn: ${d.tracking_code} is in transit to ${d.dropoff_city}.`,
     html: (d) => `<p>Your delivery <strong>${d.tracking_code}</strong> is now in transit to ${d.dropoff_city}.</p>`,
   },
   delivered: {
     subject: (d) => `Delivered — ${d.tracking_code}`,
-    sms: (d) => `SwiftRoute: ${d.tracking_code} has been delivered. Thanks for using SwiftRoute!`,
-    html: (d) => `<p>Your delivery <strong>${d.tracking_code}</strong> has been delivered. Thanks for using SwiftRoute — we'd love it if you left a rating on your dashboard.</p>`,
+    sms: (d) => `PickAndEarn: ${d.tracking_code} has been delivered. Thanks for using PickAndEarn!`,
+    html: (d) => `<p>Your delivery <strong>${d.tracking_code}</strong> has been delivered. Thanks for using PickAndEarn — we'd love it if you left a rating on your dashboard.</p>`,
   },
   cancelled: {
     subject: (d) => `Delivery cancelled — ${d.tracking_code}`,
-    sms: (d) => `SwiftRoute: Your delivery ${d.tracking_code} has been cancelled.`,
+    sms: (d) => `PickAndEarn: Your delivery ${d.tracking_code} has been cancelled.`,
     html: (d) => `<p>Your delivery <strong>${d.tracking_code}</strong> has been cancelled.</p>`,
   },
 };
@@ -54,4 +54,23 @@ async function notifyCustomer(delivery, event) {
   }
 }
 
-module.exports = { notifyCustomer };
+// One notification for an entire bulk upload, rather than one per delivery.
+async function notifyBulkUpload(user, count, totalPrice) {
+  try {
+    await Promise.allSettled([
+      sendEmail({
+        to: user.email,
+        subject: `${count} deliveries created — ₦${totalPrice.toLocaleString()} charged`,
+        html: `<p>Your bulk upload of <strong>${count} deliveries</strong> was created and paid from your wallet (₦${totalPrice.toLocaleString()} total). You can see them all on your dashboard.</p>`,
+      }),
+      sendSMS({
+        to: user.phone,
+        message: `PickAndEarn: ${count} deliveries created, ₦${totalPrice.toLocaleString()} charged from your wallet.`,
+      }),
+    ]);
+  } catch (err) {
+    console.error("notifyBulkUpload failed:", err.message);
+  }
+}
+
+module.exports = { notifyCustomer, notifyBulkUpload };
