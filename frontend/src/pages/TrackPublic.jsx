@@ -65,7 +65,7 @@ export default function TrackPublic() {
         <input
           value={code}
           onChange={(e) => setCode(e.target.value)}
-          placeholder="e.g. SR-Y3BCKLH"
+          placeholder="e.g. PAE-Y3BCKLH"
           className="flex-1 border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm font-mono focus:border-ink focus:ring-1 focus:ring-ink outline-none"
         />
         <button disabled={loading} className="bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-5 py-2.5 transition-colors disabled:opacity-60">

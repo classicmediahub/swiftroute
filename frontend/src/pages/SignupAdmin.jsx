@@ -37,7 +37,7 @@ export default function SignupAdmin() {
           <input required className={inputClass} value={form.full_name} onChange={(e) => update("full_name", e.target.value)} placeholder="Site Admin" />
         </Field>
         <Field label="Email">
-          <input required type="email" className={inputClass} value={form.email} onChange={(e) => update("email", e.target.value)} placeholder="admin@swiftroute.com" />
+          <input required type="email" className={inputClass} value={form.email} onChange={(e) => update("email", e.target.value)} placeholder="admin@pickandearn.com" />
         </Field>
         <Field label="Phone number">
           <input required className={inputClass} value={form.phone} onChange={(e) => update("phone", e.target.value)} placeholder="0805 555 6666" />

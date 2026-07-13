@@ -15,7 +15,7 @@ export default function StatsBar() {
       <div className="border-y border-slate-200 bg-paper">
         <div className="max-w-6xl mx-auto px-5 py-6 text-center">
           <p className="font-mono text-xs text-slate">
-            Newly launched — every delivery on SwiftRoute is tracked start to finish. Be one of our first.
+            Newly launched — every delivery on PickAndEarn is tracked start to finish. Be one of our first.
           </p>
         </div>
       </div>

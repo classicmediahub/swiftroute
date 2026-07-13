@@ -12,6 +12,7 @@ import CustomerDashboard from "./pages/CustomerDashboard";
 import AgentDashboard from "./pages/AgentDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import PaymentCallback from "./pages/PaymentCallback";
+import WalletCallback from "./pages/WalletCallback";
 import TrackPublic from "./pages/TrackPublic";
 import WhatsAppButton from "./components/WhatsAppButton";
 
@@ -34,6 +35,9 @@ export default function App() {
           } />
           <Route path="/payment/callback" element={
             <ProtectedRoute role="customer"><PaymentCallback /></ProtectedRoute>
+          } />
+          <Route path="/wallet/callback" element={
+            <ProtectedRoute role="customer"><WalletCallback /></ProtectedRoute>
           } />
           <Route path="/agent/dashboard" element={
             <ProtectedRoute role="agent"><AgentDashboard /></ProtectedRoute>

@@ -39,6 +39,10 @@ export const api = {
   verifyPayment: (token, reference) => request(`/deliveries/verify/${reference}`, { token }),
   submitReview: (token, id, payload) => request(`/deliveries/${id}/review`, { method: "POST", body: payload, token }),
 
+  getWallet: (token) => request("/wallet", { token }),
+  fundWallet: (token, payload) => request("/wallet/fund", { method: "POST", body: payload, token }),
+  verifyWalletTopup: (token, reference) => request(`/wallet/verify/${reference}`, { token }),
+
   availableDeliveries: (token) => request("/deliveries/available", { token }),
   assignedDeliveries: (token) => request("/deliveries/assigned", { token }),
   acceptDelivery: (token, id) => request(`/deliveries/${id}/accept`, { method: "POST", token }),

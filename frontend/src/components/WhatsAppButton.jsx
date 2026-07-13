@@ -1,5 +1,5 @@
 const WHATSAPP_NUMBER = "2348147412719"; // no +, no spaces — required format for wa.me links
-const DEFAULT_MESSAGE = "Hi SwiftRoute, I have a question about a delivery.";
+const DEFAULT_MESSAGE = "Hi PickAndEarn, I have a question about a delivery.";
 
 export default function WhatsAppButton() {
   const href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(DEFAULT_MESSAGE)}`;
@@ -9,7 +9,7 @@ export default function WhatsAppButton() {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label="Chat with SwiftRoute on WhatsApp"
+      aria-label="Chat with PickAndEarn on WhatsApp"
       className="fixed bottom-5 right-5 z-50 flex items-center gap-2 bg-[#25D366] hover:bg-[#1ebe57] text-white rounded-full pl-3 pr-4 py-3 shadow-lg transition-colors"
     >
       <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">

@@ -4,7 +4,7 @@ import { api } from "../api";
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem("swiftroute_token"));
+  const [token, setToken] = useState(() => localStorage.getItem("pickandearn_token"));
   const [user, setUser] = useState(null);
   const [agentProfile, setAgentProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,7 +21,7 @@ export function AuthProvider({ children }) {
       setUser(data.user);
       setAgentProfile(data.agent_profile || null);
     } catch {
-      localStorage.removeItem("swiftroute_token");
+      localStorage.removeItem("pickandearn_token");
       setToken(null);
       setUser(null);
     } finally {
@@ -35,14 +35,14 @@ export function AuthProvider({ children }) {
   }, []);
 
   function login(newToken, newUser, newAgentProfile) {
-    localStorage.setItem("swiftroute_token", newToken);
+    localStorage.setItem("pickandearn_token", newToken);
     setToken(newToken);
     setUser(newUser);
     setAgentProfile(newAgentProfile || null);
   }
 
   function logout() {
-    localStorage.removeItem("swiftroute_token");
+    localStorage.removeItem("pickandearn_token");
     setToken(null);
     setUser(null);
     setAgentProfile(null);

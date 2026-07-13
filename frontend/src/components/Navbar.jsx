@@ -23,7 +23,7 @@ export default function Navbar() {
             <rect width="32" height="32" rx="7" fill="#FFC63D" />
             <path d="M6 22 C10 22, 10 10, 16 10 S22 22, 26 22" stroke="#0B1220" strokeWidth="3" fill="none" strokeLinecap="round" />
           </svg>
-          SwiftRoute
+          PickAndEarn
         </Link>
 
         <nav className="flex items-center gap-3">

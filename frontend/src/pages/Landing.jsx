@@ -51,7 +51,7 @@ export default function Landing() {
               Deliver anywhere.<br />Track everything.
             </h1>
             <p className="text-slate-light text-lg mb-8 max-w-md">
-              Pay only for what you need. SwiftRoute matches you to a verified bike, cab, or self
+              Pay only for what you need. PickAndEarn matches you to a verified bike, cab, or self
               agent in minutes, and you can watch every step from pickup to your door.
             </p>
             <div className="flex flex-wrap gap-3">
@@ -155,7 +155,7 @@ export default function Landing() {
 
       <footer className="bg-ink border-t border-line text-slate-light">
         <div className="max-w-6xl mx-auto px-5 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm font-mono">
-          <span>© {new Date().getFullYear()} SwiftRoute — Built for Nigerian logistics.</span>
+          <span>© {new Date().getFullYear()} PickAndEarn — Built for Nigerian logistics.</span>
           <span>Lagos · Ogun · Abuja · Port Harcourt</span>
         </div>
       </footer>

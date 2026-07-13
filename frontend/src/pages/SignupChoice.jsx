@@ -3,14 +3,14 @@ import { Link } from "react-router-dom";
 const OPTIONS = [
   { to: "/signup/customer", code: "WB-01", title: "I want to send deliveries", desc: "Create requests, get matched with agents, track every parcel." },
   { to: "/signup/agent", code: "WB-02", title: "I want to deliver & earn", desc: "Register as a self, bike, or cab agent and start accepting jobs." },
-  { to: "/signup/admin", code: "WB-03", title: "I'm an admin", desc: "Requires an invite code from an existing SwiftRoute admin." },
+  { to: "/signup/admin", code: "WB-03", title: "I'm an admin", desc: "Requires an invite code from an existing PickAndEarn admin." },
 ];
 
 export default function SignupChoice() {
   return (
     <div className="max-w-3xl mx-auto px-5 py-16">
       <div className="font-mono text-xs text-slate mb-2">GET STARTED</div>
-      <h1 className="font-display text-3xl font-semibold mb-10">How will you use SwiftRoute?</h1>
+      <h1 className="font-display text-3xl font-semibold mb-10">How will you use PickAndEarn?</h1>
       <div className="grid gap-4">
         {OPTIONS.map((opt) => (
           <Link

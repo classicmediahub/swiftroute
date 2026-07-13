@@ -5,6 +5,7 @@ import StatusBadge from "../components/StatusBadge";
 import { Field, inputClass } from "../components/AuthLayout";
 import StarRating from "../components/StarRating";
 import ReviewForm from "../components/ReviewForm";
+import WalletPanel from "../components/WalletPanel";
 import { lazy, Suspense } from "react";
 const DeliveryMap = lazy(() => import("../components/DeliveryMap"));
 
@@ -22,7 +23,7 @@ const emptyForm = {
   pickup_address: "", pickup_city: "Lagos",
   dropoff_address: "", dropoff_city: "Lagos",
   recipient_name: "", recipient_phone: "",
-  preferred_vehicle: "any",
+  preferred_vehicle: "any", payment_method: "paystack",
 };
 
 export default function CustomerDashboard() {
@@ -31,9 +32,14 @@ export default function CustomerDashboard() {
   const [estimate, setEstimate] = useState(null);
   const [estimateDistance, setEstimateDistance] = useState(null);
   const [deliveries, setDeliveries] = useState([]);
+  const [walletBalance, setWalletBalance] = useState(0);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [loadingList, setLoadingList] = useState(true);
+
+  useEffect(() => {
+    api.getWallet(token).then((w) => setWalletBalance(w.balance)).catch(() => {});
+  }, [token]);
 
   const loadDeliveries = useCallback(async () => {
     try {
@@ -97,12 +103,13 @@ export default function CustomerDashboard() {
         window.location.href = data.authorization_url;
         return;
       }
-      // Shouldn't normally happen, but handle it rather than leaving the
-      // button stuck in a loading state.
+      // Wallet payments land here — no redirect, already paid instantly.
       setForm(emptyForm);
       setEstimate(null);
       setEstimateDistance(null);
       await loadDeliveries();
+      const w = await api.getWallet(token);
+      setWalletBalance(w.balance);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -134,7 +141,9 @@ export default function CustomerDashboard() {
       <h1 className="font-display text-3xl font-semibold mb-8">Send a new delivery</h1>
 
       <div className="grid lg:grid-cols-5 gap-8">
-        <form onSubmit={handleSubmit} className="lg:col-span-2 border border-slate-200 rounded-2xl p-6 bg-white h-fit">
+        <div className="lg:col-span-2">
+          <WalletPanel token={token} />
+        <form onSubmit={handleSubmit} className="border border-slate-200 rounded-2xl p-6 bg-white h-fit">
           <Field label="What are you sending?">
             <select className={inputClass} value={form.package_type} onChange={(e) => update("package_type", e.target.value)}>
               {PACKAGE_TYPES.map((p) => <option key={p} value={p}>{p}</option>)}
@@ -187,6 +196,32 @@ export default function CustomerDashboard() {
             ))}
           </div>
 
+          <span className="block text-sm font-medium text-ink mb-1.5">Pay with</span>
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <button
+              type="button"
+              onClick={() => update("payment_method", "paystack")}
+              className={`text-xs font-medium rounded-lg px-2 py-2.5 border transition-colors ${
+                form.payment_method === "paystack" ? "border-ink bg-ink text-paper" : "border-slate-300 hover:border-slate-400"
+              }`}
+            >
+              Card / bank (Paystack)
+            </button>
+            <button
+              type="button"
+              disabled={estimate !== null && walletBalance < estimate}
+              onClick={() => update("payment_method", "wallet")}
+              className={`text-xs font-medium rounded-lg px-2 py-2.5 border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                form.payment_method === "wallet" ? "border-ink bg-ink text-paper" : "border-slate-300 hover:border-slate-400"
+              }`}
+            >
+              Wallet (₦{walletBalance.toLocaleString()})
+            </button>
+          </div>
+          {form.payment_method === "wallet" && estimate !== null && walletBalance < estimate && (
+            <p className="text-xs text-signal mb-4">Not enough wallet balance for this delivery — top up above, or pay by card.</p>
+          )}
+
           {estimate !== null && (
             <div className="flex items-center justify-between bg-paper border border-slate-200 rounded-lg px-4 py-3 mb-4">
               <div>
@@ -202,9 +237,10 @@ export default function CustomerDashboard() {
           {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
           <button disabled={submitting} className="w-full bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-2.5 transition-colors disabled:opacity-60">
-            {submitting ? "Redirecting to payment…" : "Continue to payment"}
+            {submitting ? "Redirecting to payment…" : form.payment_method === "wallet" ? "Pay from wallet" : "Continue to payment"}
           </button>
         </form>
+        </div>
 
         <div className="lg:col-span-3">
           <h2 className="font-display text-lg font-semibold mb-4">Your deliveries</h2>

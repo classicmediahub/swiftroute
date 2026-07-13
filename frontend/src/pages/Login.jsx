@@ -34,7 +34,7 @@ export default function Login() {
   }
 
   return (
-    <AuthLayout eyebrow="WELCOME BACK" title="Log in to SwiftRoute">
+    <AuthLayout eyebrow="WELCOME BACK" title="Log in to PickAndEarn">
       <form onSubmit={handleSubmit}>
         <Field label="Email">
           <input required type="email" className={inputClass} value={form.email} onChange={(e) => update("email", e.target.value)} placeholder="you@example.com" />
@@ -50,7 +50,7 @@ export default function Login() {
         </button>
       </form>
       <p className="text-sm text-slate mt-6">
-        New to SwiftRoute? <Link to="/signup" className="text-ink font-semibold underline">Create an account</Link>
+        New to PickAndEarn? <Link to="/signup" className="text-ink font-semibold underline">Create an account</Link>
       </p>
     </AuthLayout>
   );

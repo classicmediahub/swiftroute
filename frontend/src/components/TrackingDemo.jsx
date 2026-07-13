@@ -18,7 +18,7 @@ export default function TrackingDemo() {
   return (
     <div className="bg-ink text-paper rounded-2xl p-6 sm:p-8">
       <div className="flex items-center justify-between mb-6">
-        <div className="font-mono text-xs text-route">SR-DEMO7X2</div>
+        <div className="font-mono text-xs text-route">PAE-DEMO7X2</div>
         <div className="font-mono text-xs text-slate-light">example only</div>
       </div>
       <div className="space-y-0">
