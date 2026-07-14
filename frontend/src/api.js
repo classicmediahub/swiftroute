@@ -44,6 +44,12 @@ export const api = {
   fundWallet: (token, payload) => request("/wallet/fund", { method: "POST", body: payload, token }),
   verifyWalletTopup: (token, reference) => request(`/wallet/verify/${reference}`, { token }),
 
+  listApiKeys: (token) => request("/keys", { token }),
+  createApiKey: (token, label) => request("/keys", { method: "POST", body: { label }, token }),
+  revokeApiKey: (token, id) => request(`/keys/${id}`, { method: "DELETE", token }),
+  getWebhook: (token) => request("/keys/webhook", { token }),
+  setWebhook: (token, webhook_url) => request("/keys/webhook", { method: "PUT", body: { webhook_url }, token }),
+
   availableDeliveries: (token) => request("/deliveries/available", { token }),
   assignedDeliveries: (token) => request("/deliveries/assigned", { token }),
   acceptDelivery: (token, id) => request(`/deliveries/${id}/accept`, { method: "POST", token }),

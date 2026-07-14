@@ -9,6 +9,7 @@ import WalletPanel from "../components/WalletPanel";
 import BulkUpload from "../components/BulkUpload";
 import Invoices from "../components/Invoices";
 import Reports from "../components/Reports";
+import ApiSettings from "../components/ApiSettings";
 import { lazy, Suspense } from "react";
 const DeliveryMap = lazy(() => import("../components/DeliveryMap"));
 
@@ -334,7 +335,7 @@ export default function CustomerDashboard() {
         {isBusiness ? `BUSINESS DASHBOARD · ${user.company_name}` : "CUSTOMER DASHBOARD"}
       </div>
       <h1 className="font-display text-3xl font-semibold mb-8">
-        {tab === "send" ? "Send a new delivery" : tab === "bulk" ? "Bulk upload" : tab === "invoices" ? "Invoices" : "Reports"}
+        {tab === "send" ? "Send a new delivery" : tab === "bulk" ? "Bulk upload" : tab === "invoices" ? "Invoices" : tab === "reports" ? "Reports" : "API access"}
       </h1>
 
       {isBusiness && (
@@ -344,6 +345,7 @@ export default function CustomerDashboard() {
             { id: "bulk", label: "Bulk upload" },
             { id: "invoices", label: "Invoices" },
             { id: "reports", label: "Reports" },
+            { id: "api", label: "API" },
           ].map((t) => (
             <button
               key={t.id}
@@ -368,6 +370,7 @@ export default function CustomerDashboard() {
       )}
       {tab === "invoices" && isBusiness && <Invoices deliveries={deliveries} />}
       {tab === "reports" && isBusiness && <Reports deliveries={deliveries} />}
+      {tab === "api" && isBusiness && <ApiSettings token={token} />}
     </div>
   );
 }
