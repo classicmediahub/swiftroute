@@ -4,8 +4,9 @@ const { pool } = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { trackingCode } = require("../pricing");
 const { getQuote } = require("../quote");
+const { geocode } = require("../maps");
 const { initializeTransaction, verifyTransaction } = require("../paystack");
-const { notifyCustomer, notifyBulkUpload } = require("../notify");
+const { notifyCustomer, notifyBulkUpload, notifyWebhook } = require("../notify");
 
 const router = express.Router();
 
@@ -18,6 +19,11 @@ async function logEvent(deliveryId, status, note) {
 
 function paymentReference() {
   return `PAEPAY-${uuidv4().replace(/-/g, "").slice(0, 20).toUpperCase()}`;
+}
+
+function isValidCoords(c) {
+  return c && Number.isFinite(Number(c.lat)) && Number.isFinite(Number(c.lng)) &&
+    Math.abs(c.lat) <= 90 && Math.abs(c.lng) <= 180;
 }
 
 function callbackUrl() {
@@ -35,6 +41,25 @@ router.post("/estimate", requireAuth, async (req, res) => {
   res.json(quote);
 });
 
+// ---------- GEOCODE (for the map pin picker — lets the frontend center the
+// map on a typed address before the customer fine-tunes it by dragging) ----------
+router.post("/geocode", requireAuth, async (req, res) => {
+  const { address, city } = req.body;
+  if (!city) return res.status(400).json({ error: "city is required" });
+  if (!process.env.MAPBOX_ACCESS_TOKEN) {
+    return res.status(503).json({ error: "Map lookup isn't configured yet" });
+  }
+  try {
+    const query = address ? `${address}, ${city}, Nigeria` : `${city}, Nigeria`;
+    const coords = await geocode(query);
+    if (!coords) return res.status(404).json({ error: "Couldn't find that location" });
+    res.json(coords);
+  } catch (err) {
+    console.error("Geocode lookup failed:", err.message);
+    res.status(502).json({ error: "Couldn't look up that location right now" });
+  }
+});
+
 // ---------- CREATE DELIVERY (customer) — creates the delivery as unpaid,
 // then starts a Paystack transaction and hands back the checkout URL.
 // The delivery only becomes visible to agents once payment is confirmed. ----------
@@ -42,8 +67,8 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
   try {
     const {
       package_type, package_note,
-      pickup_address, pickup_city,
-      dropoff_address, dropoff_city,
+      pickup_address, pickup_city, pickup_landmark, pickup_coords,
+      dropoff_address, dropoff_city, dropoff_landmark, dropoff_coords,
       recipient_name, recipient_phone,
       preferred_vehicle, payment_method
     } = req.body;
@@ -53,7 +78,11 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
     }
 
     const vehicle = preferred_vehicle && ["self", "bike", "cab", "any"].includes(preferred_vehicle) ? preferred_vehicle : "any";
-    const quote = await getQuote({ pickup_address, pickup_city, dropoff_address, dropoff_city, vehicle_type: vehicle });
+    const quote = await getQuote({
+      pickup_address, pickup_city, dropoff_address, dropoff_city, vehicle_type: vehicle,
+      pickup_coords: isValidCoords(pickup_coords) ? pickup_coords : null,
+      dropoff_coords: isValidCoords(dropoff_coords) ? dropoff_coords : null,
+    });
     const price = quote.price;
     const id = uuidv4();
     const code = trackingCode();
@@ -63,6 +92,7 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
       pickup_address, pickup_city, dropoff_address, dropoff_city,
       recipient_name, recipient_phone, vehicle, price, code, quote.distanceKm,
       quote.origin?.lat ?? null, quote.origin?.lng ?? null, quote.destination?.lat ?? null, quote.destination?.lng ?? null,
+      pickup_landmark || null, dropoff_landmark || null,
     ];
 
     if (payment_method === "wallet") {
@@ -83,8 +113,9 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
             pickup_address, pickup_city, dropoff_address, dropoff_city,
             recipient_name, recipient_phone, preferred_vehicle, price, tracking_code, distance_km,
             pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
+            pickup_landmark, dropoff_landmark,
             payment_status, payment_method
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'paid','wallet')`,
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,'paid','wallet')`,
           commonFields
         );
 
@@ -107,6 +138,7 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
       await logEvent(id, "payment_confirmed", "Paid instantly from wallet balance");
       const { rows } = await pool.query("SELECT * FROM deliveries WHERE id = $1", [id]);
       notifyCustomer(rows[0], "payment_confirmed"); // fire-and-forget
+      notifyWebhook(rows[0], "payment_confirmed"); // fire-and-forget
       return res.status(201).json({ delivery: rows[0], authorization_url: null });
     }
 
@@ -118,8 +150,9 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
         pickup_address, pickup_city, dropoff_address, dropoff_city,
         recipient_name, recipient_phone, preferred_vehicle, price, tracking_code, distance_km,
         pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
+        pickup_landmark, dropoff_landmark,
         payment_status, paystack_reference, payment_method
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'unpaid',$19,'paystack')`,
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,'unpaid',$21,'paystack')`,
       [...commonFields, reference]
     );
 
@@ -228,12 +261,14 @@ router.post("/bulk", requireAuth, requireRole("customer"), async (req, res) => {
             pickup_address, pickup_city, dropoff_address, dropoff_city,
             recipient_name, recipient_phone, preferred_vehicle, price, tracking_code, distance_km,
             pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
+            pickup_landmark, dropoff_landmark,
             payment_status, payment_method
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'paid','wallet')`,
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,'paid','wallet')`,
           [id, req.user.id, row.package_type, row.package_note || null,
            row.pickup_address, row.pickup_city, row.dropoff_address, row.dropoff_city,
            row.recipient_name, row.recipient_phone, vehicle, quote.price, code, quote.distanceKm,
-           quote.origin?.lat ?? null, quote.origin?.lng ?? null, quote.destination?.lat ?? null, quote.destination?.lng ?? null]
+           quote.origin?.lat ?? null, quote.origin?.lng ?? null, quote.destination?.lat ?? null, quote.destination?.lng ?? null,
+           row.pickup_landmark || null, row.dropoff_landmark || null]
         );
 
         runningBalance -= quote.price;
@@ -255,13 +290,19 @@ router.post("/bulk", requireAuth, requireRole("customer"), async (req, res) => {
       client.release();
     }
 
-    // Log events for each delivery, but send ONE notification for the whole
-    // batch rather than spamming N separate emails/SMS for a 50-row upload.
+    // Log events for each delivery, but send ONE customer notification for
+    // the whole batch rather than spamming N separate emails/SMS for a
+    // 50-row upload. Webhooks fire per-delivery though, since each is a
+    // distinct order the merchant's own system needs to track individually.
     for (const d of created) {
       logEvent(d.id, "pending", "Delivery created via bulk upload, paid from wallet");
       logEvent(d.id, "payment_confirmed", "Paid instantly from wallet balance");
     }
     notifyBulkUpload(req.user, created.length, totalPrice); // fire-and-forget
+
+    pool.query(`SELECT * FROM deliveries WHERE id = ANY($1)`, [created.map((d) => d.id)])
+      .then(({ rows }) => rows.forEach((d) => notifyWebhook(d, "payment_confirmed")))
+      .catch((err) => console.error("Bulk webhook dispatch failed:", err.message));
 
     res.status(201).json({ created, totalCharged: totalPrice, count: created.length });
   } catch (err) {
@@ -317,6 +358,7 @@ router.get("/verify/:reference", requireAuth, async (req, res) => {
       await pool.query("UPDATE deliveries SET payment_status = 'paid' WHERE id = $1", [delivery.id]);
       await logEvent(delivery.id, "payment_confirmed", "Payment verified via Paystack");
       notifyCustomer(delivery, "payment_confirmed"); // fire-and-forget
+      notifyWebhook(delivery, "payment_confirmed"); // fire-and-forget
     } else {
       await pool.query("UPDATE deliveries SET payment_status = 'failed' WHERE id = $1", [delivery.id]);
     }
@@ -363,7 +405,7 @@ router.patch("/:id/location", requireAuth, requireRole("agent"), async (req, res
 router.get("/mine", requireAuth, requireRole("customer"), async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT d.*, u.full_name AS agent_name, u.phone AS agent_phone,
+      `SELECT d.*, u.full_name AS agent_name, u.phone AS agent_phone, u.profile_photo AS agent_photo,
               r.rating AS review_rating, r.comment AS review_comment
        FROM deliveries d
        LEFT JOIN users u ON u.id = d.agent_id
@@ -497,6 +539,7 @@ router.post("/:id/accept", requireAuth, requireRole("agent"), async (req, res) =
 
     const { rows: updatedRows } = await pool.query("SELECT * FROM deliveries WHERE id = $1", [delivery.id]);
     notifyCustomer(updatedRows[0], "accepted"); // fire-and-forget
+    notifyWebhook(updatedRows[0], "accepted"); // fire-and-forget
     res.json(updatedRows[0]);
   } catch (err) {
     await client.query("ROLLBACK").catch(() => {});
@@ -541,6 +584,7 @@ router.patch("/:id/advance", requireAuth, requireRole("agent"), async (req, res)
     await logEvent(delivery.id, next);
     const { rows: updatedRows } = await pool.query("SELECT * FROM deliveries WHERE id = $1", [delivery.id]);
     notifyCustomer(updatedRows[0], next); // fire-and-forget
+    notifyWebhook(updatedRows[0], next); // fire-and-forget
     res.json(updatedRows[0]);
   } catch (err) {
     console.error(err);
@@ -590,6 +634,7 @@ router.patch("/:id/cancel", requireAuth, requireRole("customer"), async (req, re
     await logEvent(delivery.id, "cancelled", "Cancelled by customer");
     const { rows: updatedRows } = await pool.query("SELECT * FROM deliveries WHERE id = $1", [delivery.id]);
     notifyCustomer(updatedRows[0], "cancelled"); // fire-and-forget
+    notifyWebhook(updatedRows[0], "cancelled"); // fire-and-forget
     res.json(updatedRows[0]);
   } catch (err) {
     await client.query("ROLLBACK").catch(() => {});

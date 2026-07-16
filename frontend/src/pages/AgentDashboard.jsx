@@ -12,7 +12,7 @@ const NEXT_LABEL = {
 };
 
 export default function AgentDashboard() {
-  const { token, agentProfile, refresh } = useAuth();
+  const { token, user, agentProfile, refresh } = useAuth();
   const [tab, setTab] = useState("available");
   const [available, setAvailable] = useState([]);
   const [assigned, setAssigned] = useState([]);
@@ -70,7 +70,12 @@ export default function AgentDashboard() {
   return (
     <div className="max-w-5xl mx-auto px-5 py-10">
       <div className="font-mono text-xs text-slate mb-2">AGENT DASHBOARD</div>
-      <h1 className="font-display text-3xl font-semibold mb-6">Your jobs</h1>
+      <div className="flex items-center gap-3 mb-6">
+        {user?.profile_photo && (
+          <img src={user.profile_photo} alt={user.full_name} className="w-12 h-12 rounded-full object-cover border border-slate-200" />
+        )}
+        <h1 className="font-display text-3xl font-semibold">Your jobs</h1>
+      </div>
 
       {/* Profile summary */}
       <div className="grid sm:grid-cols-5 gap-4 mb-8">
@@ -129,8 +134,8 @@ export default function AgentDashboard() {
                         {d.distance_km && <span className="text-slate font-normal"> · {d.distance_km} km</span>}
                       </div>
                       <div className="text-xs text-slate space-y-0.5">
-                        <div>Pickup: {d.pickup_address}</div>
-                        <div>Drop-off: {d.dropoff_address}</div>
+                        <div>Pickup: {d.pickup_address}{d.pickup_landmark && ` (${d.pickup_landmark})`}</div>
+                        <div>Drop-off: {d.dropoff_address}{d.dropoff_landmark && ` (${d.dropoff_landmark})`}</div>
                         <div>Customer: {d.customer_name} · {d.customer_phone}</div>
                       </div>
                     </div>
@@ -165,8 +170,8 @@ export default function AgentDashboard() {
                     <StatusBadge status={d.status} />
                   </div>
                   <div className="text-xs text-slate space-y-0.5 mb-3">
-                    <div>Pickup: {d.pickup_address}</div>
-                    <div>Drop-off: {d.dropoff_address} · to {d.recipient_name} ({d.recipient_phone})</div>
+                    <div>Pickup: {d.pickup_address}{d.pickup_landmark && ` (${d.pickup_landmark})`}</div>
+                    <div>Drop-off: {d.dropoff_address}{d.dropoff_landmark && ` (${d.dropoff_landmark})`} · to {d.recipient_name} ({d.recipient_phone})</div>
                     <div>Customer: {d.customer_name} · {d.customer_phone}</div>
                   </div>
                   <div className="flex items-center justify-between">

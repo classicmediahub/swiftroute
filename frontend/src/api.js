@@ -28,9 +28,11 @@ export const api = {
   signupAgent: (payload) => request("/auth/signup/agent", { method: "POST", body: payload }),
   signupAdmin: (payload) => request("/auth/signup/admin", { method: "POST", body: payload }),
   login: (payload) => request("/auth/login", { method: "POST", body: payload }),
+  verifyLoginFace: (pending_token, selfie) => request("/auth/login/verify-face", { method: "POST", body: { pending_token, selfie } }),
   me: (token) => request("/auth/me", { token }),
 
   estimate: (token, payload) => request("/deliveries/estimate", { method: "POST", body: payload, token }),
+  geocodeAddress: (token, payload) => request("/deliveries/geocode", { method: "POST", body: payload, token }),
   createDelivery: (token, payload) => request("/deliveries", { method: "POST", body: payload, token }),
   bulkCreateDeliveries: (token, deliveries) => request("/deliveries/bulk", { method: "POST", body: { deliveries }, token }),
   myDeliveries: (token) => request("/deliveries/mine", { token }),

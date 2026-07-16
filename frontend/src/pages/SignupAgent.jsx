@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import AuthLayout, { Field, inputClass } from "../components/AuthLayout";
+import FaceCapture from "../components/FaceCapture";
 
 const VEHICLES = [
   { value: "self", label: "Self", detail: "On foot, local errands" },
@@ -16,6 +17,7 @@ export default function SignupAgent() {
   const [form, setForm] = useState({
     full_name: "", email: "", phone: "", password: "",
     vehicle_type: "bike", vehicle_make: "", vehicle_plate: "", license_number: "", city: "Lagos",
+    profile_photo: null,
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,6 +32,10 @@ export default function SignupAgent() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (!form.profile_photo) {
+      setError("A face photo is required — capture one below before submitting.");
+      return;
+    }
     setError("");
     setLoading(true);
     try {
@@ -102,9 +108,26 @@ export default function SignupAgent() {
           </div>
         )}
 
+        <div className="border-t border-slate-200 pt-4 mb-4">
+          <span className="block text-sm font-medium text-ink mb-2">Identity photo</span>
+          <p className="text-xs text-slate mb-3">
+            Required — this photo is used to verify it's really you every time you log in, and customers will see it once you accept their delivery.
+          </p>
+          {form.profile_photo ? (
+            <div className="flex items-center gap-3">
+              <img src={form.profile_photo} alt="Your captured photo" className="w-16 h-16 rounded-full object-cover border border-slate-300" />
+              <button type="button" onClick={() => update("profile_photo", null)} className="text-xs font-semibold text-ink underline">
+                Retake photo
+              </button>
+            </div>
+          ) : (
+            <FaceCapture onCapture={(photo) => update("profile_photo", photo)} title="Capture your face" />
+          )}
+        </div>
+
         {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
-        <button disabled={loading} className="w-full bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-2.5 transition-colors disabled:opacity-60">
+        <button disabled={loading || !form.profile_photo} className="w-full bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-2.5 transition-colors disabled:opacity-60">
           {loading ? "Submitting…" : "Submit application"}
         </button>
       </form>

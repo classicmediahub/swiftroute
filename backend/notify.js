@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const { pool } = require("./db");
 const { sendEmail, sendSMS } = require("./notifications");
 
@@ -73,4 +74,45 @@ async function notifyBulkUpload(user, count, totalPrice) {
   }
 }
 
-module.exports = { notifyCustomer, notifyBulkUpload };
+// Sends a signed webhook to a merchant's own system when a delivery they
+// created (via the dashboard or the public API) changes status — this is
+// what lets a connected online store auto-update its own order status.
+// Fails silently (logged, not thrown) so a broken webhook endpoint on the
+// merchant's side never affects the delivery itself.
+async function notifyWebhook(delivery, event) {
+  try {
+    const { rows } = await pool.query("SELECT webhook_url, webhook_secret FROM users WHERE id = $1", [delivery.customer_id]);
+    const merchant = rows[0];
+    if (!merchant || !merchant.webhook_url) return;
+
+    const payload = JSON.stringify({
+      event: `delivery.${event}`,
+      data: {
+        tracking_code: delivery.tracking_code,
+        status: delivery.status,
+        payment_status: delivery.payment_status,
+        price: delivery.price,
+        distance_km: delivery.distance_km,
+        pickup_city: delivery.pickup_city,
+        dropoff_city: delivery.dropoff_city,
+        recipient_name: delivery.recipient_name,
+      },
+      timestamp: new Date().toISOString(),
+    });
+
+    const signature = crypto.createHmac("sha256", merchant.webhook_secret).update(payload).digest("hex");
+
+    await fetch(merchant.webhook_url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-PickAndEarn-Signature": signature,
+      },
+      body: payload,
+    }).catch((err) => console.error("Webhook delivery failed:", err.message));
+  } catch (err) {
+    console.error("notifyWebhook failed:", err.message);
+  }
+}
+
+module.exports = { notifyCustomer, notifyBulkUpload, notifyWebhook };

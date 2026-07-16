@@ -37,7 +37,7 @@ router.get("/stats", async (req, res) => {
 router.get("/agents", async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT u.id, u.full_name, u.email, u.phone, u.status, u.created_at,
+      SELECT u.id, u.full_name, u.email, u.phone, u.status, u.created_at, u.profile_photo,
              a.vehicle_type, a.vehicle_make, a.vehicle_plate, a.license_number, a.city,
              a.approval_status, a.is_online, a.rating, a.total_deliveries, a.wallet_balance
       FROM users u JOIN agent_profiles a ON a.user_id = u.id

@@ -12,6 +12,7 @@ import Reports from "../components/Reports";
 import ApiSettings from "../components/ApiSettings";
 import { lazy, Suspense } from "react";
 const DeliveryMap = lazy(() => import("../components/DeliveryMap"));
+const PinMap = lazy(() => import("../components/PinMap"));
 
 const CITIES = ["Lagos", "Ogun", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City"];
 const PACKAGE_TYPES = ["Documents", "Small parcel", "Food", "Electronics", "Fragile item", "Other"];
@@ -24,8 +25,8 @@ const VEHICLES = [
 
 const emptyForm = {
   package_type: "Documents", package_note: "",
-  pickup_address: "", pickup_city: "Lagos",
-  dropoff_address: "", dropoff_city: "Lagos",
+  pickup_address: "", pickup_city: "Lagos", pickup_landmark: "", pickup_coords: null,
+  dropoff_address: "", dropoff_city: "Lagos", dropoff_landmark: "", dropoff_coords: null,
   recipient_name: "", recipient_phone: "",
   preferred_vehicle: "any", payment_method: "paystack",
 };
@@ -168,6 +169,18 @@ export default function CustomerDashboard() {
               </select>
             </Field>
           </div>
+          <Field label="Pickup landmark (optional)">
+            <input className={inputClass} value={form.pickup_landmark} onChange={(e) => update("pickup_landmark", e.target.value)} placeholder="Opposite First Bank, blue gate" />
+          </Field>
+          <Suspense fallback={null}>
+            <PinMap
+              token={token}
+              address={form.pickup_address}
+              city={form.pickup_city}
+              coords={form.pickup_coords}
+              onCoordsChange={(c) => update("pickup_coords", c)}
+            />
+          </Suspense>
 
           <div className="grid grid-cols-2 gap-x-3">
             <Field label="Drop-off address">
@@ -179,6 +192,18 @@ export default function CustomerDashboard() {
               </select>
             </Field>
           </div>
+          <Field label="Drop-off landmark (optional)">
+            <input className={inputClass} value={form.dropoff_landmark} onChange={(e) => update("dropoff_landmark", e.target.value)} placeholder="Near Shoprite entrance" />
+          </Field>
+          <Suspense fallback={null}>
+            <PinMap
+              token={token}
+              address={form.dropoff_address}
+              city={form.dropoff_city}
+              coords={form.dropoff_coords}
+              onCoordsChange={(c) => update("dropoff_coords", c)}
+            />
+          </Suspense>
 
           <div className="grid grid-cols-2 gap-x-3">
             <Field label="Recipient name">
@@ -273,9 +298,16 @@ export default function CustomerDashboard() {
                   </div>
                 </div>
                 <div className="text-xs text-slate space-y-0.5 mb-2">
-                  <div>Pickup: {d.pickup_address}</div>
-                  <div>Drop-off: {d.dropoff_address} · to {d.recipient_name}</div>
-                  {d.agent_name && <div>Agent: {d.agent_name} · {d.agent_phone}</div>}
+                  <div>Pickup: {d.pickup_address}{d.pickup_landmark && ` (${d.pickup_landmark})`}</div>
+                  <div>Drop-off: {d.dropoff_address}{d.dropoff_landmark && ` (${d.dropoff_landmark})`} · to {d.recipient_name}</div>
+                  {d.agent_name && (
+                    <div className="flex items-center gap-2">
+                      {d.agent_photo && (
+                        <img src={d.agent_photo} alt={d.agent_name} className="w-6 h-6 rounded-full object-cover border border-slate-200" />
+                      )}
+                      <span>Agent: {d.agent_name} · {d.agent_phone}</span>
+                    </div>
+                  )}
                 </div>
 
                 {["accepted", "picked_up", "in_transit"].includes(d.status) && (

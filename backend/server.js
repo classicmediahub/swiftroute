@@ -10,6 +10,8 @@ const adminRoutes = require("./routes/admin");
 const webhookRoutes = require("./routes/webhooks");
 const publicRoutes = require("./routes/public");
 const walletRoutes = require("./routes/wallet");
+const apiKeyRoutes = require("./routes/apikeys");
+const v1Routes = require("./routes/v1");
 
 const app = express();
 
@@ -32,6 +34,8 @@ app.use("/api/deliveries", deliveryRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/public", publicRoutes);
 app.use("/api/wallet", walletRoutes);
+app.use("/api/keys", apiKeyRoutes);
+app.use("/api/v1", v1Routes);
 
 app.use((req, res) => res.status(404).json({ error: "Not found" }));
 // eslint-disable-next-line no-unused-vars

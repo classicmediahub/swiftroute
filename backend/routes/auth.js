@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { v4: uuidv4 } = require("uuid");
 const { pool } = require("../db");
+const { compareFaces } = require("../face");
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -15,11 +16,22 @@ function signToken(user) {
   );
 }
 
+// Short-lived token issued after an agent's password checks out, but before
+// their live selfie has been matched against their signup photo. Can't be
+// used to authenticate any real endpoint — only /login/verify-face accepts it.
+function signPendingFaceToken(user) {
+  return jwt.sign({ id: user.id, type: "pending_face" }, JWT_SECRET, { expiresIn: "5m" });
+}
+
 function publicUser(u) {
   return {
     id: u.id, role: u.role, full_name: u.full_name, email: u.email, phone: u.phone, status: u.status,
-    account_type: u.account_type, company_name: u.company_name,
+    account_type: u.account_type, company_name: u.company_name, profile_photo: u.profile_photo,
   };
+}
+
+function isLikelyPhoto(dataUrl) {
+  return typeof dataUrl === "string" && /^data:image\/\w+;base64,/.test(dataUrl) && dataUrl.length > 1000;
 }
 
 // ---------- CUSTOMER SIGNUP ----------
@@ -58,16 +70,22 @@ router.post("/signup/customer", async (req, res) => {
   }
 });
 
-// ---------- AGENT SIGNUP ----------
+// ---------- AGENT SIGNUP — requires a live-captured face photo, which
+// doubles as (1) the reference photo future logins are matched against,
+// and (2) the profile picture customers see once this agent accepts a job ----------
 router.post("/signup/agent", async (req, res) => {
   try {
     const {
       full_name, email, phone, password,
-      vehicle_type, vehicle_make, vehicle_plate, license_number, city
+      vehicle_type, vehicle_make, vehicle_plate, license_number, city,
+      profile_photo,
     } = req.body;
 
     if (!full_name || !email || !phone || !password || !vehicle_type || !city) {
       return res.status(400).json({ error: "All required fields must be filled" });
+    }
+    if (!isLikelyPhoto(profile_photo)) {
+      return res.status(400).json({ error: "A face photo is required to register as an agent" });
     }
     if (!["self", "bike", "cab"].includes(vehicle_type)) {
       return res.status(400).json({ error: "Vehicle type must be self, bike, or cab" });
@@ -86,8 +104,8 @@ router.post("/signup/agent", async (req, res) => {
     const hash = bcrypt.hashSync(password, 10);
 
     await pool.query(
-      `INSERT INTO users (id, role, full_name, email, phone, password_hash) VALUES ($1, 'agent', $2, $3, $4, $5)`,
-      [id, full_name, email.toLowerCase(), phone, hash]
+      `INSERT INTO users (id, role, full_name, email, phone, password_hash, profile_photo) VALUES ($1, 'agent', $2, $3, $4, $5, $6)`,
+      [id, full_name, email.toLowerCase(), phone, hash, profile_photo]
     );
 
     await pool.query(
@@ -139,7 +157,9 @@ router.post("/signup/admin", async (req, res) => {
   }
 });
 
-// ---------- LOGIN (all roles) ----------
+// ---------- LOGIN — agents get a two-step flow: password first, then a
+// live selfie matched against their signup photo. Customers and admins
+// log in the normal single-step way. ----------
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -153,16 +173,74 @@ router.post("/login", async (req, res) => {
     const valid = bcrypt.compareSync(password, user.password_hash);
     if (!valid) return res.status(401).json({ error: "Invalid email or password" });
 
-    let agent_profile = null;
     if (user.role === "agent") {
-      const { rows: profileRows } = await pool.query("SELECT * FROM agent_profiles WHERE user_id = $1", [user.id]);
-      agent_profile = profileRows[0] || null;
+      if (!user.profile_photo) {
+        // Shouldn't happen for anyone who signed up after this feature
+        // shipped, but covers any pre-existing agent account gracefully
+        // rather than locking them out with no path forward.
+        return res.status(403).json({
+          error: "Your account is missing a verification photo. Please contact support to add one before logging in.",
+        });
+      }
+      const pendingToken = signPendingFaceToken(user);
+      return res.json({ require_face_verification: true, pending_token: pendingToken });
     }
+
     const token = signToken(user);
-    res.json({ token, user: publicUser(user), agent_profile });
+    res.json({ token, user: publicUser(user), agent_profile: null });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong logging in" });
+  }
+});
+
+// ---------- STEP 2 OF AGENT LOGIN — match a live selfie against the
+// agent's signup photo via Face++. Only a valid, unexpired pending_face
+// token can reach this; it can't be used for anything else. ----------
+router.post("/login/verify-face", async (req, res) => {
+  try {
+    const { pending_token, selfie } = req.body;
+    if (!pending_token || !isLikelyPhoto(selfie)) {
+      return res.status(400).json({ error: "A live photo is required" });
+    }
+
+    let payload;
+    try {
+      payload = jwt.verify(pending_token, JWT_SECRET);
+    } catch {
+      return res.status(401).json({ error: "This verification step has expired — please log in again" });
+    }
+    if (payload.type !== "pending_face") {
+      return res.status(401).json({ error: "Invalid verification session" });
+    }
+
+    const { rows } = await pool.query("SELECT * FROM users WHERE id = $1", [payload.id]);
+    const user = rows[0];
+    if (!user || user.role !== "agent" || !user.profile_photo) {
+      return res.status(401).json({ error: "Invalid verification session" });
+    }
+    if (user.status === "suspended") return res.status(403).json({ error: "Your account has been suspended" });
+
+    let result;
+    try {
+      result = await compareFaces(selfie, user.profile_photo);
+    } catch (err) {
+      console.error("Face comparison failed:", err.message);
+      return res.status(502).json({ error: "Couldn't verify your face right now. Please try again." });
+    }
+
+    if (!result.matched) {
+      return res.status(401).json({
+        error: "That doesn't look like a match for this account's registered photo. Make sure you're in good lighting and facing the camera directly, then try again.",
+      });
+    }
+
+    const { rows: profileRows } = await pool.query("SELECT * FROM agent_profiles WHERE user_id = $1", [user.id]);
+    const token = signToken(user);
+    res.json({ token, user: publicUser(user), agent_profile: profileRows[0] || null });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong verifying your face" });
   }
 });
 

@@ -3,11 +3,11 @@ import Papa from "papaparse";
 import { api } from "../api";
 
 const TEMPLATE_HEADERS = [
-  "package_type", "pickup_address", "pickup_city", "dropoff_address", "dropoff_city",
+  "package_type", "pickup_address", "pickup_city", "pickup_landmark", "dropoff_address", "dropoff_city", "dropoff_landmark",
   "recipient_name", "recipient_phone", "preferred_vehicle", "package_note",
 ];
 const TEMPLATE_EXAMPLE = [
-  "Documents", "12 Allen Ave", "Lagos", "5 Admiralty Way", "Lagos",
+  "Documents", "12 Allen Ave", "Lagos", "Opposite First Bank", "5 Admiralty Way", "Lagos", "Near Shoprite entrance",
   "John Doe", "08099998888", "bike", "Handle with care",
 ];
 const REQUIRED_FIELDS = ["package_type", "pickup_address", "pickup_city", "dropoff_address", "dropoff_city", "recipient_name", "recipient_phone"];
@@ -73,8 +73,10 @@ export default function BulkUpload({ token, walletBalance, onComplete }) {
         package_type: r.package_type,
         pickup_address: r.pickup_address,
         pickup_city: r.pickup_city,
+        pickup_landmark: r.pickup_landmark || "",
         dropoff_address: r.dropoff_address,
         dropoff_city: r.dropoff_city,
+        dropoff_landmark: r.dropoff_landmark || "",
         recipient_name: r.recipient_name,
         recipient_phone: r.recipient_phone,
         preferred_vehicle: r.preferred_vehicle || "any",

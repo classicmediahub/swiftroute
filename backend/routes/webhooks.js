@@ -2,7 +2,7 @@ const express = require("express");
 const { v4: uuidv4 } = require("uuid");
 const { pool } = require("../db");
 const { verifyWebhookSignature } = require("../paystack");
-const { notifyCustomer } = require("../notify");
+const { notifyCustomer, notifyWebhook } = require("../notify");
 
 const router = express.Router();
 
@@ -54,6 +54,7 @@ async function confirmDeliveryPayment(reference) {
       [uuidv4(), delivery.id, "payment_confirmed", "Payment confirmed via Paystack webhook"]
     );
     notifyCustomer(delivery, "payment_confirmed"); // fire-and-forget
+    notifyWebhook(delivery, "payment_confirmed"); // fire-and-forget
   }
 }
 

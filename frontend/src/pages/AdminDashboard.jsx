@@ -90,8 +90,17 @@ export default function AdminDashboard() {
               {agents.map((a) => (
                 <tr key={a.id} className="border-t border-slate-100">
                   <td className="px-4 py-3">
-                    <div className="font-medium">{a.full_name}</div>
-                    <div className="text-xs text-slate">{a.email} · {a.phone}</div>
+                    <div className="flex items-center gap-3">
+                      {a.profile_photo ? (
+                        <img src={a.profile_photo} alt={a.full_name} className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-paper border border-slate-200 shrink-0" />
+                      )}
+                      <div>
+                        <div className="font-medium">{a.full_name}</div>
+                        <div className="text-xs text-slate">{a.email} · {a.phone}</div>
+                      </div>
+                    </div>
                   </td>
                   <td className="px-4 py-3 capitalize">
                     {a.vehicle_type}

@@ -3,16 +3,25 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import AuthLayout, { Field, inputClass } from "../components/AuthLayout";
+import FaceCapture from "../components/FaceCapture";
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pendingToken, setPendingToken] = useState(null); // set once password checks out for an agent
   const { login } = useAuth();
   const navigate = useNavigate();
 
   function update(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  function goToDashboard(role) {
+    const dest =
+      role === "customer" ? "/customer/dashboard" :
+      role === "agent" ? "/agent/dashboard" : "/admin/dashboard";
+    navigate(dest);
   }
 
   async function handleSubmit(e) {
@@ -21,16 +30,50 @@ export default function Login() {
     setLoading(true);
     try {
       const data = await api.login(form);
+      if (data.require_face_verification) {
+        setPendingToken(data.pending_token);
+        return;
+      }
       login(data.token, data.user, data.agent_profile);
-      const dest =
-        data.user.role === "customer" ? "/customer/dashboard" :
-        data.user.role === "agent" ? "/agent/dashboard" : "/admin/dashboard";
-      navigate(dest);
+      goToDashboard(data.user.role);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleFaceCapture(selfie) {
+    setError("");
+    setLoading(true);
+    try {
+      const data = await api.verifyLoginFace(pendingToken, selfie);
+      login(data.token, data.user, data.agent_profile);
+      goToDashboard(data.user.role);
+    } catch (err) {
+      setError(err.message);
+      setPendingToken(null); // send them back to start over — the pending token is single-use in spirit
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (pendingToken) {
+    return (
+      <AuthLayout eyebrow="ONE MORE STEP" title="Verify it's you">
+        <p className="text-sm text-slate mb-4">Take a quick photo to confirm this is your account.</p>
+        <FaceCapture onCapture={handleFaceCapture} title="Look at the camera" />
+        {loading && <p className="text-xs text-slate mt-3">Verifying…</p>}
+        {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
+        <button
+          type="button"
+          onClick={() => { setPendingToken(null); setError(""); }}
+          className="text-xs text-slate underline mt-4"
+        >
+          Cancel and start over
+        </button>
+      </AuthLayout>
+    );
   }
 
   return (
