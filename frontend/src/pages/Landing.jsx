@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import RouteSignature from "../components/RouteSignature";
+import HeroLiveMap from "../components/HeroLiveMap";
 import PriceCalculator from "../components/PriceCalculator";
 import StatsBar from "../components/StatsBar";
 import TrackingDemo from "../components/TrackingDemo";
@@ -67,7 +67,7 @@ export default function Landing() {
             </div>
           </div>
           <div className="hidden md:block">
-            <RouteSignature className="w-full h-auto" />
+            <HeroLiveMap className="w-full h-auto" />
           </div>
         </div>
       </section>
