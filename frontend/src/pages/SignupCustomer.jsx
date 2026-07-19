@@ -1,11 +1,15 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import AuthLayout, { Field, inputClass } from "../components/AuthLayout";
 
 export default function SignupCustomer() {
-  const [form, setForm] = useState({ full_name: "", email: "", phone: "", password: "", is_business: false, company_name: "" });
+  const [params] = useSearchParams();
+  const [form, setForm] = useState({
+    full_name: "", email: "", phone: "", password: "",
+    is_business: params.get("business") === "1", company_name: "",
+  });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();

@@ -1,10 +1,11 @@
 import { Link } from "react-router-dom";
 import HeroLiveMap from "../components/HeroLiveMap";
-import PriceCalculator from "../components/PriceCalculator";
+import HeroQuoteWidget from "../components/HeroQuoteWidget";
 import StatsBar from "../components/StatsBar";
 import TrackingDemo from "../components/TrackingDemo";
 import HowItWorksDiagram from "../components/HowItWorksDiagram";
 import ReviewsSection from "../components/ReviewsSection";
+import BusinessSection from "../components/BusinessSection";
 
 const ROLE_CARDS = [
   {
@@ -50,18 +51,20 @@ export default function Landing() {
             <h1 className="font-display text-4xl sm:text-5xl font-semibold leading-[1.1] mb-5">
               Deliver anywhere.<br />Track everything.
             </h1>
-            <p className="text-slate-light text-lg mb-8 max-w-md">
+            <p className="text-slate-light text-lg mb-6 max-w-md">
               Pay only for what you need. PickAndEarn matches you to a verified bike, cab, or self
               agent in minutes, and you can watch every step from pickup to your door.
             </p>
-            <div className="flex flex-wrap gap-3">
-              <a href="#calculator" className="bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-6 py-3 transition-colors">
-                Get instant quote
-              </a>
-              <Link to="/track" className="border border-line hover:border-slate-light text-paper font-medium rounded-lg px-6 py-3 transition-colors">
-                Track package
+
+            <div className="max-w-md mb-4">
+              <HeroQuoteWidget />
+            </div>
+
+            <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+              <Link to="/track" className="text-slate-light hover:text-paper underline decoration-line underline-offset-4 transition-colors">
+                Track a package
               </Link>
-              <Link to="/signup/agent" className="border border-line hover:border-slate-light text-paper font-medium rounded-lg px-6 py-3 transition-colors">
+              <Link to="/signup/agent" className="text-slate-light hover:text-paper underline decoration-line underline-offset-4 transition-colors">
                 Become a rider
               </Link>
             </div>
@@ -73,13 +76,6 @@ export default function Landing() {
       </section>
 
       <StatsBar />
-
-      {/* PRICE CALCULATOR */}
-      <section className="max-w-4xl mx-auto px-5 py-16">
-        <div className="font-mono text-xs text-slate mb-2">INSTANT QUOTE</div>
-        <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-8">What will it cost?</h2>
-        <PriceCalculator />
-      </section>
 
       {/* LIVE TRACKING DEMO */}
       <section className="bg-ink-soft/[0.03] border-y border-slate-200">
@@ -116,6 +112,8 @@ export default function Landing() {
           ))}
         </div>
       </section>
+
+      <BusinessSection />
 
       {/* HOW IT WORKS */}
       <section className="bg-ink-soft/[0.03] border-y border-slate-200">
