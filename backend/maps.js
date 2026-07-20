@@ -27,4 +27,32 @@ async function drivingDistanceKm(origin, destination) {
   return route.distance / 1000; // meters -> km
 }
 
-module.exports = { geocode, drivingDistanceKm };
+// Address autocomplete for the hero's pickup/drop-off fields. Returns up to
+// 5 suggestions, each with coordinates already attached — so selecting one
+// skips a redundant geocoding call later (the coords are already known).
+// Also extracts a best-guess city from Mapbox's "context" data, so the
+// flat-price fallback has something to work with if the distance API call
+// itself fails despite the address being found successfully.
+async function suggest(query) {
+  if (!MAPBOX_TOKEN) throw new Error("MAPBOX_ACCESS_TOKEN is not set");
+  const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&country=NG&autocomplete=true&limit=5`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Mapbox suggest failed: ${res.status}`);
+  const data = await res.json();
+
+  return (data.features || []).map((f) => {
+    const [lng, lat] = f.center;
+    const context = f.context || [];
+    const cityContext =
+      context.find((c) => c.id.startsWith("place.")) ||
+      context.find((c) => c.id.startsWith("region."));
+    return {
+      label: f.place_name,
+      city: cityContext ? cityContext.text : (f.place_type?.includes("place") ? f.text : null),
+      lat,
+      lng,
+    };
+  });
+}
+
+module.exports = { geocode, drivingDistanceKm, suggest };

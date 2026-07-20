@@ -56,7 +56,7 @@ export default function AddressAutocomplete({ value, onSelect, placeholder, icon
           onChange={handleChange}
           onFocus={() => suggestions.length > 0 && setOpen(true)}
           placeholder={placeholder}
-          className="flex-1 text-sm outline-none bg-transparent"
+          className="flex-1 text-sm outline-none bg-transparent text-ink placeholder:text-slate-light"
         />
         {loading && <span className="text-xs text-slate">…</span>}
       </div>
@@ -68,7 +68,7 @@ export default function AddressAutocomplete({ value, onSelect, placeholder, icon
               key={i}
               type="button"
               onClick={() => handleSelect(s)}
-              className="w-full text-left px-3.5 py-2.5 text-sm hover:bg-paper transition-colors border-b border-slate-100 last:border-b-0"
+              className="w-full text-left px-3.5 py-2.5 text-sm text-ink hover:bg-paper transition-colors border-b border-slate-100 last:border-b-0"
             >
               {s.label}
             </button>

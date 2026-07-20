@@ -1,6 +1,7 @@
 const express = require("express");
 const { pool } = require("../db");
 const { getQuote } = require("../quote");
+const { suggest } = require("../maps");
 
 const router = express.Router();
 
@@ -31,13 +32,42 @@ router.get("/stats", async (req, res) => {
   }
 });
 
-// ---------- PRICE ESTIMATE (landing page calculator — no login required) ----------
-router.post("/estimate", async (req, res) => {
-  const { pickup_city, dropoff_city, preferred_vehicle } = req.body;
-  if (!pickup_city || !dropoff_city) {
-    return res.status(400).json({ error: "pickup_city and dropoff_city are required" });
+// ---------- ADDRESS AUTOCOMPLETE (hero pickup/drop-off fields — no login
+// required). Each suggestion already carries its coordinates, so selecting
+// one skips a redundant geocoding call when pricing the trip afterward. ----------
+router.post("/autocomplete", async (req, res) => {
+  const query = (req.body.query || "").trim();
+  if (query.length < 3) return res.json({ suggestions: [] });
+  if (!process.env.MAPBOX_ACCESS_TOKEN) return res.json({ suggestions: [] });
+
+  try {
+    const suggestions = await suggest(query);
+    res.json({ suggestions });
+  } catch (err) {
+    console.error("Autocomplete failed:", err.message);
+    res.json({ suggestions: [] }); // typing still works as free text either way
   }
-  const quote = await getQuote({ pickup_city, dropoff_city, vehicle_type: preferred_vehicle || "any" });
+});
+
+// ---------- PRICE ESTIMATE (landing page — no login required). Accepts
+// either city names (older/simple usage) or confirmed coordinates from an
+// autocomplete selection (pickup_coords/dropoff_coords), which skip
+// re-geocoding and are more accurate. ----------
+router.post("/estimate", async (req, res) => {
+  const { pickup_city, dropoff_city, preferred_vehicle, pickup_coords, dropoff_coords } = req.body;
+  if (!pickup_city && !pickup_coords) {
+    return res.status(400).json({ error: "pickup_city or pickup_coords is required" });
+  }
+  if (!dropoff_city && !dropoff_coords) {
+    return res.status(400).json({ error: "dropoff_city or dropoff_coords is required" });
+  }
+  const quote = await getQuote({
+    pickup_city: pickup_city || "Lagos", // only used by the flat fallback if distance calc also fails
+    dropoff_city: dropoff_city || "Lagos",
+    vehicle_type: preferred_vehicle || "any",
+    pickup_coords: pickup_coords || null,
+    dropoff_coords: dropoff_coords || null,
+  });
   res.json(quote);
 });
 
