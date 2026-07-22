@@ -14,7 +14,12 @@ import AdminDashboard from "./pages/AdminDashboard";
 import PaymentCallback from "./pages/PaymentCallback";
 import WalletCallback from "./pages/WalletCallback";
 import TrackPublic from "./pages/TrackPublic";
+import About from "./pages/About";
+import Contact from "./pages/Contact";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 import WhatsAppButton from "./components/WhatsAppButton";
+import Footer from "./components/Footer";
 
 export default function App() {
   return (
@@ -29,6 +34,10 @@ export default function App() {
           <Route path="/signup/agent" element={<SignupAgent />} />
           <Route path="/signup/admin" element={<SignupAdmin />} />
           <Route path="/track" element={<TrackPublic />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
 
           <Route path="/customer/dashboard" element={
             <ProtectedRoute role="customer"><CustomerDashboard /></ProtectedRoute>
@@ -49,6 +58,7 @@ export default function App() {
           <Route path="*" element={<Landing />} />
         </Routes>
       </main>
+      <Footer />
       <WhatsAppButton />
     </div>
   );
