@@ -53,16 +53,33 @@ export default function HeroLiveMap({ className = "" }) {
           DROP-OFF
         </text>
 
-        {/* moving rider, traveling the route on loop */}
-        <text
-          className="route-pulse"
-          style={{ offsetPath: `path('${PATH_D}')`, offsetRotate: "0deg" }}
-          fontSize="22"
-          textAnchor="middle"
-          dominantBaseline="central"
-        >
-          🛵
-        </text>
+        {/* branded dispatch rider, traveling the route on loop */}
+        <g style={{ offsetPath: `path('${PATH_D}')`, offsetRotate: "0deg" }} className="route-pulse">
+          <g transform="translate(-14, -11)">
+            {/* delivery box on the rear rack, branded route-yellow with a small route mark */}
+            <rect x="0" y="9" width="8" height="6" rx="1.3" fill="#FFC63D" stroke="#0B1220" strokeWidth="0.6" />
+            <path d="M2 12.5 C2.6 10.9, 4.4 10.9, 5 12.5" stroke="#0B1220" strokeWidth="0.9" fill="none" strokeLinecap="round" />
+
+            {/* wheels */}
+            <circle cx="7" cy="18" r="5" stroke="#F7F7F5" strokeWidth="1.6" fill="#0B1220" />
+            <circle cx="23" cy="18" r="5" stroke="#F7F7F5" strokeWidth="1.6" fill="#0B1220" />
+
+            {/* frame: rear hub -> seat junction -> handlebar base -> front hub */}
+            <path d="M7 18 L12 8 L19 8 L23 18" stroke="#FFC63D" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+
+            {/* seat post + torso up to shoulder */}
+            <path d="M12 8 L12 5 L13.5 2.5" stroke="#F7F7F5" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+
+            {/* head */}
+            <circle cx="13.7" cy="1" r="2.1" fill="#F7F7F5" />
+
+            {/* handlebar stem */}
+            <path d="M19 8 L20.5 4" stroke="#FFC63D" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+
+            {/* arm — ends at the exact same point as the handlebar grip above, so they visually connect */}
+            <path d="M13.5 2.5 L20.5 4" stroke="#F7F7F5" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+          </g>
+        </g>
       </svg>
 
       {/* live ETA badge */}
