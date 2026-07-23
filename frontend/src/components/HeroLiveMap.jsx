@@ -1,350 +1,126 @@
-import { useEffect, useRef } from "react";
-import * as THREE from "three";
-
-// A closed loop route so the chase-cam animation never has to jump-cut back
-// to a start point — it just keeps circling, which reads fine as an ambient
-// background scene rather than one literal trip.
-const ROUTE_POINTS = [
-  new THREE.Vector3(-10, 0, 6),
-  new THREE.Vector3(-4, 0, -7),
-  new THREE.Vector3(6, 0, -9),
-  new THREE.Vector3(12, 0, 2),
-  new THREE.Vector3(6, 0, 9),
-  new THREE.Vector3(-4, 0, 8),
-];
-
-const PICKUP_T = 0.04;
-const DROPOFF_T = 0.52;
-const SPEED = 0.045; // fraction of the loop per second
-const BANK_MAX = 0.5; // radians
-const BANK_GAIN = 14;
-
-function buildBike() {
-  const root = new THREE.Group();
-
-  const wheelGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.1, 20);
-  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x0b1220, roughness: 0.6 });
-  const rimMat = new THREE.MeshStandardMaterial({ color: 0xf7f7f5, roughness: 0.4 });
-
-  function makeWheel(z) {
-    const wheel = new THREE.Mesh(wheelGeo, wheelMat);
-    wheel.rotation.z = Math.PI / 2;
-    wheel.position.set(0, 0.42, z);
-    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.04, 8, 20), rimMat);
-    rim.rotation.y = Math.PI / 2;
-    wheel.add(rim);
-    return wheel;
-  }
-
-  const frontWheel = makeWheel(0.75);
-  const rearWheel = makeWheel(-0.75);
-  root.add(frontWheel, rearWheel);
-
-  const frameMat = new THREE.MeshStandardMaterial({ color: 0xf5b833, roughness: 0.4, metalness: 0.2 });
-  const frameGeo = new THREE.CylinderGeometry(0.045, 0.045, 1.5, 8);
-
-  const lowerBar = new THREE.Mesh(frameGeo, frameMat);
-  lowerBar.rotation.z = Math.PI / 2 - 0.35;
-  lowerBar.position.set(0, 0.55, 0.05);
-  root.add(lowerBar);
-
-  const seatPost = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.55, 8), frameMat);
-  seatPost.position.set(0, 0.95, -0.35);
-  seatPost.rotation.x = -0.25;
-  root.add(seatPost);
-
-  const forkPost = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.7, 8), frameMat);
-  forkPost.position.set(0, 0.95, 0.55);
-  forkPost.rotation.x = 0.3;
-  root.add(forkPost);
-
-  // rider
-  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xf7f7f5, roughness: 0.7 });
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.5, 4, 8), bodyMat);
-  torso.position.set(0, 1.35, -0.25);
-  torso.rotation.x = 0.5;
-  root.add(torso);
-
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 12), bodyMat);
-  head.position.set(0, 1.72, 0.1);
-  root.add(head);
-
-  // delivery box on the rear rack, brand-yellow
-  const box = new THREE.Mesh(
-    new THREE.BoxGeometry(0.45, 0.35, 0.4),
-    new THREE.MeshStandardMaterial({ color: 0xf5b833, roughness: 0.5 })
-  );
-  box.position.set(0, 0.95, -0.85);
-  root.add(box);
-
-  return { root, frontWheel, rearWheel };
-}
-
-function buildEnvironment(scene, pointAt) {
-  const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(90, 90),
-    new THREE.MeshStandardMaterial({ color: 0x141d30, roughness: 1 })
-  );
-  ground.rotation.x = -Math.PI / 2;
-  scene.add(ground);
-
-  // dashed lane markings following the route
-  const dashGeo = new THREE.BoxGeometry(0.18, 0.02, 0.6);
-  const dashMat = new THREE.MeshStandardMaterial({ color: 0xffc63d, roughness: 0.6 });
-  const dashCount = 70;
-  for (let i = 0; i < dashCount; i++) {
-    const t = i / dashCount;
-    const p = pointAt(t);
-    const ahead = pointAt(t + 1 / dashCount);
-    const dash = new THREE.Mesh(dashGeo, dashMat);
-    dash.position.set(p.x, 0.015, p.z);
-    dash.rotation.y = Math.atan2(ahead.x - p.x, ahead.z - p.z);
-    scene.add(dash);
-  }
-
-  // simple low-poly buildings scattered off both sides of the route for depth
-  const buildingMats = [0x1b2436, 0x223049, 0x0e1626].map(
-    (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.9 })
-  );
-  let seed = 42;
-  function rand() {
-    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-    return (seed % 1000) / 1000;
-  }
-  const buildingCount = 26;
-  for (let i = 0; i < buildingCount; i++) {
-    const t = rand();
-    const p = pointAt(t);
-    const ahead = pointAt(t + 0.01);
-    const tangent = ahead.clone().sub(p).normalize();
-    const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
-    const side = rand() > 0.5 ? 1 : -1;
-    const offset = 6 + rand() * 10;
-    const height = 1.5 + rand() * 5;
-    const width = 1.2 + rand() * 1.6;
-    const building = new THREE.Mesh(
-      new THREE.BoxGeometry(width, height, width),
-      buildingMats[i % buildingMats.length]
-    );
-    building.position.set(
-      p.x + normal.x * side * offset,
-      height / 2,
-      p.z + normal.z * side * offset
-    );
-    scene.add(building);
-  }
-}
-
-function buildMarker(color) {
-  const group = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.4 });
-  const stem = new THREE.Mesh(new THREE.ConeGeometry(0.28, 1, 12), mat);
-  stem.position.y = 0.5;
-  stem.rotation.x = Math.PI;
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), mat);
-  head.position.y = 1.15;
-  group.add(stem, head);
-  return group;
-}
+const ROAD_D = "M 20 150 C 90 40, 190 205, 280 75 S 420 55, 460 120";
 
 export default function HeroLiveMap({ className = "" }) {
-  const mountRef = useRef(null);
-  const pickupLabelRef = useRef(null);
-  const dropoffLabelRef = useRef(null);
-
-  useEffect(() => {
-    const mount = mountRef.current;
-    if (!mount) return;
-
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0b1220);
-    scene.fog = new THREE.Fog(0x0b1220, 20, 48);
-
-    const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 200);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    mount.appendChild(renderer.domElement);
-
-    scene.add(new THREE.HemisphereLight(0x8fa3c4, 0x0b1220, 0.9));
-    const sun = new THREE.DirectionalLight(0xffe9c2, 1.1);
-    sun.position.set(8, 14, 6);
-    scene.add(sun);
-
-    const curve = new THREE.CatmullRomCurve3(ROUTE_POINTS, true, "catmullrom", 0.5);
-
-    // Sample the route into a fixed array once, up front, and do our own
-    // lookup/interpolation every frame instead of calling curve.getPointAt /
-    // getTangentAt repeatedly. That avoids relying on that method's internal
-    // index-wrapping for closed curves, which behaves differently across
-    // three.js versions and is what was throwing in production.
-    const SAMPLES = 240;
-    const pathPoints = curve.getSpacedPoints(SAMPLES);
-
-    function pointAt(u) {
-      const wrapped = ((u % 1) + 1) % 1;
-      const scaled = wrapped * SAMPLES;
-      const i0 = Math.floor(scaled) % SAMPLES;
-      const i1 = (i0 + 1) % SAMPLES;
-      const f = scaled - Math.floor(scaled);
-      return pathPoints[i0].clone().lerp(pathPoints[i1], f);
-    }
-
-    buildEnvironment(scene, pointAt);
-
-    const pickupMarker = buildMarker(0xff6b35);
-    pickupMarker.position.copy(pointAt(PICKUP_T));
-    scene.add(pickupMarker);
-
-    const dropoffMarker = buildMarker(0x1fae6b);
-    dropoffMarker.position.copy(pointAt(DROPOFF_T));
-    scene.add(dropoffMarker);
-
-    const { root: bike, frontWheel, rearWheel } = buildBike();
-    scene.add(bike);
-
-    function resize() {
-      const w = mount.clientWidth || 1;
-      // Defensive fallback: if the container ever reports zero height (e.g. an
-      // older browser without CSS aspect-ratio support), derive a 4:3 height
-      // from the width instead of rendering into a 0px-tall canvas.
-      const h = mount.clientHeight || Math.round(w * 0.75);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
-    }
-    resize();
-    const ro = new ResizeObserver(resize);
-    ro.observe(mount);
-
-    let visible = true;
-    const io = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; }, { threshold: 0.05 });
-    io.observe(mount);
-
-    let t = 0;
-    let frameId;
-    let last = performance.now();
-    const cameraOffset = new THREE.Vector3(0, 3.2, 6.5);
-    const cameraPos = new THREE.Vector3();
-    const lookTarget = new THREE.Vector3();
-
-    // Snap into the correct framing before the first render, instead of
-    // lerping in from world origin — otherwise the camera spends its first
-    // ~20-30 frames somewhere nonsensical while it "catches up."
-    {
-      const initialPos = pointAt(0);
-      const initialNext = pointAt(0.01);
-      const initialForward = initialNext.clone().sub(initialPos).normalize();
-      bike.position.copy(initialPos);
-      bike.position.y = 0;
-      bike.lookAt(initialPos.clone().add(initialForward));
-      cameraPos.copy(bike.localToWorld(cameraOffset.clone()));
-      camera.position.copy(cameraPos);
-      camera.lookAt(initialPos.clone().add(initialForward.clone().multiplyScalar(3)));
-    }
-
-    function project(vec3, out) {
-      const p = vec3.clone().project(camera);
-      if (p.z > 1 || Math.abs(p.x) > 1.15 || Math.abs(p.y) > 1.15) return null;
-      const w = mount.clientWidth;
-      const h = mount.clientHeight;
-      out.x = ((p.x + 1) / 2) * w;
-      out.y = ((1 - p.y) / 2) * h;
-      return out;
-    }
-
-    function positionLabel(el, worldPos) {
-      if (!el) return;
-      const screen = project(worldPos, { x: 0, y: 0 });
-      if (!screen) {
-        el.style.opacity = "0";
-        return;
-      }
-      el.style.opacity = "1";
-      el.style.transform = `translate(${screen.x}px, ${screen.y}px) translate(-50%, -140%)`;
-    }
-
-    function tick(now) {
-      const dt = Math.min((now - last) / 1000, 0.05);
-      last = now;
-
-      if (!reduceMotion) t = (t + dt * SPEED) % 1;
-
-      const pos = pointAt(t);
-      const nextPos = pointAt(t + 0.01);
-      const forward = nextPos.clone().sub(pos).normalize();
-
-      bike.position.copy(pos);
-      bike.position.y = 0;
-      bike.lookAt(pos.clone().add(forward));
-
-      const ahead2 = pointAt(t + 0.02);
-      const forward2 = ahead2.clone().sub(nextPos).normalize();
-      const turn = forward.clone().cross(forward2).y;
-      const bank = THREE.MathUtils.clamp(-turn * BANK_GAIN, -BANK_MAX, BANK_MAX);
-      bike.rotateZ(bank);
-
-      if (!reduceMotion) {
-        const spin = dt * SPEED * 40;
-        frontWheel.rotation.x += spin;
-        rearWheel.rotation.x += spin;
-      }
-
-      const desiredCam = bike.localToWorld(cameraOffset.clone());
-      cameraPos.lerp(desiredCam, reduceMotion ? 1 : 0.08);
-      camera.position.copy(cameraPos);
-      lookTarget.copy(pos).add(forward.clone().multiplyScalar(3));
-      lookTarget.y = 0.9;
-      camera.lookAt(lookTarget);
-
-      positionLabel(pickupLabelRef.current, pickupMarker.position.clone().setY(1.6));
-      positionLabel(dropoffLabelRef.current, dropoffMarker.position.clone().setY(1.6));
-
-      renderer.render(scene, camera);
-      if (visible || reduceMotion) frameId = requestAnimationFrame(tick);
-      else frameId = requestAnimationFrame(tick);
-    }
-    frameId = requestAnimationFrame(tick);
-
-    return () => {
-      cancelAnimationFrame(frameId);
-      ro.disconnect();
-      io.disconnect();
-      scene.traverse((obj) => {
-        if (obj.geometry) obj.geometry.dispose();
-        if (obj.material) {
-          if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose());
-          else obj.material.dispose();
-        }
-      });
-      renderer.dispose();
-      if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
-    };
-  }, []);
-
   return (
-    <div className={`relative rounded-2xl overflow-hidden ${className}`}>
-      <div
-        ref={mountRef}
-        className="w-full"
-        style={{ aspectRatio: "4 / 3", minHeight: 240 }}
-      />
+    <div className={`relative ${className}`}>
+      <style>{`
+        @keyframes pae-ride {
+          0%   { offset-distance: 0%;   opacity: 0; }
+          6%   { opacity: 1; }
+          94%  { opacity: 1; }
+          100% { offset-distance: 100%; opacity: 0; }
+        }
+        @keyframes pae-bob {
+          0%   { transform: translateY(0px); }
+          100% { transform: translateY(-3px); }
+        }
+        @keyframes pae-spin {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes pae-dash {
+          to { stroke-dashoffset: -24; }
+        }
+        @keyframes pae-drift {
+          0%   { transform: translateX(0px); }
+          100% { transform: translateX(10px); }
+        }
+        .pae-map-shadow, .pae-map-rider {
+          offset-path: path('${ROAD_D}');
+          animation-name: pae-ride;
+          animation-duration: 7s;
+          animation-timing-function: linear;
+          animation-iteration-count: infinite;
+        }
+        .pae-map-shadow { offset-rotate: 0deg; }
+        .pae-map-rider { offset-rotate: auto; }
+        .pae-map-bob { animation: pae-bob 0.5s ease-in-out infinite alternate; }
+        .pae-map-wheel {
+          transform-box: fill-box;
+          transform-origin: center;
+          animation: pae-spin 0.5s linear infinite;
+        }
+        .pae-map-dashline {
+          stroke-dasharray: 10 14;
+          animation: pae-dash 1.1s linear infinite;
+        }
+        .pae-map-cloud {
+          animation: pae-drift 6s ease-in-out infinite alternate;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .pae-map-shadow, .pae-map-rider, .pae-map-bob, .pae-map-wheel,
+          .pae-map-dashline, .pae-map-cloud {
+            animation: none !important;
+          }
+          .pae-map-shadow, .pae-map-rider { offset-distance: 40%; opacity: 1; }
+        }
+      `}</style>
 
-      <div
-        ref={pickupLabelRef}
-        className="absolute top-0 left-0 pointer-events-none font-mono text-[10px] text-paper bg-ink/80 border border-line rounded-full px-2 py-0.5 transition-opacity"
-      >
-        PICKUP
-      </div>
-      <div
-        ref={dropoffLabelRef}
-        className="absolute top-0 left-0 pointer-events-none font-mono text-[10px] text-paper bg-ink/80 border border-line rounded-full px-2 py-0.5 transition-opacity"
-      >
-        DROP-OFF
-      </div>
+      <svg viewBox="0 0 480 200" className="w-full h-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* soft drifting clouds for a bit of life in the background */}
+        <g opacity="0.5" fill="#1B2436">
+          <ellipse className="pae-map-cloud" cx="90" cy="28" rx="26" ry="9" />
+          <ellipse className="pae-map-cloud" cx="360" cy="20" rx="20" ry="7" style={{ animationDelay: "1.2s" }} />
+        </g>
 
-      <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-ink/90 border border-line rounded-full pl-2.5 pr-3 py-1.5 backdrop-blur-sm">
+        {/* road */}
+        <path d={ROAD_D} stroke="#223049" strokeWidth="10" strokeLinecap="round" />
+        <path className="pae-map-dashline" d={ROAD_D} stroke="#FFC63D" strokeWidth="2.5" strokeLinecap="round" />
+
+        {/* pickup: a friendly parcel with a pin */}
+        <g transform="translate(20,150)">
+          <ellipse cx="0" cy="21" rx="13" ry="4" fill="#000" opacity="0.18" />
+          <rect x="-11" y="-10" width="22" height="18" rx="3" fill="#FF6B35" />
+          <path d="M-11 -3 H11 M0 -10 V8" stroke="#FFE3D6" strokeWidth="1.6" />
+          <text x="0" y="38" fill="#9AA3B2" fontSize="9" textAnchor="middle" fontFamily="'IBM Plex Mono', monospace" letterSpacing="0.5">
+            PICKUP
+          </text>
+        </g>
+
+        {/* drop-off: a friendly little house with a check */}
+        <g transform="translate(460,120)">
+          <ellipse cx="0" cy="17" rx="14" ry="4" fill="#000" opacity="0.18" />
+          <path d="M-14 4 0 -10 14 4 V16 H-14 Z" fill="#1FAE6B" />
+          <rect x="-4" y="4" width="8" height="12" fill="#0B1220" />
+          <circle cx="15" cy="-8" r="8" fill="#1FAE6B" stroke="#0B1220" strokeWidth="1.5" />
+          <path d="M11 -8 14 -5 19 -11" stroke="#F7F7F5" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <text x="0" y="34" fill="#9AA3B2" fontSize="9" textAnchor="middle" fontFamily="'IBM Plex Mono', monospace" letterSpacing="0.5">
+            DROP-OFF
+          </text>
+        </g>
+
+        {/* soft moving shadow beneath the rider, tracing the same path */}
+        <ellipse className="pae-map-shadow" rx="12" ry="3.5" fill="#000" opacity="0.22" />
+
+        {/* the rider, cartoon-proportioned: big wheels, round helmeted head, big smile */}
+        <g className="pae-map-rider">
+          <g className="pae-map-bob" transform="translate(-16, -13)">
+            {/* delivery box on the back rack */}
+            <rect x="-1" y="7" width="9" height="7" rx="1.6" fill="#FFC63D" stroke="#0B1220" strokeWidth="0.8" />
+            <path d="M1 10.5 c0.8 -1.8 3 -1.8 3.8 0" stroke="#0B1220" strokeWidth="1" fill="none" strokeLinecap="round" />
+
+            {/* wheels, spinning */}
+            <circle className="pae-map-wheel" cx="7" cy="19" r="6" fill="#0B1220" stroke="#F7F7F5" strokeWidth="1.8" />
+            <circle className="pae-map-wheel" cx="25" cy="19" r="6" fill="#0B1220" stroke="#F7F7F5" strokeWidth="1.8" />
+            <circle cx="7" cy="19" r="1.4" fill="#F7F7F5" />
+            <circle cx="25" cy="19" r="1.4" fill="#F7F7F5" />
+
+            {/* frame */}
+            <path d="M7 19 L13 7 L21 7 L25 19" stroke="#FFC63D" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M13 7 L13 4 L15 1" stroke="#F7F7F5" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M21 7 L22.5 3" stroke="#FFC63D" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+            <path d="M15 1 L22.5 3" stroke="#F7F7F5" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+
+            {/* rider: round helmet + big friendly face */}
+            <circle cx="15.3" cy="-1.5" r="3.4" fill="#F7F7F5" />
+            <path d="M12 -3 a3.6 3.6 0 0 1 7 0 Z" fill="#0B1220" />
+            <circle cx="16.6" cy="-1.6" r="0.6" fill="#0B1220" />
+            <path d="M14.6 -0.2 q1 1 2 0" stroke="#0B1220" strokeWidth="0.6" fill="none" strokeLinecap="round" />
+          </g>
+        </g>
+      </svg>
+
+      {/* live-tracking badge */}
+      <div className="absolute top-1 right-1 flex items-center gap-1.5 bg-ink/90 border border-line rounded-full pl-2.5 pr-3 py-1.5 backdrop-blur-sm">
         <span className="relative flex h-1.5 w-1.5">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-delivered opacity-75" />
           <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-delivered" />
