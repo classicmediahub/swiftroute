@@ -75,8 +75,8 @@ export default function DeliveryMap({ pickup, dropoff, current, height = 320 }) 
       >
         <p className="text-xs text-slate">
           {!MAPBOX_TOKEN
-            ? "Map preview isn't configured yet."
-            : "Map preview isn't available for this delivery (created before precise location data)."}
+            ? "Map preview isn't available right now. Tracking details are below."
+            : "Map preview isn't available for this delivery. Tracking details are below."}
         </p>
       </div>
     );
