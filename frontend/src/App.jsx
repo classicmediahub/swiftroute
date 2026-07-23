@@ -1,5 +1,4 @@
-import { Routes, Route } from "react-router-dom";
-import Navbar from "./components/Navbar";
+import Layout from "./Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 import Landing from "./pages/Landing";
@@ -18,48 +17,76 @@ import About from "./pages/About";
 import Contact from "./pages/Contact";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
-import WhatsAppButton from "./components/WhatsAppButton";
-import Footer from "./components/Footer";
 
-export default function App() {
-  return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-      <main className="flex-1">
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<SignupChoice />} />
-          <Route path="/signup/customer" element={<SignupCustomer />} />
-          <Route path="/signup/agent" element={<SignupAgent />} />
-          <Route path="/signup/admin" element={<SignupAdmin />} />
-          <Route path="/track" element={<TrackPublic />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/privacy" element={<PrivacyPolicy />} />
-          <Route path="/terms" element={<TermsOfService />} />
+// This used to be a component rendering <Routes>/<Route>. vite-react-ssg
+// needs a plain route-record array instead (same shape react-router-dom's
+// data routers use), so it can walk it at build time and prerender each
+// public path to real HTML. Every path below is unchanged from before.
+const routes = [
+  {
+    path: "/",
+    Component: Layout,
+    entry: "src/Layout.jsx",
+    children: [
+      { index: true, Component: Landing },
+      { path: "login", Component: Login },
+      { path: "signup", Component: SignupChoice },
+      { path: "signup/customer", Component: SignupCustomer },
+      { path: "signup/agent", Component: SignupAgent },
+      { path: "signup/admin", Component: SignupAdmin },
+      { path: "track", Component: TrackPublic },
+      { path: "about", Component: About },
+      { path: "contact", Component: Contact },
+      { path: "privacy", Component: PrivacyPolicy },
+      { path: "terms", Component: TermsOfService },
 
-          <Route path="/customer/dashboard" element={
-            <ProtectedRoute role="customer"><CustomerDashboard /></ProtectedRoute>
-          } />
-          <Route path="/payment/callback" element={
-            <ProtectedRoute role="customer"><PaymentCallback /></ProtectedRoute>
-          } />
-          <Route path="/wallet/callback" element={
-            <ProtectedRoute role="customer"><WalletCallback /></ProtectedRoute>
-          } />
-          <Route path="/agent/dashboard" element={
-            <ProtectedRoute role="agent"><AgentDashboard /></ProtectedRoute>
-          } />
-          <Route path="/admin/dashboard" element={
-            <ProtectedRoute role="admin"><AdminDashboard /></ProtectedRoute>
-          } />
+      // Behind auth — no SEO value, left as ordinary client-rendered routes.
+      // (vite.config.js is set up to skip these during the prerender pass;
+      // see the note there.)
+      {
+        path: "customer/dashboard",
+        element: (
+          <ProtectedRoute role="customer">
+            <CustomerDashboard />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "payment/callback",
+        element: (
+          <ProtectedRoute role="customer">
+            <PaymentCallback />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "wallet/callback",
+        element: (
+          <ProtectedRoute role="customer">
+            <WalletCallback />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "agent/dashboard",
+        element: (
+          <ProtectedRoute role="agent">
+            <AgentDashboard />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "admin/dashboard",
+        element: (
+          <ProtectedRoute role="admin">
+            <AdminDashboard />
+          </ProtectedRoute>
+        ),
+      },
 
-          <Route path="*" element={<Landing />} />
-        </Routes>
-      </main>
-      <Footer />
-      <WhatsAppButton />
-    </div>
-  );
-}
+      { path: "*", Component: Landing },
+    ],
+  },
+];
+
+export default routes;

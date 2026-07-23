@@ -1,16 +1,8 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
-import './index.css'
-import App from './App.jsx'
-import { AuthProvider } from './context/AuthContext.jsx'
+import { ViteReactSSG } from "vite-react-ssg";
+import routes from "./App.jsx";
+import "./index.css";
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-    </BrowserRouter>
-  </StrictMode>,
-)
+// Note: <StrictMode> is no longer wrapped here — vite-react-ssg owns the
+// render entry point itself. This only affects React's extra dev-mode
+// double-render checks, not production behavior.
+export const createRoot = ViteReactSSG({ routes });
