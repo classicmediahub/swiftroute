@@ -225,13 +225,28 @@ export default function HeroLiveMap({ className = "" }) {
     let t = 0;
     let frameId;
     let last = performance.now();
-    const cameraOffset = new THREE.Vector3(0, 2.6, 5.2);
+    const cameraOffset = new THREE.Vector3(0, 3.2, 6.5);
     const cameraPos = new THREE.Vector3();
     const lookTarget = new THREE.Vector3();
 
+    // Snap into the correct framing before the first render, instead of
+    // lerping in from world origin — otherwise the camera spends its first
+    // ~20-30 frames somewhere nonsensical while it "catches up."
+    {
+      const initialPos = pointAt(0);
+      const initialNext = pointAt(0.01);
+      const initialForward = initialNext.clone().sub(initialPos).normalize();
+      bike.position.copy(initialPos);
+      bike.position.y = 0;
+      bike.lookAt(initialPos.clone().add(initialForward));
+      cameraPos.copy(bike.localToWorld(cameraOffset.clone()));
+      camera.position.copy(cameraPos);
+      camera.lookAt(initialPos.clone().add(initialForward.clone().multiplyScalar(3)));
+    }
+
     function project(vec3, out) {
       const p = vec3.clone().project(camera);
-      if (p.z > 1) return null;
+      if (p.z > 1 || Math.abs(p.x) > 1.15 || Math.abs(p.y) > 1.15) return null;
       const w = mount.clientWidth;
       const h = mount.clientHeight;
       out.x = ((p.x + 1) / 2) * w;
@@ -309,10 +324,10 @@ export default function HeroLiveMap({ className = "" }) {
   }, []);
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative rounded-2xl overflow-hidden ${className}`}>
       <div
         ref={mountRef}
-        className="w-full rounded-2xl overflow-hidden"
+        className="w-full"
         style={{ aspectRatio: "4 / 3", minHeight: 240 }}
       />
 
