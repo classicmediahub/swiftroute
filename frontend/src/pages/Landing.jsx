@@ -7,6 +7,9 @@ import HowItWorksDiagram from "../components/HowItWorksDiagram";
 import ReviewsSection from "../components/ReviewsSection";
 import BusinessSection from "../components/BusinessSection";
 
+// Admin signup is intentionally not offered here. Public marketing pages
+// shouldn't surface a self-serve path to an admin role — that invite should
+// come from an existing admin, not a homepage card.
 const ROLE_CARDS = [
   {
     code: "WB-01",
@@ -22,13 +25,6 @@ const ROLE_CARDS = [
     cta: "Become an agent",
     to: "/signup/agent",
   },
-  {
-    code: "WB-03",
-    title: "Run the network",
-    desc: "Approve agents, monitor every delivery in transit, and keep the platform healthy.",
-    cta: "Admin access",
-    to: "/signup/admin",
-  },
 ];
 
 const VEHICLES = [
@@ -40,20 +36,22 @@ const VEHICLES = [
 export default function Landing() {
   return (
     <div>
-      {/* HERO */}
+      {/* HERO — one primary audience: someone who needs to send something.
+          Rider/agent signup stays available but as a secondary link, not a
+          second headline competing for attention. */}
       <section className="bg-ink text-paper relative overflow-hidden">
         <div className="max-w-6xl mx-auto px-5 pt-20 pb-16 grid md:grid-cols-2 gap-10 items-center">
           <div>
             <div className="inline-flex items-center gap-2 font-mono text-xs text-route border border-line rounded-full px-3 py-1 mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-route" />
-              NIGERIA'S SMART DELIVERY NETWORK
+              VERIFIED RIDERS · INSURED PARCELS
             </div>
             <h1 className="font-display text-4xl sm:text-5xl font-semibold leading-[1.1] mb-5">
-              Deliver anywhere.<br />Track everything.
+              Send it today.<br />Track every mile.
             </h1>
             <p className="text-slate-light text-lg mb-6 max-w-md">
-              Pay only for what you need. PickAndEarn matches you to a verified bike, cab, or self
-              agent in minutes, and you can watch every step from pickup to your door.
+              Get a live rider, a real price, and proof of delivery — in one request. Watch every
+              step from pickup to your door.
             </p>
 
             <div className="max-w-md mb-4">
@@ -65,7 +63,7 @@ export default function Landing() {
                 Track a package
               </Link>
               <Link to="/signup/agent" className="text-slate-light hover:text-paper underline decoration-line underline-offset-4 transition-colors">
-                Become a rider
+                Earn as a rider instead
               </Link>
             </div>
           </div>
@@ -98,8 +96,8 @@ export default function Landing() {
       {/* ROLE CARDS */}
       <section className="max-w-6xl mx-auto px-5 py-16">
         <div className="font-mono text-xs text-slate mb-2">CHOOSE YOUR ROLE</div>
-        <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-10">Three ways onto the network</h2>
-        <div className="grid md:grid-cols-3 gap-5">
+        <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-10">Two ways onto the network</h2>
+        <div className="grid md:grid-cols-2 gap-5">
           {ROLE_CARDS.map((card) => (
             <div key={card.code} className="border border-slate-200 rounded-2xl p-6 bg-white hover:border-ink transition-colors flex flex-col">
               <div className="font-mono text-xs text-signal mb-4">[{card.code}]</div>
