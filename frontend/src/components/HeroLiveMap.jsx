@@ -80,7 +80,7 @@ function buildBike() {
   return { root, frontWheel, rearWheel };
 }
 
-function buildEnvironment(scene, curve) {
+function buildEnvironment(scene, pointAt) {
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(90, 90),
     new THREE.MeshStandardMaterial({ color: 0x141d30, roughness: 1 })
@@ -88,17 +88,17 @@ function buildEnvironment(scene, curve) {
   ground.rotation.x = -Math.PI / 2;
   scene.add(ground);
 
-  // dashed lane markings following the curve
+  // dashed lane markings following the route
   const dashGeo = new THREE.BoxGeometry(0.18, 0.02, 0.6);
   const dashMat = new THREE.MeshStandardMaterial({ color: 0xffc63d, roughness: 0.6 });
   const dashCount = 70;
   for (let i = 0; i < dashCount; i++) {
     const t = i / dashCount;
-    const p = curve.getPointAt(t);
-    const tangent = curve.getTangentAt(t);
+    const p = pointAt(t);
+    const ahead = pointAt(t + 1 / dashCount);
     const dash = new THREE.Mesh(dashGeo, dashMat);
     dash.position.set(p.x, 0.015, p.z);
-    dash.rotation.y = Math.atan2(tangent.x, tangent.z);
+    dash.rotation.y = Math.atan2(ahead.x - p.x, ahead.z - p.z);
     scene.add(dash);
   }
 
@@ -114,8 +114,9 @@ function buildEnvironment(scene, curve) {
   const buildingCount = 26;
   for (let i = 0; i < buildingCount; i++) {
     const t = rand();
-    const p = curve.getPointAt(t);
-    const tangent = curve.getTangentAt(t);
+    const p = pointAt(t);
+    const ahead = pointAt(t + 0.01);
+    const tangent = ahead.clone().sub(p).normalize();
     const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
     const side = rand() > 0.5 ? 1 : -1;
     const offset = 6 + rand() * 10;
@@ -172,14 +173,32 @@ export default function HeroLiveMap({ className = "" }) {
     scene.add(sun);
 
     const curve = new THREE.CatmullRomCurve3(ROUTE_POINTS, true, "catmullrom", 0.5);
-    buildEnvironment(scene, curve);
+
+    // Sample the route into a fixed array once, up front, and do our own
+    // lookup/interpolation every frame instead of calling curve.getPointAt /
+    // getTangentAt repeatedly. That avoids relying on that method's internal
+    // index-wrapping for closed curves, which behaves differently across
+    // three.js versions and is what was throwing in production.
+    const SAMPLES = 240;
+    const pathPoints = curve.getSpacedPoints(SAMPLES);
+
+    function pointAt(u) {
+      const wrapped = ((u % 1) + 1) % 1;
+      const scaled = wrapped * SAMPLES;
+      const i0 = Math.floor(scaled) % SAMPLES;
+      const i1 = (i0 + 1) % SAMPLES;
+      const f = scaled - Math.floor(scaled);
+      return pathPoints[i0].clone().lerp(pathPoints[i1], f);
+    }
+
+    buildEnvironment(scene, pointAt);
 
     const pickupMarker = buildMarker(0xff6b35);
-    pickupMarker.position.copy(curve.getPointAt(PICKUP_T));
+    pickupMarker.position.copy(pointAt(PICKUP_T));
     scene.add(pickupMarker);
 
     const dropoffMarker = buildMarker(0x1fae6b);
-    dropoffMarker.position.copy(curve.getPointAt(DROPOFF_T));
+    dropoffMarker.position.copy(pointAt(DROPOFF_T));
     scene.add(dropoffMarker);
 
     const { root: bike, frontWheel, rearWheel } = buildBike();
@@ -237,15 +256,15 @@ export default function HeroLiveMap({ className = "" }) {
 
       if (!reduceMotion) t = (t + dt * SPEED) % 1;
 
-      const pos = curve.getPointAt(t);
-      const nextPos = curve.getPointAt((t + 0.01) % 1);
+      const pos = pointAt(t);
+      const nextPos = pointAt(t + 0.01);
       const forward = nextPos.clone().sub(pos).normalize();
 
       bike.position.copy(pos);
       bike.position.y = 0;
       bike.lookAt(pos.clone().add(forward));
 
-      const ahead2 = curve.getPointAt((t + 0.02) % 1);
+      const ahead2 = pointAt(t + 0.02);
       const forward2 = ahead2.clone().sub(nextPos).normalize();
       const turn = forward.clone().cross(forward2).y;
       const bank = THREE.MathUtils.clamp(-turn * BANK_GAIN, -BANK_MAX, BANK_MAX);
