@@ -187,7 +187,10 @@ export default function HeroLiveMap({ className = "" }) {
 
     function resize() {
       const w = mount.clientWidth || 1;
-      const h = mount.clientHeight || 1;
+      // Defensive fallback: if the container ever reports zero height (e.g. an
+      // older browser without CSS aspect-ratio support), derive a 4:3 height
+      // from the width instead of rendering into a 0px-tall canvas.
+      const h = mount.clientHeight || Math.round(w * 0.75);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
@@ -288,7 +291,11 @@ export default function HeroLiveMap({ className = "" }) {
 
   return (
     <div className={`relative ${className}`}>
-      <div ref={mountRef} className="w-full aspect-[4/3] rounded-2xl overflow-hidden" />
+      <div
+        ref={mountRef}
+        className="w-full rounded-2xl overflow-hidden"
+        style={{ aspectRatio: "4 / 3", minHeight: 240 }}
+      />
 
       <div
         ref={pickupLabelRef}
