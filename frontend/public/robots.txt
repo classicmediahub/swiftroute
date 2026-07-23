@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /customer/dashboard
+Disallow: /agent/dashboard
+Disallow: /admin/dashboard
+Disallow: /payment/callback
+Disallow: /wallet/callback
+
+Sitemap: https://www.pickandearn.com.ng/sitemap.xml
