@@ -1,5 +1,10 @@
 {
+  "cleanUrls": true,
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/customer/dashboard", "destination": "/index.html" },
+    { "source": "/agent/dashboard", "destination": "/index.html" },
+    { "source": "/admin/dashboard", "destination": "/index.html" },
+    { "source": "/payment/callback", "destination": "/index.html" },
+    { "source": "/wallet/callback", "destination": "/index.html" }
   ]
 }

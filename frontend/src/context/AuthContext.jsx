@@ -4,7 +4,13 @@ import { api } from "../api";
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem("pickandearn_token"));
+  // Starts null on both server and client. The actual stored token is only
+  // ever read inside useEffect below, which never runs during server-side
+  // rendering — only after the real browser has mounted the page. Reading
+  // localStorage directly in a useState initializer (the previous code)
+  // runs during render itself, which is exactly what crashes prerendering,
+  // since there's no localStorage in that Node environment.
+  const [token, setToken] = useState(null);
   const [user, setUser] = useState(null);
   const [agentProfile, setAgentProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -30,7 +36,9 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    loadMe(token);
+    const stored = localStorage.getItem("pickandearn_token");
+    setToken(stored);
+    loadMe(stored);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
