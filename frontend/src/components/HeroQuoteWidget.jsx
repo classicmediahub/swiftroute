@@ -62,6 +62,11 @@ export default function HeroQuoteWidget() {
       >
         {loading ? "Getting price…" : "See prices"}
       </button>
+
+      {/* Builds trust before someone types an address — sits right where hesitation happens. */}
+      <p className="text-[11px] text-slate px-1 text-center">
+        Verified riders · parcels insured up to ₦50,000
+      </p>
     </div>
   );
 }

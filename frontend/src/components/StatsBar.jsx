@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 
+// Tune this once deliveries are consistently past it — the point where
+// showing real numbers builds trust instead of exposing early-stage scale.
+const MIN_MEANINGFUL_DELIVERIES = 50;
+
 export default function StatsBar() {
   const [stats, setStats] = useState(null);
 
@@ -8,9 +12,9 @@ export default function StatsBar() {
     api.publicStats().then(setStats).catch(() => setStats(null));
   }, []);
 
-  // Early on, real numbers will be small — that's shown honestly rather
-  // than masked with an inflated placeholder.
-  if (!stats || stats.completedDeliveries === 0) {
+  // Below the threshold, show the honest fallback rather than small real
+  // numbers that read as "barely launched."
+  if (!stats || stats.completedDeliveries < MIN_MEANINGFUL_DELIVERIES) {
     return (
       <div className="border-y border-slate-200 bg-paper">
         <div className="max-w-6xl mx-auto px-5 py-6 text-center">

@@ -1,21 +1,6 @@
-import { useEffect, useState } from "react";
-
 const PATH_D = "M 20 140 C 90 20, 190 220, 280 60 S 420 40, 460 110";
-const START_ETA = 8 * 60; // 8:00, purely decorative — loops on repeat
 
 export default function HeroLiveMap({ className = "" }) {
-  const [eta, setEta] = useState(START_ETA);
-
-  useEffect(() => {
-    const t = setInterval(() => {
-      setEta((prev) => (prev <= 0 ? START_ETA : prev - 1));
-    }, 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  const minutes = Math.floor(eta / 60);
-  const seconds = String(eta % 60).padStart(2, "0");
-
   return (
     <div className={`relative ${className}`}>
       <svg viewBox="0 0 480 180" className="w-full h-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -82,13 +67,18 @@ export default function HeroLiveMap({ className = "" }) {
         </g>
       </svg>
 
-      {/* live ETA badge */}
+      {/*
+        Badge is intentionally non-numeric. A ticking countdown here reads as a
+        live promise ("your parcel arrives in 4:12") on a purely decorative
+        illustration — that's misleading on a marketing page. The real
+        tracking page is the place for real timers.
+      */}
       <div className="absolute top-1 right-1 flex items-center gap-1.5 bg-ink/90 border border-line rounded-full pl-2.5 pr-3 py-1.5 backdrop-blur-sm">
         <span className="relative flex h-1.5 w-1.5">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-delivered opacity-75" />
           <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-delivered" />
         </span>
-        <span className="font-mono text-xs text-paper tabular-nums">ETA {minutes}:{seconds}</span>
+        <span className="font-mono text-xs text-paper">Live tracking, every trip</span>
       </div>
     </div>
   );
