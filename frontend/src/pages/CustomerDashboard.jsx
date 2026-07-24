@@ -101,6 +101,13 @@ export default function CustomerDashboard() {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
+  // A price came back (estimate !== null) but with no real distance
+  // (estimateDistance === null) means quote.js fell back to the flat
+  // city-rate estimate — almost always because it couldn't geocode one or
+  // both addresses. That's the signal to nudge the customer toward
+  // pinning the exact location instead of relying on address lookup.
+  const addressLookupFailed = estimate !== null && estimateDistance === null;
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
@@ -179,6 +186,7 @@ export default function CustomerDashboard() {
               city={form.pickup_city}
               coords={form.pickup_coords}
               onCoordsChange={(c) => update("pickup_coords", c)}
+              suggestOpen={addressLookupFailed}
             />
           </Suspense>
 
@@ -202,6 +210,7 @@ export default function CustomerDashboard() {
               city={form.dropoff_city}
               coords={form.dropoff_coords}
               onCoordsChange={(c) => update("dropoff_coords", c)}
+              suggestOpen={addressLookupFailed}
             />
           </Suspense>
 

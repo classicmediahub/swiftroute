@@ -6,7 +6,7 @@ import { api } from "../api";
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 const LAGOS_CENTER = { lat: 6.5244, lng: 3.3792 };
 
-export default function PinMap({ token, address, city, coords, onCoordsChange, height = 240 }) {
+export default function PinMap({ token, address, city, coords, onCoordsChange, height = 240, suggestOpen = false }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
@@ -14,6 +14,16 @@ export default function PinMap({ token, address, city, coords, onCoordsChange, h
   const [locating, setLocating] = useState(false);
   const [findingGps, setFindingGps] = useState(false);
   const [error, setError] = useState("");
+
+  // Auto-expand when the parent tells us address lookup likely failed
+  // (e.g. the price came back via the flat-rate fallback, not a real
+  // distance calc). Only reacts to suggestOpen turning true — it won't
+  // force the map shut again if the person already opened or closed it
+  // themselves.
+  useEffect(() => {
+    if (suggestOpen && !open) setOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggestOpen]);
 
   useEffect(() => {
     if (!open || !MAPBOX_TOKEN || mapRef.current) return;
@@ -126,6 +136,11 @@ export default function PinMap({ token, address, city, coords, onCoordsChange, h
 
   return (
     <div className="mb-4">
+      {suggestOpen && (
+        <p className="text-xs text-signal mb-2">
+          We couldn't automatically find this address — please confirm the exact spot below.
+        </p>
+      )}
       <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
         <span className="text-xs font-medium text-ink">Drag the pin to the exact spot</span>
         <div className="flex items-center gap-3">
