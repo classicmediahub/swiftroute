@@ -48,9 +48,12 @@ async function getQuote({ pickup_address, pickup_city, dropoff_address, dropoff_
   };
 }
 
+// Passes the city through as a proximity hint — maps.js biases the
+// geocoding search toward that city's center, which is the main fix for
+// addresses resolving to the wrong place entirely.
 function geocodeOrThrow(address, city) {
   const query = address ? `${address}, ${city}, Nigeria` : `${city}, Nigeria`;
-  return geocode(query);
+  return geocode(query, city);
 }
 
 module.exports = { getQuote };

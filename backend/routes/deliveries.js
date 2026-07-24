@@ -51,7 +51,7 @@ router.post("/geocode", requireAuth, async (req, res) => {
   }
   try {
     const query = address ? `${address}, ${city}, Nigeria` : `${city}, Nigeria`;
-    const coords = await geocode(query);
+    const coords = await geocode(query, city);
     if (!coords) return res.status(404).json({ error: "Couldn't find that location" });
     res.json(coords);
   } catch (err) {
