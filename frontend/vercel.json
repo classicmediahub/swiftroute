@@ -1,10 +1,10 @@
 {
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/customer/dashboard", "destination": "/index.html" },
-    { "source": "/agent/dashboard", "destination": "/index.html" },
-    { "source": "/admin/dashboard", "destination": "/index.html" },
-    { "source": "/payment/callback", "destination": "/index.html" },
-    { "source": "/wallet/callback", "destination": "/index.html" }
+    { "source": "/customer/dashboard", "destination": "/" },
+    { "source": "/agent/dashboard", "destination": "/" },
+    { "source": "/admin/dashboard", "destination": "/" },
+    { "source": "/payment/callback", "destination": "/" },
+    { "source": "/wallet/callback", "destination": "/" }
   ]
 }
