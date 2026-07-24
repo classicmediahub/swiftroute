@@ -30,6 +30,8 @@ export const api = {
   login: (payload) => request("/auth/login", { method: "POST", body: payload }),
   verifyLoginFace: (pending_token, selfie) => request("/auth/login/verify-face", { method: "POST", body: { pending_token, selfie } }),
   me: (token) => request("/auth/me", { token }),
+  verifyEmail: (token) => request("/auth/verify-email", { method: "POST", body: { token } }),
+  resendVerificationEmail: (email) => request("/auth/verify-email/resend", { method: "POST", body: { email } }),
 
   estimate: (token, payload) => request("/deliveries/estimate", { method: "POST", body: payload, token }),
   geocodeAddress: (token, payload) => request("/deliveries/geocode", { method: "POST", body: payload, token }),

@@ -12,6 +12,7 @@ export default function PinMap({ token, address, city, coords, onCoordsChange, h
   const markerRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [findingGps, setFindingGps] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -76,6 +77,39 @@ export default function PinMap({ token, address, city, coords, onCoordsChange, h
     }
   }
 
+  // Uses the device's own GPS — no address lookup involved at all, so it
+  // works even for a street Mapbox has never heard of. This is the direct
+  // fix for "I typed my street and it couldn't find it," since the person
+  // is (presumably) standing where they want the pin to go.
+  function handleUseGps() {
+    if (!navigator.geolocation) {
+      setError("Your browser doesn't support location access. Try dragging the pin instead.");
+      return;
+    }
+    setError("");
+    setFindingGps(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const result = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        if (mapRef.current && markerRef.current) {
+          mapRef.current.flyTo({ center: [result.lng, result.lat], zoom: 16 });
+          markerRef.current.setLngLat([result.lng, result.lat]);
+        }
+        onCoordsChange(result);
+        setFindingGps(false);
+      },
+      (err) => {
+        setFindingGps(false);
+        if (err.code === err.PERMISSION_DENIED) {
+          setError("Location access was denied. You can still drag the pin manually.");
+        } else {
+          setError("Couldn't get your location right now. Try dragging the pin instead.");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+
   if (!MAPBOX_TOKEN) return null; // map picker just isn't available without a token — address text still works fine
 
   if (!open) {
@@ -85,18 +119,28 @@ export default function PinMap({ token, address, city, coords, onCoordsChange, h
         onClick={() => setOpen(true)}
         className="text-xs text-ink underline decoration-dashed hover:decoration-solid mb-3"
       >
-        {coords ? "Location pinned ✓ — adjust on map" : "Pin exact location on map (recommended)"}
+        {coords ? "Location pinned ✓ — adjust on map" : "Can't find your address? Pin it on the map instead"}
       </button>
     );
   }
 
   return (
     <div className="mb-4">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
         <span className="text-xs font-medium text-ink">Drag the pin to the exact spot</span>
-        <button type="button" onClick={handleLocate} disabled={locating} className="text-xs text-ink underline disabled:opacity-50">
-          {locating ? "Finding…" : "Find address on map"}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleUseGps}
+            disabled={findingGps}
+            className="text-xs font-semibold text-route-dark underline disabled:opacity-50"
+          >
+            {findingGps ? "Finding you…" : "📍 Use my current location"}
+          </button>
+          <button type="button" onClick={handleLocate} disabled={locating} className="text-xs text-ink underline disabled:opacity-50">
+            {locating ? "Finding…" : "Find address on map"}
+          </button>
+        </div>
       </div>
       <div ref={containerRef} style={{ height }} className="rounded-xl overflow-hidden border border-slate-300" />
       {error && <p className="text-xs text-red-600 mt-1">{error}</p>}

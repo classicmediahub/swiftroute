@@ -7,8 +7,6 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-// Render's managed Postgres requires SSL; a local database usually doesn't
-// support it. Skip SSL only when we can tell we're pointed at localhost.
 const isLocal = /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL);
 
 const pool = new Pool({
@@ -71,8 +69,6 @@ async function initSchema() {
     );
   `);
 
-  // Payment columns were added after the first release — these migrations
-  // bring older databases up to date without touching existing data.
   await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'unpaid';`);
   await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS paystack_reference TEXT;`);
   await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS distance_km REAL;`);
@@ -112,16 +108,11 @@ async function initSchema() {
     );
   `);
 
-  // Wallet: lets customers top up a balance and pay for deliveries
-  // instantly instead of going through Paystack checkout every time.
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_balance REAL NOT NULL DEFAULT 0;`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS account_type TEXT NOT NULL DEFAULT 'individual';`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS company_name TEXT;`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS webhook_url TEXT;`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS webhook_secret TEXT;`);
-  // Stored as a base64 data URL. Doubles as: (1) the reference photo agent
-  // logins are matched against, and (2) the photo shown to customers once
-  // an agent accepts their delivery.
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_photo TEXT;`);
 
   await pool.query(`
@@ -143,15 +134,35 @@ async function initSchema() {
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id),
       type TEXT NOT NULL CHECK (type IN ('topup','delivery_payment','refund')),
-      amount REAL NOT NULL, -- positive for topup/refund, negative for delivery_payment
+      amount REAL NOT NULL,
       balance_after REAL NOT NULL,
       status TEXT NOT NULL DEFAULT 'success' CHECK (status IN ('pending','success','failed')),
-      reference TEXT UNIQUE, -- Paystack reference, only set for topups
+      reference TEXT UNIQUE,
       delivery_id TEXT REFERENCES deliveries(id),
       note TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
+
+  // --- Email verification (all roles) + NIN verification (agents only) ---
+  // Every account gets an email_verified flag, set true once they click the
+  // link sent to their inbox. This does NOT block login/dashboard access —
+  // it's informational, not a hard gate.
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false;`);
+
+  // NIN verification is a hard gate, checked before an agent account is
+  // even created (see routes/auth.js) — unlike email, a failed NIN check
+  // means signup is rejected outright, not just flagged. This happens
+  // before the separate human review already represented by
+  // agent_profiles.approval_status.
+  //
+  // Deliberately NOT storing the raw provider response (it includes a
+  // base64 photo/signature) — only a boolean + timestamp, to keep
+  // sensitive government-ID data out of the database.
+  await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS date_of_birth DATE;`);
+  await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS nin TEXT;`);
+  await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS nin_verified BOOLEAN NOT NULL DEFAULT false;`);
+  await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS nin_verified_at TIMESTAMPTZ;`);
 }
 
 module.exports = { pool, initSchema };

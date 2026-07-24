@@ -4,9 +4,15 @@ const jwt = require("jsonwebtoken");
 const { v4: uuidv4 } = require("uuid");
 const { pool } = require("../db");
 const { compareFaces } = require("../face");
+const { verifyNIN } = require("../nin");
+const { sendEmail } = require("../notifications");
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
+// Used to build the link inside the verification email. Falls back to the
+// current production URL if this hasn't been added to your env yet — but
+// add FRONTEND_URL to .env so this isn't hardcoded long-term.
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://www.pickandearn.com.ng";
 
 function signToken(user) {
   return jwt.sign(
@@ -23,10 +29,31 @@ function signPendingFaceToken(user) {
   return jwt.sign({ id: user.id, type: "pending_face" }, JWT_SECRET, { expiresIn: "5m" });
 }
 
+// Same pattern as the face-verification token above: a narrow-purpose,
+// short-lived (well, 24h — this one travels by email, not by an immediate
+// next request) signed token that only /verify-email accepts.
+function signEmailVerificationToken(user) {
+  return jwt.sign({ id: user.id, type: "email_verify" }, JWT_SECRET, { expiresIn: "24h" });
+}
+
+// Fire-and-forget, matching the style already used for delivery
+// notifications in notify.js — a slow/failing email provider should never
+// delay or break the signup response itself.
+function sendVerificationEmail(user) {
+  const token = signEmailVerificationToken(user);
+  const link = `${FRONTEND_URL}/verify-email?token=${token}`;
+  sendEmail({
+    to: user.email,
+    subject: "Verify your email — PickAndEarn",
+    html: `<p>Hi ${user.full_name},</p><p>Please confirm this is your email address by clicking the link below:</p><p><a href="${link}">${link}</a></p><p>This link expires in 24 hours.</p>`,
+  }).catch((err) => console.error("sendVerificationEmail failed:", err.message));
+}
+
 function publicUser(u) {
   return {
     id: u.id, role: u.role, full_name: u.full_name, email: u.email, phone: u.phone, status: u.status,
     account_type: u.account_type, company_name: u.company_name, profile_photo: u.profile_photo,
+    email_verified: u.email_verified,
   };
 }
 
@@ -62,6 +89,7 @@ router.post("/signup/customer", async (req, res) => {
 
     const { rows } = await pool.query("SELECT * FROM users WHERE id = $1", [id]);
     const user = rows[0];
+    sendVerificationEmail(user);
     const token = signToken(user);
     res.status(201).json({ token, user: publicUser(user) });
   } catch (err) {
@@ -70,15 +98,17 @@ router.post("/signup/customer", async (req, res) => {
   }
 });
 
-// ---------- AGENT SIGNUP — requires a live-captured face photo, which
-// doubles as (1) the reference photo future logins are matched against,
-// and (2) the profile picture customers see once this agent accepts a job ----------
+// ---------- AGENT SIGNUP — requires a live-captured face photo (as before)
+// AND a matching NIN lookup (new). NIN is checked BEFORE any account is
+// created: a mismatch rejects the signup outright with a specific reason,
+// it doesn't just get flagged for later review. This applies to every
+// vehicle type (self, bike, cab) — not just riders. ----------
 router.post("/signup/agent", async (req, res) => {
   try {
     const {
       full_name, email, phone, password,
       vehicle_type, vehicle_make, vehicle_plate, license_number, city,
-      profile_photo,
+      profile_photo, date_of_birth, nin,
     } = req.body;
 
     if (!full_name || !email || !phone || !password || !vehicle_type || !city) {
@@ -96,9 +126,26 @@ router.post("/signup/agent", async (req, res) => {
     if (password.length < 6) {
       return res.status(400).json({ error: "Password must be at least 6 characters" });
     }
+    if (!date_of_birth || !nin) {
+      return res.status(400).json({ error: "Date of birth and NIN are required for all agents" });
+    }
+    if (!/^\d{11}$/.test(nin)) {
+      return res.status(400).json({ error: "NIN must be exactly 11 digits" });
+    }
 
     const existing = await pool.query("SELECT id FROM users WHERE email = $1", [email.toLowerCase()]);
     if (existing.rows.length) return res.status(409).json({ error: "An account with this email already exists" });
+
+    let ninResult;
+    try {
+      ninResult = await verifyNIN({ nin, firstName: full_name.split(" ")[0], lastName: full_name.split(" ").slice(-1)[0], dateOfBirth: date_of_birth });
+    } catch (err) {
+      console.error("NIN verification error:", err.message);
+      return res.status(502).json({ error: "Couldn't verify your NIN right now. Please try again shortly." });
+    }
+    if (!ninResult.matched) {
+      return res.status(400).json({ error: ninResult.reason || "NIN verification failed" });
+    }
 
     const id = uuidv4();
     const hash = bcrypt.hashSync(password, 10);
@@ -109,15 +156,17 @@ router.post("/signup/agent", async (req, res) => {
     );
 
     await pool.query(
-      `INSERT INTO agent_profiles (user_id, vehicle_type, vehicle_make, vehicle_plate, license_number, city)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [id, vehicle_type, vehicle_make || null, vehicle_plate || null, license_number || null, city]
+      `INSERT INTO agent_profiles
+         (user_id, vehicle_type, vehicle_make, vehicle_plate, license_number, city, date_of_birth, nin, nin_verified, nin_verified_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, now())`,
+      [id, vehicle_type, vehicle_make || null, vehicle_plate || null, license_number || null, city, date_of_birth, nin]
     );
 
     const { rows: userRows } = await pool.query("SELECT * FROM users WHERE id = $1", [id]);
     const { rows: profileRows } = await pool.query("SELECT * FROM agent_profiles WHERE user_id = $1", [id]);
 
     const user = userRows[0];
+    sendVerificationEmail(user);
     const token = signToken(user);
     res.status(201).json({ token, user: publicUser(user), agent_profile: profileRows[0] });
   } catch (err) {
@@ -149,6 +198,7 @@ router.post("/signup/admin", async (req, res) => {
 
     const { rows } = await pool.query("SELECT * FROM users WHERE id = $1", [id]);
     const user = rows[0];
+    sendVerificationEmail(user);
     const token = signToken(user);
     res.status(201).json({ token, user: publicUser(user) });
   } catch (err) {
@@ -175,9 +225,6 @@ router.post("/login", async (req, res) => {
 
     if (user.role === "agent") {
       if (!user.profile_photo) {
-        // Shouldn't happen for anyone who signed up after this feature
-        // shipped, but covers any pre-existing agent account gracefully
-        // rather than locking them out with no path forward.
         return res.status(403).json({
           error: "Your account is missing a verification photo. Please contact support to add one before logging in.",
         });
@@ -241,6 +288,53 @@ router.post("/login/verify-face", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong verifying your face" });
+  }
+});
+
+// ---------- EMAIL VERIFICATION — the link sent by sendVerificationEmail()
+// points the frontend at /verify-email?token=..., which calls this. ----------
+router.post("/verify-email", async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: "Verification token is required" });
+
+    let payload;
+    try {
+      payload = jwt.verify(token, JWT_SECRET);
+    } catch {
+      return res.status(400).json({ error: "This verification link has expired or is invalid. Request a new one." });
+    }
+    if (payload.type !== "email_verify") {
+      return res.status(400).json({ error: "Invalid verification link" });
+    }
+
+    const { rows } = await pool.query("UPDATE users SET email_verified = true WHERE id = $1 RETURNING id", [payload.id]);
+    if (!rows.length) return res.status(404).json({ error: "Account not found" });
+
+    res.json({ success: true, message: "Email verified successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong verifying your email" });
+  }
+});
+
+// ---------- RESEND VERIFICATION EMAIL ----------
+router.post("/verify-email/resend", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email is required" });
+
+    const { rows } = await pool.query("SELECT * FROM users WHERE email = $1", [email.toLowerCase()]);
+    const user = rows[0];
+    // Deliberately generic response either way — doesn't confirm or deny
+    // whether an account exists for this email.
+    if (user && !user.email_verified) {
+      sendVerificationEmail(user);
+    }
+    res.json({ success: true, message: "If that email has an account, a verification link has been sent." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong" });
   }
 });
 

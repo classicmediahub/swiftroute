@@ -17,6 +17,7 @@ import About from "./pages/About";
 import Contact from "./pages/Contact";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
+import VerifyEmail from "./pages/VerifyEmail";
 
 // This used to be a component rendering <Routes>/<Route>. vite-react-ssg
 // needs a plain route-record array instead (same shape react-router-dom's
@@ -39,6 +40,7 @@ const routes = [
       { path: "contact", Component: Contact },
       { path: "privacy", Component: PrivacyPolicy },
       { path: "terms", Component: TermsOfService },
+      { path: "verify-email", Component: VerifyEmail },
 
       // Behind auth — no SEO value, left as ordinary client-rendered routes.
       // (vite.config.js is set up to skip these during the prerender pass;

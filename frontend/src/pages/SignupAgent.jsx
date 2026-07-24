@@ -17,7 +17,7 @@ export default function SignupAgent() {
   const [form, setForm] = useState({
     full_name: "", email: "", phone: "", password: "",
     vehicle_type: "bike", vehicle_make: "", vehicle_plate: "", license_number: "", city: "Lagos",
-    profile_photo: null,
+    profile_photo: null, date_of_birth: "", nin: "",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -77,6 +77,37 @@ export default function SignupAgent() {
           </select>
         </Field>
 
+        <div className="border-t border-slate-200 pt-4 mb-2">
+          <span className="block text-sm font-medium text-ink mb-1.5">Identity verification</span>
+          <p className="text-xs text-slate mb-3">
+            Required for every agent — bike, cab, and self. We check this against your NIN record;
+            it must match the name and date of birth above exactly.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-x-4">
+            <Field label="Date of birth">
+              <input
+                required
+                type="date"
+                className={inputClass}
+                value={form.date_of_birth}
+                onChange={(e) => update("date_of_birth", e.target.value)}
+              />
+            </Field>
+            <Field label="NIN (National Identification Number)">
+              <input
+                required
+                inputMode="numeric"
+                pattern="\d{11}"
+                maxLength={11}
+                className={inputClass}
+                value={form.nin}
+                onChange={(e) => update("nin", e.target.value.replace(/\D/g, "").slice(0, 11))}
+                placeholder="11-digit NIN"
+              />
+            </Field>
+          </div>
+        </div>
+
         <span className="block text-sm font-medium text-ink mb-1.5">Vehicle type</span>
         <div className="grid grid-cols-3 gap-3 mb-4">
           {VEHICLES.map((v) => (
@@ -128,7 +159,7 @@ export default function SignupAgent() {
         {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
         <button disabled={loading || !form.profile_photo} className="w-full bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-2.5 transition-colors disabled:opacity-60">
-          {loading ? "Submitting…" : "Submit application"}
+          {loading ? "Verifying your details…" : "Submit application"}
         </button>
       </form>
       <p className="text-sm text-slate mt-6">
