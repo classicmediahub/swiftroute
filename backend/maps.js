@@ -21,6 +21,12 @@ const LOCAL_GAZETTEER = [
   { name: "Ewupe", lat: 6.692508, lng: 3.221624 },
   { name: "Iganmode", lat: 6.69302, lng: 3.236659 },
   { name: "Abebi", lat: 6.683809, lng: 3.233536 },
+  // Extracted from a real Google Maps share link (not a Mapbox geocode) —
+  // cross-checked against the actual driving distance shown between them,
+  // which matched what you'd expect for real, correct coordinates.
+  { name: "Agbara", lat: 6.51371, lng: 3.114051 },
+  { name: "Lusada", lat: 6.586243, lng: 3.059792 },
+  { name: "Igbesa", lat: 6.5286101, lng: 3.1353091 },
 ];
 
 // Everything else from the original Ota-area list — checked and found to
@@ -34,7 +40,7 @@ const NEEDS_MANUAL_PIN = [
   "Sango-Ota Road", "Idole Street", "Esa Road", "Iyesi", "Joju", "Owode", "Awori", "Toll Gate", "Iju",
   "Ota-Idiroko Expressway", "Senator Akin Odunsi Street", "Dalemo Street", "Adio Street", "Ibrahim Street",
   "Allishiba Street", "Alaloju Street", "Anuduwa Street", "Ilawele Street", "Olusye Street",
-  "Ota", "Sango-Ota", "Oju Ore", "Igbesa", "Atan", "Agbara", "Lusada", "Ado-Odo", "Ijagba",
+  "Ota", "Sango-Ota", "Oju Ore", "Atan", "Ado-Odo", "Ijagba",
   "Obasanjo Farm Area", "Iloye", "Papa Aro",
   "Idiroko Road", "Ilogbo Road", "Lusada Road", "Atan Road", "Iyesi Road", "Toll Gate Road", "Joju Road",
   "Maltina Road", "Alapoti Road", "Oju Ore Road", "Old Garage Road", "Modern School Road",
@@ -83,6 +89,7 @@ const CITY_CENTERS = {
   Lagos: { lat: 6.5244, lng: 3.3792 },
   Ogun: { lat: 7.1475, lng: 3.3619 }, // Abeokuta — the state capital
   Ota: { lat: 6.6805, lng: 3.2356 }, // a distinct town from Abeokuta, ~60km apart — kept separate on purpose
+  Agbara: { lat: 6.51371, lng: 3.114051 }, // verified via a real Google Maps share link, 2026-07-25
   Abuja: { lat: 9.0765, lng: 7.3986 },
   "Port Harcourt": { lat: 4.8156, lng: 7.0498 },
   Ibadan: { lat: 7.3775, lng: 3.947 },
