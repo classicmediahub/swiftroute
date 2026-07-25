@@ -1,5 +1,71 @@
 const MAPBOX_TOKEN = process.env.MAPBOX_ACCESS_TOKEN;
 
+// Verified 2026-07-25 through a manual audit: ran the full Ota-area street/
+// landmark list through Mapbox, then checked each match's actual place_name
+// against expectations. Rejected anything tagged a different LGA/state
+// (several matched real but wrong places in Lagos — "Owode," "Awori," and
+// "Iju" are all common names that also exist as real Lagos locations) or
+// with a name that didn't genuinely match (fuzzy near-misses like "Imole"
+// for "Idole", "Estate" for "Esa"). Only entries confirmed tagged
+// "Ado-Odo... Ogun, Nigeria" with a real name match are here — everything
+// else either needs a manual GPS pin (see NEEDS_MANUAL_PIN below) or should
+// just fall through to a normal Mapbox lookup as usual.
+const LOCAL_GAZETTEER = [
+  { name: "Awolowo Way", lat: 6.688041, lng: 3.237416 },
+  { name: "Okewoye Street", lat: 6.689459, lng: 3.236174 },
+  { name: "Ilo Awela Road", lat: 6.69163, lng: 3.247183 },
+  { name: "Market Road", lat: 6.680421, lng: 3.216506 },
+  { name: "Ijoko", lat: 6.726091, lng: 3.253386 },
+  { name: "Kajola", lat: 6.660176, lng: 3.100084 },
+  { name: "Itele", lat: 6.658767, lng: 3.220823 },
+  { name: "Ewupe", lat: 6.692508, lng: 3.221624 },
+  { name: "Iganmode", lat: 6.69302, lng: 3.236659 },
+  { name: "Abebi", lat: 6.683809, lng: 3.233536 },
+];
+
+// Everything else from the original Ota-area list — checked and found to
+// either return nothing, or return a wrong (usually Lagos, usually
+// same-named) place. Not used anywhere at runtime; kept here as a running
+// to-do list. The real fix for each of these is someone physically there
+// using PinMap's "Use my current location" button, not another geocoding
+// query — we already tried several query phrasings and they don't help.
+const NEEDS_MANUAL_PIN = [
+  "Ilogbo", "Iyana-Ilogbo", "Oke Suna", "Oke-Suna", "Araromi", "Obafemi Awolowo Way",
+  "Sango-Ota Road", "Idole Street", "Esa Road", "Iyesi", "Joju", "Owode", "Awori", "Toll Gate", "Iju",
+  "Ota-Idiroko Expressway", "Senator Akin Odunsi Street", "Dalemo Street", "Adio Street", "Ibrahim Street",
+  "Allishiba Street", "Alaloju Street", "Anuduwa Street", "Ilawele Street", "Olusye Street",
+  "Ota", "Sango-Ota", "Oju Ore", "Igbesa", "Atan", "Agbara", "Lusada", "Ado-Odo", "Ijagba",
+  "Obasanjo Farm Area", "Iloye", "Papa Aro",
+  "Idiroko Road", "Ilogbo Road", "Lusada Road", "Atan Road", "Iyesi Road", "Toll Gate Road", "Joju Road",
+  "Maltina Road", "Alapoti Road", "Oju Ore Road", "Old Garage Road", "Modern School Road",
+  "GRA Akinwunmi Road", "GRA/Tomori Road", "Ipamesan Road", "Ketere Road", "Araromi Road", "Papa Aro Road",
+  "Oju Popo Road", "Ejigbo Titun Road", "Oke-Odo Road", "Zion Road", "Ijagba Road", "Arinko Road",
+  "Owoseni Road", "Akinwunmi Road", "Tomori Road", "Oba T.T. Dada Road",
+  "Alapoti", "Oke-Odan", "Osi", "Onibuku", "Ketere", "Ipamesan", "Arinko",
+  "Ado-Odo/Ota Local Government Secretariat", "Covenant University", "Bells University of Technology",
+  "Crawford University", "Allover Central Polytechnic", "Iganmode Grammar School", "Oba T. T. Dada Market",
+  "Oju Ore Motor Park", "Old Motor Park", "Ota Shopping Centre", "Olota's Palace",
+  "St. James Anglican Church Vicarage", "Ace Medicare", "Central Specialist Hospital",
+  "Ojugbele Specialist Hospital", "Ijamido Shrine", "Ogbodo Shrine",
+];
+
+function normalizeForMatch(s) {
+  return s.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
+}
+
+// Checked before ever calling Mapbox — free, instant, and (for these 10)
+// more accurate than a live geocode, since we've already verified them by
+// hand against exactly this kind of false-match problem.
+function checkLocalGazetteer(query) {
+  const normalizedQuery = normalizeForMatch(query);
+  for (const entry of LOCAL_GAZETTEER) {
+    if (normalizedQuery.includes(normalizeForMatch(entry.name))) {
+      return { lat: entry.lat, lng: entry.lng };
+    }
+  }
+  return null;
+}
+
 // Roughly the real bounding box of Nigeria (west, south, east, north).
 // Passed as Mapbox's `bbox` param so results outside the country's actual
 // extent get excluded outright, rather than relying only on `country=NG`
@@ -15,7 +81,8 @@ const NIGERIA_BBOX = [2.6, 4.2, 14.7, 13.9];
 // resolved to the wrong place."
 const CITY_CENTERS = {
   Lagos: { lat: 6.5244, lng: 3.3792 },
-  Ogun: { lat: 7.1475, lng: 3.3619 },
+  Ogun: { lat: 7.1475, lng: 3.3619 }, // Abeokuta — the state capital
+  Ota: { lat: 6.6805, lng: 3.2356 }, // a distinct town from Abeokuta, ~60km apart — kept separate on purpose
   Abuja: { lat: 9.0765, lng: 7.3986 },
   "Port Harcourt": { lat: 4.8156, lng: 7.0498 },
   Ibadan: { lat: 7.3775, lng: 3.947 },
@@ -45,6 +112,9 @@ function buildParams({ proximity, bbox } = {}) {
 // `cityHint` is optional — pass a known city name (matching a key in
 // CITY_CENTERS) whenever the caller has one, to bias toward that city.
 async function geocode(query, cityHint) {
+  const localMatch = checkLocalGazetteer(query);
+  if (localMatch) return localMatch;
+
   if (!MAPBOX_TOKEN) throw new Error("MAPBOX_ACCESS_TOKEN is not set");
   const proximity = cityHint ? CITY_CENTERS[cityHint] : null;
   const params = buildParams({ proximity });
@@ -81,7 +151,12 @@ async function drivingDistanceKm(origin, destination) {
 // at typing time, so it'll usually be undefined there — this is here for
 // any flow, like PinMap, that does already know the city).
 async function suggest(query, cityHint) {
-  if (!MAPBOX_TOKEN) throw new Error("MAPBOX_ACCESS_TOKEN is not set");
+  const normalizedQuery = normalizeForMatch(query);
+  const localSuggestions = LOCAL_GAZETTEER.filter((entry) =>
+    normalizeForMatch(entry.name).includes(normalizedQuery)
+  ).map((entry) => ({ label: entry.name, city: "Ota", lat: entry.lat, lng: entry.lng }));
+
+  if (!MAPBOX_TOKEN) return localSuggestions;
   const proximity = cityHint ? CITY_CENTERS[cityHint] : null;
   const params = buildParams({ proximity });
   params.set("autocomplete", "true");
@@ -92,7 +167,7 @@ async function suggest(query, cityHint) {
   if (!res.ok) throw new Error(`Mapbox suggest failed: ${res.status}`);
   const data = await res.json();
 
-  return (data.features || []).map((f) => {
+  const mapboxSuggestions = (data.features || []).map((f) => {
     const [lng, lat] = f.center;
     const context = f.context || [];
     const cityContext =
@@ -105,6 +180,10 @@ async function suggest(query, cityHint) {
       lng,
     };
   });
+
+  // Local matches first (pre-verified, free, instant), then Mapbox's own
+  // results, capped at 5 total so the dropdown doesn't get crowded.
+  return [...localSuggestions, ...mapboxSuggestions].slice(0, 5);
 }
 
-module.exports = { geocode, drivingDistanceKm, suggest, CITY_CENTERS };
+module.exports = { geocode, drivingDistanceKm, suggest, CITY_CENTERS, LOCAL_GAZETTEER, NEEDS_MANUAL_PIN };
