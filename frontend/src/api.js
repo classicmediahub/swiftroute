@@ -74,4 +74,18 @@ export const api = {
   publicEstimate: (payload) => request("/public/estimate", { method: "POST", body: payload }),
   publicTrack: (code) => request(`/public/track/${code}`),
   publicReviews: () => request("/public/reviews"),
+
+  // Rides phase 1: live location broadcasting for cab agents
+  agentUpdateLocation: (token, { lat, lng }) => request("/agent/location", { method: "PATCH", body: { lat, lng }, token }),
+  agentGoOffline: (token) => request("/agent/offline", { method: "POST", token }),
+
+  // Public: nearby online cab drivers, for the Bolt-style live map (no login required)
+  publicNearbyDrivers: ({ lat, lng, radius_km } = {}) => {
+    const params = new URLSearchParams();
+    if (lat != null) params.set("lat", lat);
+    if (lng != null) params.set("lng", lng);
+    if (radius_km != null) params.set("radius_km", radius_km);
+    const qs = params.toString();
+    return request(`/public/nearby-drivers${qs ? `?${qs}` : ""}`);
+  },
 };
