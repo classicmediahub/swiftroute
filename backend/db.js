@@ -144,25 +144,40 @@ async function initSchema() {
     );
   `);
 
-  // --- Email verification (all roles) + NIN verification (agents only) ---
+  // --- Email verification (all roles) + NIN/liveness checks (agents only) ---
   // Every account gets an email_verified flag, set true once they click the
   // link sent to their inbox. This does NOT block login/dashboard access —
   // it's informational, not a hard gate.
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false;`);
 
-  // NIN verification is a hard gate, checked before an agent account is
-  // even created (see routes/auth.js) — unlike email, a failed NIN check
-  // means signup is rejected outright, not just flagged. This happens
-  // before the separate human review already represented by
-  // agent_profiles.approval_status.
+  // NIN + face-liveness are hard gates, checked before an agent account is
+  // even created (see routes/auth.js) — unlike email, a failed check means
+  // signup is rejected outright, not just flagged. This happens before the
+  // separate human review already represented by agent_profiles.approval_status.
   //
-  // Deliberately NOT storing the raw provider response (it includes a
-  // base64 photo/signature) — only a boolean + timestamp, to keep
-  // sensitive government-ID data out of the database.
+  // IMPORTANT — nin_verification_method records *how strong* nin_verified's
+  // guarantee actually is. As of this migration it's always 'format_only':
+  // confirms the NIN is well-formed, NOT that it's real or belongs to this
+  // person (see nin.js for why). Recorded explicitly rather than left
+  // implicit, so a 'format_only' pass is never later mistaken for a real
+  // identity confirmation in an audit, a dispute, or a future migration to
+  // a stronger check.
+  //
+  // Same idea for face_liveness_verified: confirms a live person was in
+  // front of the camera at signup, NOT that this photo matches any other
+  // photo of them (see face.js for how that's checked, and why login's
+  // Face++ identity match is a separate, unchanged mechanism).
+  //
+  // Deliberately NOT storing raw liveness sample data or any third-party
+  // provider response — only booleans + timestamps, to keep biometric
+  // detail out of the database.
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS date_of_birth DATE;`);
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS nin TEXT;`);
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS nin_verified BOOLEAN NOT NULL DEFAULT false;`);
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS nin_verified_at TIMESTAMPTZ;`);
+  await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS nin_verification_method TEXT NOT NULL DEFAULT 'format_only';`);
+  await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS face_liveness_verified BOOLEAN NOT NULL DEFAULT false;`);
+  await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS face_liveness_verified_at TIMESTAMPTZ;`);
 }
 
 module.exports = { pool, initSchema };

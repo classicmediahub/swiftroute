@@ -3,15 +3,12 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { v4: uuidv4 } = require("uuid");
 const { pool } = require("../db");
-const { compareFaces } = require("../face");
+const { compareFaces, checkLiveness } = require("../face");
 const { verifyNIN } = require("../nin");
 const { sendEmail } = require("../notifications");
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
-// Used to build the link inside the verification email. Falls back to the
-// current production URL if this hasn't been added to your env yet — but
-// add FRONTEND_URL to .env so this isn't hardcoded long-term.
 const FRONTEND_URL = process.env.FRONTEND_URL || "https://www.pickandearn.com.ng";
 
 function signToken(user) {
@@ -22,23 +19,14 @@ function signToken(user) {
   );
 }
 
-// Short-lived token issued after an agent's password checks out, but before
-// their live selfie has been matched against their signup photo. Can't be
-// used to authenticate any real endpoint — only /login/verify-face accepts it.
 function signPendingFaceToken(user) {
   return jwt.sign({ id: user.id, type: "pending_face" }, JWT_SECRET, { expiresIn: "5m" });
 }
 
-// Same pattern as the face-verification token above: a narrow-purpose,
-// short-lived (well, 24h — this one travels by email, not by an immediate
-// next request) signed token that only /verify-email accepts.
 function signEmailVerificationToken(user) {
   return jwt.sign({ id: user.id, type: "email_verify" }, JWT_SECRET, { expiresIn: "24h" });
 }
 
-// Fire-and-forget, matching the style already used for delivery
-// notifications in notify.js — a slow/failing email provider should never
-// delay or break the signup response itself.
 function sendVerificationEmail(user) {
   const token = signEmailVerificationToken(user);
   const link = `${FRONTEND_URL}/verify-email?token=${token}`;
@@ -61,7 +49,7 @@ function isLikelyPhoto(dataUrl) {
   return typeof dataUrl === "string" && /^data:image\/\w+;base64,/.test(dataUrl) && dataUrl.length > 1000;
 }
 
-// ---------- CUSTOMER SIGNUP ----------
+// ---------- CUSTOMER SIGNUP ---------- (unchanged)
 router.post("/signup/customer", async (req, res) => {
   try {
     const { full_name, email, phone, password, is_business, company_name } = req.body;
@@ -98,17 +86,20 @@ router.post("/signup/customer", async (req, res) => {
   }
 });
 
-// ---------- AGENT SIGNUP — requires a live-captured face photo (as before)
-// AND a matching NIN lookup (new). NIN is checked BEFORE any account is
-// created: a mismatch rejects the signup outright with a specific reason,
-// it doesn't just get flagged for later review. This applies to every
-// vehicle type (self, bike, cab) — not just riders. ----------
+// ---------- AGENT SIGNUP — requires a live-captured face photo, a passed
+// liveness challenge (new — replaces nothing, this is an added gate that
+// didn't exist before), AND a well-formed NIN (format-only now, see nin.js
+// for why). NIN and liveness are both checked BEFORE any account is
+// created: a failure rejects the signup outright with a specific reason,
+// it doesn't just get flagged for later review. Applies to every vehicle
+// type (self, bike, cab) — not just riders. ----------
 router.post("/signup/agent", async (req, res) => {
   try {
     const {
       full_name, email, phone, password,
       vehicle_type, vehicle_make, vehicle_plate, license_number, city,
       profile_photo, date_of_birth, nin,
+      liveness_challenge, liveness_samples,
     } = req.body;
 
     if (!full_name || !email || !phone || !password || !vehicle_type || !city) {
@@ -136,6 +127,13 @@ router.post("/signup/agent", async (req, res) => {
     const existing = await pool.query("SELECT id FROM users WHERE email = $1", [email.toLowerCase()]);
     if (existing.rows.length) return res.status(409).json({ error: "An account with this email already exists" });
 
+    // --- Liveness check, run before NIN/account creation like the other
+    // hard gates. See face.js for how the pass/fail decision is made. ---
+    const liveness = checkLiveness({ challenge: liveness_challenge, samples: liveness_samples });
+    if (!liveness.live) {
+      return res.status(400).json({ error: liveness.reason || "Liveness check failed — please try again" });
+    }
+
     let ninResult;
     try {
       ninResult = await verifyNIN({ nin, firstName: full_name.split(" ")[0], lastName: full_name.split(" ").slice(-1)[0], dateOfBirth: date_of_birth });
@@ -157,9 +155,11 @@ router.post("/signup/agent", async (req, res) => {
 
     await pool.query(
       `INSERT INTO agent_profiles
-         (user_id, vehicle_type, vehicle_make, vehicle_plate, license_number, city, date_of_birth, nin, nin_verified, nin_verified_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, now())`,
-      [id, vehicle_type, vehicle_make || null, vehicle_plate || null, license_number || null, city, date_of_birth, nin]
+         (user_id, vehicle_type, vehicle_make, vehicle_plate, license_number, city, date_of_birth, nin,
+          nin_verified, nin_verified_at, nin_verification_method,
+          face_liveness_verified, face_liveness_verified_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, now(), $9, true, now())`,
+      [id, vehicle_type, vehicle_make || null, vehicle_plate || null, license_number || null, city, date_of_birth, nin, ninResult.verificationMethod || "format_only"]
     );
 
     const { rows: userRows } = await pool.query("SELECT * FROM users WHERE id = $1", [id]);
@@ -175,7 +175,7 @@ router.post("/signup/agent", async (req, res) => {
   }
 });
 
-// ---------- ADMIN SIGNUP (requires invite code) ----------
+// ---------- ADMIN SIGNUP (requires invite code) ---------- (unchanged)
 router.post("/signup/admin", async (req, res) => {
   try {
     const { full_name, email, phone, password, invite_code } = req.body;
@@ -207,9 +207,8 @@ router.post("/signup/admin", async (req, res) => {
   }
 });
 
-// ---------- LOGIN — agents get a two-step flow: password first, then a
-// live selfie matched against their signup photo. Customers and admins
-// log in the normal single-step way. ----------
+// ---------- LOGIN ---------- (unchanged — agents still get the two-step
+// password + Face++ selfie-match flow. See face.js top comment for why.)
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -241,9 +240,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// ---------- STEP 2 OF AGENT LOGIN — match a live selfie against the
-// agent's signup photo via Face++. Only a valid, unexpired pending_face
-// token can reach this; it can't be used for anything else. ----------
+// ---------- STEP 2 OF AGENT LOGIN ---------- (unchanged — still Face++)
 router.post("/login/verify-face", async (req, res) => {
   try {
     const { pending_token, selfie } = req.body;
@@ -291,8 +288,7 @@ router.post("/login/verify-face", async (req, res) => {
   }
 });
 
-// ---------- EMAIL VERIFICATION — the link sent by sendVerificationEmail()
-// points the frontend at /verify-email?token=..., which calls this. ----------
+// ---------- EMAIL VERIFICATION ---------- (unchanged)
 router.post("/verify-email", async (req, res) => {
   try {
     const { token } = req.body;
@@ -318,7 +314,7 @@ router.post("/verify-email", async (req, res) => {
   }
 });
 
-// ---------- RESEND VERIFICATION EMAIL ----------
+// ---------- RESEND VERIFICATION EMAIL ---------- (unchanged)
 router.post("/verify-email/resend", async (req, res) => {
   try {
     const { email } = req.body;
@@ -326,8 +322,6 @@ router.post("/verify-email/resend", async (req, res) => {
 
     const { rows } = await pool.query("SELECT * FROM users WHERE email = $1", [email.toLowerCase()]);
     const user = rows[0];
-    // Deliberately generic response either way — doesn't confirm or deny
-    // whether an account exists for this email.
     if (user && !user.email_verified) {
       sendVerificationEmail(user);
     }
@@ -338,7 +332,7 @@ router.post("/verify-email/resend", async (req, res) => {
   }
 });
 
-// ---------- CURRENT USER ----------
+// ---------- CURRENT USER ---------- (unchanged)
 router.get("/me", async (req, res) => {
   const header = req.headers.authorization;
   if (!header || !header.startsWith("Bearer ")) return res.status(401).json({ error: "No token" });

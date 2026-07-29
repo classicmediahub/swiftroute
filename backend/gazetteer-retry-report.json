@@ -1,0 +1,820 @@
+{
+  "generated_at": "2026-07-25T11:10:28.421Z",
+  "retried": 90,
+  "recovered_count": 65,
+  "still_failed_count": 25,
+  "recovered": [
+    {
+      "name": "Obafemi Awolowo Way",
+      "type": "road",
+      "lat": 6.606799,
+      "lng": 3.348623,
+      "distance_from_ota_km": 14.9,
+      "matched_via_query": "Obafemi Awolowo Way, Nigeria",
+      "mapbox_place_name": "Obafemi Awolowo Way, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Idiroko Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Idiroko Road, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Sango–Ota Road",
+      "type": "road",
+      "lat": 6.676705,
+      "lng": 3.264273,
+      "distance_from_ota_km": 3.2,
+      "matched_via_query": "Sango–Ota Road, Nigeria",
+      "mapbox_place_name": "Old Ota Road, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Ilogbo Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Ilogbo Road, Ado-Odo/Ota, Ogun State, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Lusada Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Lusada Road, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Atan Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Atan Road, Ado-Odo/Ota, Ogun State, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Iyesi Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Iyesi Road, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Toll Gate Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Toll Gate Road, Ado-Odo/Ota, Ogun State, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Joju Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Joju Road, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Maltina Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Maltina Road, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Alapoti Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Alapoti Road, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Oju Ore Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Oju Ore Road, Ado-Odo/Ota, Ogun State, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Old Garage Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Old Garage Road, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Modern School Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Modern School Road, Ado-Odo/Ota, Ogun State, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "GRA Akinwunmi Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "GRA Akinwunmi Road, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "GRA/Tomori Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "GRA/Tomori Road, Ado-Odo/Ota, Ogun State, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Idole Street",
+      "type": "road",
+      "lat": 6.68013,
+      "lng": 3.258494,
+      "distance_from_ota_km": 2.5,
+      "matched_via_query": "Idole Street, Nigeria",
+      "mapbox_place_name": "Imole Street, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Abebi New Site",
+      "type": "road",
+      "lat": 6.683809,
+      "lng": 3.233536,
+      "distance_from_ota_km": 0.4,
+      "matched_via_query": "Abebi New Site, Ogun State, Nigeria",
+      "mapbox_place_name": "Abebi Street, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Oke Suna",
+      "type": "road",
+      "lat": 6.666239,
+      "lng": 3.292999,
+      "distance_from_ota_km": 6.5,
+      "matched_via_query": "Oke Suna, Nigeria",
+      "mapbox_place_name": "Aduke Odekunle Street, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Ipamesan Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Ipamesan Road, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Ketere Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Ketere Road, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Araromi Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Araromi Road, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Papa Aro Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Papa Aro Road, Ado-Odo/Ota, Ogun State, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Oju Popo Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Oju Popo Road, Ado-Odo/Ota, Ogun State, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Ejigbo Titun Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Ejigbo Titun Road, Ado-Odo/Ota, Ogun State, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Oke-Odo Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Oke-Odo Road, Ado-Odo/Ota, Ogun State, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Zion Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Zion Road, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Esa Road",
+      "type": "road",
+      "lat": 6.57503,
+      "lng": 3.303236,
+      "distance_from_ota_km": 13.9,
+      "matched_via_query": "Esa Road, Nigeria",
+      "mapbox_place_name": "Estate Road, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Ijagba Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Ijagba Road, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Arinko Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Arinko Road, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Owoseni Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Owoseni Road, Ado-Odo/Ota, Ogun State, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Akinwunmi Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Akinwunmi Road, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Tomori Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Tomori Road, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Oba T.T. Dada Road",
+      "type": "road",
+      "lat": 6.587911,
+      "lng": 3.116936,
+      "distance_from_ota_km": 16.7,
+      "matched_via_query": "Oba T.T. Dada Road, Ado-Odo/Ota, Ogun State, Nigeria",
+      "mapbox_place_name": "Road, Ado-Odo 11, Ogun, Nigeria"
+    },
+    {
+      "name": "Iyesi",
+      "type": "area",
+      "lat": 6.629671,
+      "lng": 3.308567,
+      "distance_from_ota_km": 9.8,
+      "matched_via_query": "Iyesi, Nigeria",
+      "mapbox_place_name": "Iresi Str, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Joju",
+      "type": "area",
+      "lat": 6.655905,
+      "lng": 3.341974,
+      "distance_from_ota_km": 12.1,
+      "matched_via_query": "Joju, Nigeria",
+      "mapbox_place_name": "Jojo Str, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Owode",
+      "type": "area",
+      "lat": 6.654437,
+      "lng": 3.309427,
+      "distance_from_ota_km": 8.7,
+      "matched_via_query": "Owode, Nigeria",
+      "mapbox_place_name": "Owode Street, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Alapoti",
+      "type": "area",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "Alapoti, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Oke-Odan",
+      "type": "area",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "Oke-Odan, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Awori",
+      "type": "area",
+      "lat": 6.616588,
+      "lng": 3.315955,
+      "distance_from_ota_km": 11.4,
+      "matched_via_query": "Awori, Nigeria",
+      "mapbox_place_name": "Awori Street, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Osi",
+      "type": "area",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "Osi, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Onibuku",
+      "type": "area",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "Onibuku, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Toll Gate",
+      "type": "area",
+      "lat": 6.641672,
+      "lng": 3.330057,
+      "distance_from_ota_km": 11.3,
+      "matched_via_query": "Toll Gate, Nigeria",
+      "mapbox_place_name": "College Road, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Iju",
+      "type": "area",
+      "lat": 6.651299,
+      "lng": 3.323298,
+      "distance_from_ota_km": 10.2,
+      "matched_via_query": "Iju, Nigeria",
+      "mapbox_place_name": "Iju Road, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Oke-Suna",
+      "type": "area",
+      "lat": 6.666239,
+      "lng": 3.292999,
+      "distance_from_ota_km": 6.5,
+      "matched_via_query": "Oke-Suna, Nigeria",
+      "mapbox_place_name": "Aduke Odekunle Street, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Ketere",
+      "type": "area",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "Ketere, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Ipamesan",
+      "type": "area",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "Ipamesan, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Arinko",
+      "type": "area",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "Arinko, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Ado-Odo/Ota Local Government Secretariat",
+      "type": "landmark",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "Ado-Odo/Ota Local Government Secretariat, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Covenant University",
+      "type": "landmark",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "Covenant University, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Bells University of Technology",
+      "type": "landmark",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "Bells University of Technology, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Crawford University",
+      "type": "landmark",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "Crawford University, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Allover Central Polytechnic",
+      "type": "landmark",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "Allover Central Polytechnic, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Iganmode Grammar School",
+      "type": "landmark",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "Iganmode Grammar School, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Oba T. T. Dada Market",
+      "type": "landmark",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "Oba T. T. Dada Market, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Oju Ore Motor Park",
+      "type": "landmark",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "Oju Ore Motor Park, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Old Motor Park",
+      "type": "landmark",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "Old Motor Park, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Ota Shopping Centre",
+      "type": "landmark",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "Ota Shopping Centre, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Olota's Palace",
+      "type": "landmark",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "Olota's Palace, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "St. James Anglican Church Vicarage",
+      "type": "landmark",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "St. James Anglican Church Vicarage, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Ace Medicare",
+      "type": "landmark",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "Ace Medicare, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Central Specialist Hospital",
+      "type": "landmark",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "Central Specialist Hospital, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Ojugbele Specialist Hospital",
+      "type": "landmark",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "Ojugbele Specialist Hospital, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Ijamido Shrine",
+      "type": "landmark",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "Ijamido Shrine, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    },
+    {
+      "name": "Ogbodo Shrine",
+      "type": "landmark",
+      "lat": 6.576609,
+      "lng": 3.360602,
+      "distance_from_ota_km": 18,
+      "matched_via_query": "Ogbodo Shrine, Nigeria",
+      "mapbox_place_name": "Nigerian Army Cantoment Ikeja, Lagos 10, Lagos, Nigeria"
+    }
+  ],
+  "still_failed": [
+    {
+      "name": "Ota–Idiroko Expressway",
+      "type": "road",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.566667,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    },
+    {
+      "name": "Senator Akin Odunsi Street",
+      "type": "road",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.544444,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    },
+    {
+      "name": "Dalemo Street",
+      "type": "road",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.596296,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    },
+    {
+      "name": "Adio Street",
+      "type": "road",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.596296,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    },
+    {
+      "name": "Ibrahim Street",
+      "type": "road",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.596296,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    },
+    {
+      "name": "Allishiba Street",
+      "type": "road",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.596296,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    },
+    {
+      "name": "Alaloju Street",
+      "type": "road",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.596296,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    },
+    {
+      "name": "Anuduwa Street",
+      "type": "road",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.596296,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    },
+    {
+      "name": "Ilawele Street",
+      "type": "road",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.596296,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    },
+    {
+      "name": "Olusye Street",
+      "type": "road",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.596296,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    },
+    {
+      "name": "Ota",
+      "type": "area",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.637778,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    },
+    {
+      "name": "Sango-Ota",
+      "type": "area",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.596296,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    },
+    {
+      "name": "Oju Ore",
+      "type": "area",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.596296,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    },
+    {
+      "name": "Igbesa",
+      "type": "area",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.637778,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    },
+    {
+      "name": "Atan",
+      "type": "area",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.637778,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    },
+    {
+      "name": "Agbara",
+      "type": "area",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.637778,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    },
+    {
+      "name": "Lusada",
+      "type": "area",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.637778,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    },
+    {
+      "name": "Ado-Odo",
+      "type": "area",
+      "lat": 6.6,
+      "lng": 2.933333,
+      "distance_from_ota_km": 34.6,
+      "relevance": 0.712963,
+      "mapbox_place_name": "Ado-Odo, Ogun, Nigeria"
+    },
+    {
+      "name": "Ijagba",
+      "type": "area",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.637778,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    },
+    {
+      "name": "Obasanjo Farm Area",
+      "type": "area",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.566667,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    },
+    {
+      "name": "Iloye",
+      "type": "area",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.637778,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    },
+    {
+      "name": "Papa Aro",
+      "type": "area",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.596296,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    },
+    {
+      "name": "Agbara",
+      "type": "area",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.637778,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    },
+    {
+      "name": "Lusada",
+      "type": "area",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.637778,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    },
+    {
+      "name": "Igbesa",
+      "type": "area",
+      "lat": 6.825163,
+      "lng": 3.926534,
+      "distance_from_ota_km": 78,
+      "relevance": 0.637778,
+      "mapbox_place_name": "Ota Street, Ijebu Ode 12, Ogun, Nigeria"
+    }
+  ]
+}

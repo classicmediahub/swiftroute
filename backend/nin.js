@@ -1,78 +1,62 @@
-// Wraps Prembly's "NIN Basic" verification. Written against a real,
-// confirmed sandbox response (2026-07-25) — not guessed from docs alone.
+// Format-only NIN validation — no external provider, no API key, no
+// per-call cost.
 //
-// COST NOTE: that real sandbox call showed billing_info.was_charged: true,
-// amount 50.00 NGN — every single call to this endpoint costs money on your
-// Prembly account, whether or not the NIN ends up matching. Worth factoring
-// into rate-limiting / abuse-prevention decisions later.
+// IMPORTANT — read before relying on this: this does NOT confirm a NIN is
+// real, active, or belongs to the person entering it. It only confirms the
+// number is well-formed and rejects obviously-fake patterns. Actual identity
+// confirmation against Nigeria's national ID database only exists through
+// NIMC directly or a NIMC-licensed reseller (Prembly, Youverify, VerifyMe,
+// Smile ID, Dojah, etc.) — there is no independent way to check a NIN is
+// real. If PickAndEarn ever needs that stronger guarantee (e.g. after an
+// incident, or once volume justifies the per-call cost), swap this module
+// out — the { matched, reason } return shape is designed to make that a
+// drop-in change in routes/auth.js, no caller changes needed.
 
-const PREMBLY_API_KEY = process.env.PREMBLY_API_KEY;
-const PREMBLY_BASE_URL = process.env.PREMBLY_BASE_URL || "https://api.prembly.com";
-
-function normalize(value) {
-  return (value || "").trim().toLowerCase();
+// Catches lazy fake entries like "00000000000" or "11111111111".
+function isRepeatedDigit(nin) {
+  return /^(\d)\1{10}$/.test(nin);
 }
 
-// Prembly returns birthdate as "DD-MM-YYYY" (confirmed from a real
-// response: "23-05-1999"), not "YYYY-MM-DD". Converts it to YYYY-MM-DD so
-// it compares directly against the string an HTML <input type="date">
-// sends (which is what date_of_birth is, coming from the signup form).
-function toIsoDate(ddmmyyyy) {
-  const parts = (ddmmyyyy || "").split("-");
-  if (parts.length !== 3) return null;
-  const [dd, mm, yyyy] = parts;
-  return `${yyyy}-${mm}-${dd}`;
+// Catches "01234567891" / "98765432109" style keyboard-mashed sequences.
+// Checks both ascending and descending runs, wrapping 9->0 and 0->9 since
+// that's still an obviously-fake pattern, not a coincidence.
+function isSequential(nin) {
+  const digits = nin.split("").map(Number);
+  let ascending = true;
+  let descending = true;
+  for (let i = 1; i < digits.length; i++) {
+    if (digits[i] !== (digits[i - 1] + 1) % 10) ascending = false;
+    if (digits[i] !== (digits[i - 1] + 9) % 10) descending = false;
+  }
+  return ascending || descending;
 }
 
-// firstName/lastName/dateOfBirth are what the agent typed in the signup
-// form. Throws on a provider/network failure; returns a plain result
-// object for an actual verification outcome, so the caller can tell
-// "couldn't check" apart from "checked, and it doesn't match."
-async function verifyNIN({ nin, firstName, lastName, dateOfBirth }) {
-  if (!PREMBLY_API_KEY) {
-    throw new Error("PREMBLY_API_KEY is not set");
+// Kept async and kept the same argument names as the old Prembly-backed
+// version so routes/auth.js doesn't need to change at all. firstName/
+// lastName are accepted but unused now — there's no record to match a name
+// against without an external data source.
+async function verifyNIN({ nin, dateOfBirth }) {
+  if (!nin) {
+    return { matched: false, reason: "NIN is required" };
   }
-  if (!nin || !firstName || !lastName || !dateOfBirth) {
-    throw new Error("nin, firstName, lastName, and dateOfBirth are all required");
+  const cleaned = String(nin).trim();
+
+  if (!/^\d{11}$/.test(cleaned)) {
+    return { matched: false, reason: "NIN must be exactly 11 digits" };
   }
-
-  const res = await fetch(`${PREMBLY_BASE_URL}/verification/vnin-basic`, {
-    method: "POST",
-    headers: {
-      accept: "application/json",
-      "content-type": "application/json",
-      "x-api-key": PREMBLY_API_KEY,
-    },
-    body: JSON.stringify({ number: nin }),
-  });
-
-  let payload;
-  try {
-    payload = await res.json();
-  } catch {
-    throw new Error("Unexpected response from the NIN verification provider");
+  if (isRepeatedDigit(cleaned) || isSequential(cleaned)) {
+    return { matched: false, reason: "That doesn't look like a valid NIN" };
   }
 
-  if (!res.ok || payload.status !== true) {
-    throw new Error((payload && payload.message) || "NIN verification request failed");
+  if (dateOfBirth) {
+    const dob = new Date(dateOfBirth);
+    const ageYears = (Date.now() - dob.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+    if (Number.isNaN(dob.getTime()) || ageYears < 16 || ageYears > 110) {
+      return { matched: false, reason: "Date of birth doesn't look valid" };
+    }
   }
 
-  const record = payload.data;
-  if (!record) {
-    return { matched: false, reason: "No record was found for that NIN" };
-  }
-
-  const nameMatches =
-    normalize(record.firstname) === normalize(firstName) &&
-    normalize(record.surname) === normalize(lastName);
-
-  const recordDob = toIsoDate(record.birthdate);
-  const dobMatches = recordDob === dateOfBirth;
-
-  if (!nameMatches) return { matched: false, reason: "The name entered does not match the NIN record" };
-  if (!dobMatches) return { matched: false, reason: "The date of birth entered does not match the NIN record" };
-
-  return { matched: true, reason: null };
+  return { matched: true, reason: null, verificationMethod: "format_only" };
 }
 
 module.exports = { verifyNIN };
