@@ -5,6 +5,11 @@ const { suggest } = require("../maps");
 
 const router = express.Router();
 
+// Must match routes/agent.js's STALE_AFTER_SECONDS — an agent whose last
+// location ping is older than this is treated as offline even if
+// is_online is still 1 in the DB (covers the tab-closed-without-cleanup case).
+const STALE_AFTER_SECONDS = 30;
+
 // ---------- PLATFORM STATS (for the landing page trust bar) ----------
 // Real numbers only — no invented stats. Early on these will be small or
 // zero, and the frontend is built to handle that honestly rather than
@@ -111,6 +116,66 @@ router.get("/reviews", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong loading reviews" });
+  }
+});
+
+// ---------- NEARBY CAB DRIVERS (Bolt-style live map — no login required) ----------
+// Phase 1: rides don't have a booking flow yet, this just powers the "see
+// cars near you" home-screen map. Only approved, currently-online cab
+// agents are returned, and only their coordinates + vehicle info — no
+// name, phone, or photo, since this is a public, unauthenticated endpoint.
+//
+// Optional ?lat & ?lng center the search and sort by distance; without
+// them, every online cab agent is returned (fine at current scale — add a
+// city filter or PostGIS/earthdistance if this ever needs to scale past a
+// few hundred concurrent online agents).
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+router.get("/nearby-drivers", async (req, res) => {
+  try {
+    const lat = req.query.lat ? Number(req.query.lat) : null;
+    const lng = req.query.lng ? Number(req.query.lng) : null;
+    const radiusKm = req.query.radius_km ? Number(req.query.radius_km) : 8;
+
+    const { rows } = await pool.query(
+      `SELECT user_id, vehicle_type, vehicle_make, current_lat, current_lng
+       FROM agent_profiles
+       WHERE approval_status = 'approved'
+         AND vehicle_type = 'cab'
+         AND is_online = 1
+         AND current_lat IS NOT NULL
+         AND current_lng IS NOT NULL
+         AND location_updated_at > now() - ($1 || ' seconds')::interval`,
+      [STALE_AFTER_SECONDS]
+    );
+
+    let drivers = rows.map((r) => ({
+      id: r.user_id,
+      vehicle_type: r.vehicle_type,
+      vehicle_make: r.vehicle_make,
+      lat: r.current_lat,
+      lng: r.current_lng,
+    }));
+
+    if (lat !== null && lng !== null && !Number.isNaN(lat) && !Number.isNaN(lng)) {
+      drivers = drivers
+        .map((d) => ({ ...d, distance_km: Number(haversineKm(lat, lng, d.lat, d.lng).toFixed(2)) }))
+        .filter((d) => d.distance_km <= radiusKm)
+        .sort((a, b) => a.distance_km - b.distance_km);
+    }
+
+    res.json({ drivers });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong loading nearby drivers" });
   }
 });
 

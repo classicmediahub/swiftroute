@@ -25,6 +25,7 @@ async function initSchema() {
       password_hash TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'active',
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+     
     );
   `);
 
@@ -178,6 +179,9 @@ async function initSchema() {
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS nin_verification_method TEXT NOT NULL DEFAULT 'format_only';`);
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS face_liveness_verified BOOLEAN NOT NULL DEFAULT false;`);
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS face_liveness_verified_at TIMESTAMPTZ;`);
+  await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS current_lat REAL;`);
+  await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS current_lng REAL;`);
+  await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS location_updated_at TIMESTAMPTZ;`);
 }
 
 module.exports = { pool, initSchema };
