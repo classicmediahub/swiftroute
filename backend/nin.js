@@ -1,67 +1,73 @@
-// Wraps Youverify's NIN lookup + match check, mirroring face.js's pattern:
-// one function that does the external call and returns a simple
-// { matched, reason } result, so auth.js doesn't need to know
-// provider-specific request/response details.
+// Wraps Prembly's "NIN Basic" verification. Written against a real,
+// confirmed sandbox response (2026-07-25) — not guessed from docs alone.
 //
-// IMPORTANT: this was written from Youverify's published documentation,
-// not a live tested account. Before going to production, log into your
-// actual Youverify dashboard and confirm the exact endpoint path, the auth
-// header name, and the request body shape still match what's below —
-// provider API contracts do shift over time.
+// COST NOTE: that real sandbox call showed billing_info.was_charged: true,
+// amount 50.00 NGN — every single call to this endpoint costs money on your
+// Prembly account, whether or not the NIN ends up matching. Worth factoring
+// into rate-limiting / abuse-prevention decisions later.
 
-const YOUVERIFY_API_KEY = process.env.YOUVERIFY_API_KEY;
-const YOUVERIFY_BASE_URL = process.env.YOUVERIFY_BASE_URL || "https://api.sandbox.youverify.co";
+const PREMBLY_API_KEY = process.env.PREMBLY_API_KEY;
+const PREMBLY_BASE_URL = process.env.PREMBLY_BASE_URL || "https://api.prembly.com";
 
 function normalize(value) {
   return (value || "").trim().toLowerCase();
 }
 
+// Prembly returns birthdate as "DD-MM-YYYY" (confirmed from a real
+// response: "23-05-1999"), not "YYYY-MM-DD". Converts it to YYYY-MM-DD so
+// it compares directly against the string an HTML <input type="date">
+// sends (which is what date_of_birth is, coming from the signup form).
+function toIsoDate(ddmmyyyy) {
+  const parts = (ddmmyyyy || "").split("-");
+  if (parts.length !== 3) return null;
+  const [dd, mm, yyyy] = parts;
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 // firstName/lastName/dateOfBirth are what the agent typed in the signup
-// form; dateOfBirth is expected as "YYYY-MM-DD" (what an <input type="date">
-// sends). Throws on a provider/network failure; returns a plain result
-// object for an actual verification outcome (found-but-mismatched, or
-// not-found), so the caller can tell "couldn't check" apart from "checked,
-// and it doesn't match."
+// form. Throws on a provider/network failure; returns a plain result
+// object for an actual verification outcome, so the caller can tell
+// "couldn't check" apart from "checked, and it doesn't match."
 async function verifyNIN({ nin, firstName, lastName, dateOfBirth }) {
-  if (!YOUVERIFY_API_KEY) {
-    throw new Error("YOUVERIFY_API_KEY is not set");
+  if (!PREMBLY_API_KEY) {
+    throw new Error("PREMBLY_API_KEY is not set");
   }
   if (!nin || !firstName || !lastName || !dateOfBirth) {
     throw new Error("nin, firstName, lastName, and dateOfBirth are all required");
   }
 
-  const res = await fetch(`${YOUVERIFY_BASE_URL}/v2/api/identity/ng/nin`, {
+  const res = await fetch(`${PREMBLY_BASE_URL}/verification/vnin-basic`, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
-      token: YOUVERIFY_API_KEY,
+      accept: "application/json",
+      "content-type": "application/json",
+      "x-api-key": PREMBLY_API_KEY,
     },
-    body: JSON.stringify({
-      id: nin,
-      isSubjectConsent: true,
-    }),
+    body: JSON.stringify({ number: nin }),
   });
 
-  let data;
+  let payload;
   try {
-    data = await res.json();
+    payload = await res.json();
   } catch {
     throw new Error("Unexpected response from the NIN verification provider");
   }
 
-  if (!res.ok || data.success === false) {
-    throw new Error(data?.message || "NIN verification request failed");
+  if (!res.ok || payload.status !== true) {
+    throw new Error((payload && payload.message) || "NIN verification request failed");
   }
 
-  const record = data.data;
-  if (!record || record.status !== "found") {
+  const record = payload.data;
+  if (!record) {
     return { matched: false, reason: "No record was found for that NIN" };
   }
 
   const nameMatches =
-    normalize(record.firstName) === normalize(firstName) &&
-    normalize(record.lastName) === normalize(lastName);
-  const dobMatches = record.dateOfBirth ? record.dateOfBirth.slice(0, 10) === dateOfBirth : false;
+    normalize(record.firstname) === normalize(firstName) &&
+    normalize(record.surname) === normalize(lastName);
+
+  const recordDob = toIsoDate(record.birthdate);
+  const dobMatches = recordDob === dateOfBirth;
 
   if (!nameMatches) return { matched: false, reason: "The name entered does not match the NIN record" };
   if (!dobMatches) return { matched: false, reason: "The date of birth entered does not match the NIN record" };
