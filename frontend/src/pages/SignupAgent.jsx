@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import AuthLayout, { Field, inputClass } from "../components/AuthLayout";
-import FaceCapture from "../components/FaceCapture";
+import LivenessCheck from "../components/LivenessCheck";
 
 const VEHICLES = [
   { value: "self", label: "Self", detail: "On foot, local errands" },
@@ -11,13 +11,14 @@ const VEHICLES = [
   { value: "cab", label: "Cab", detail: "Car / bulkier loads" },
 ];
 
-const CITIES = ["Lagos", "Ogun", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City"];
+const CITIES = ["Lagos", "Ota", "Ogun", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City"];
 
 export default function SignupAgent() {
   const [form, setForm] = useState({
     full_name: "", email: "", phone: "", password: "",
     vehicle_type: "bike", vehicle_make: "", vehicle_plate: "", license_number: "", city: "Lagos",
     profile_photo: null, date_of_birth: "", nin: "",
+    liveness_challenge: null, liveness_samples: null,
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -28,12 +29,21 @@ export default function SignupAgent() {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
+  function handleLivenessCapture({ photo, challenge, samples }) {
+    setForm((f) => ({ ...f, profile_photo: photo, liveness_challenge: challenge, liveness_samples: samples }));
+  }
+
+  function handleRetakePhoto() {
+    setForm((f) => ({ ...f, profile_photo: null, liveness_challenge: null, liveness_samples: null }));
+  }
+
   const needsVehicleDetails = form.vehicle_type === "bike" || form.vehicle_type === "cab";
+  const identityComplete = Boolean(form.profile_photo && form.liveness_challenge && form.liveness_samples);
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!form.profile_photo) {
-      setError("A face photo is required — capture one below before submitting.");
+    if (!identityComplete) {
+      setError("Complete the liveness check below before submitting.");
       return;
     }
     setError("");
@@ -80,8 +90,8 @@ export default function SignupAgent() {
         <div className="border-t border-slate-200 pt-4 mb-2">
           <span className="block text-sm font-medium text-ink mb-1.5">Identity verification</span>
           <p className="text-xs text-slate mb-3">
-            Required for every agent — bike, cab, and self. We check this against your NIN record;
-            it must match the name and date of birth above exactly.
+            Required for every agent — bike, cab, and self. We check your NIN is a valid, well-formed
+            number; date of birth is used for a basic sanity check, not matched against an external record.
           </p>
           <div className="grid sm:grid-cols-2 gap-x-4">
             <Field label="Date of birth">
@@ -140,25 +150,26 @@ export default function SignupAgent() {
         )}
 
         <div className="border-t border-slate-200 pt-4 mb-4">
-          <span className="block text-sm font-medium text-ink mb-2">Identity photo</span>
+          <span className="block text-sm font-medium text-ink mb-2">Identity photo — liveness check</span>
           <p className="text-xs text-slate mb-3">
-            Required — this photo is used to verify it's really you every time you log in, and customers will see it once you accept their delivery.
+            Required — confirms a real person is signing up, not a photo of a photo. This picture is also
+            what customers see once you accept their delivery, and what your login selfie is compared against.
           </p>
           {form.profile_photo ? (
             <div className="flex items-center gap-3">
               <img src={form.profile_photo} alt="Your captured photo" className="w-16 h-16 rounded-full object-cover border border-slate-300" />
-              <button type="button" onClick={() => update("profile_photo", null)} className="text-xs font-semibold text-ink underline">
+              <button type="button" onClick={handleRetakePhoto} className="text-xs font-semibold text-ink underline">
                 Retake photo
               </button>
             </div>
           ) : (
-            <FaceCapture onCapture={(photo) => update("profile_photo", photo)} title="Capture your face" />
+            <LivenessCheck onCapture={handleLivenessCapture} title="Capture your face" />
           )}
         </div>
 
         {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
-        <button disabled={loading || !form.profile_photo} className="w-full bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-2.5 transition-colors disabled:opacity-60">
+        <button disabled={loading || !identityComplete} className="w-full bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-2.5 transition-colors disabled:opacity-60">
           {loading ? "Verifying your details…" : "Submit application"}
         </button>
       </form>
