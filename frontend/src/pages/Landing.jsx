@@ -3,6 +3,7 @@ import HeroLiveMap from "../components/HeroLiveMap";
 import HeroQuoteWidget from "../components/HeroQuoteWidget";
 import StatsBar from "../components/StatsBar";
 import TrackingDemo from "../components/TrackingDemo";
+import NearbyDriversMap from "../components/NearbyDriversMap";
 import HowItWorksDiagram from "../components/HowItWorksDiagram";
 import ReviewsSection from "../components/ReviewsSection";
 import BusinessSection from "../components/BusinessSection";
@@ -90,6 +91,27 @@ export default function Landing() {
             </Link>
           </div>
           <TrackingDemo />
+        </div>
+      </section>
+
+      {/* RIDES PREVIEW — deliberately no "Book a ride" CTA here: the
+          booking flow doesn't exist yet, only live driver visibility does.
+          Copy stays honest about that instead of implying a feature that
+          isn't there. */}
+      <section className="max-w-6xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-10 items-center">
+        <div className="order-2 md:order-1">
+          <NearbyDriversMap height={340} />
+        </div>
+        <div className="order-1 md:order-2">
+          <div className="font-mono text-xs text-slate mb-2">RIDES — COMING SOON</div>
+          <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-4">Cab agents, live on the map</h2>
+          <p className="text-slate text-sm mb-6 max-w-md">
+            These are real cab agents on the PickAndEarn network, online right now. Full ride booking
+            is on the way — for now, delivery is what you can request end to end.
+          </p>
+          <Link to="/signup/agent" className="text-sm font-semibold text-ink border-b-2 border-route w-fit pb-0.5 hover:border-signal transition-colors">
+            Register as a cab agent →
+          </Link>
         </div>
       </section>
 

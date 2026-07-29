@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
+import { useLiveLocation } from "../hooks/useLiveLocation";
 import StatusBadge from "../components/StatusBadge";
 import StarRating from "../components/StarRating";
 import ShareLocationToggle from "../components/ShareLocationToggle";
@@ -21,6 +22,13 @@ export default function AgentDashboard() {
   const [error, setError] = useState("");
 
   const isApproved = agentProfile?.approval_status === "approved";
+
+  // Rides phase 1: only cab agents broadcast live location. No manual
+  // online/offline toggle by design — being on this dashboard, approved,
+  // with location permission granted IS being online. Bike/self agents
+  // just don't run this at all yet.
+  const isLiveRideCandidate = isApproved && agentProfile?.vehicle_type === "cab";
+  useLiveLocation(token, isLiveRideCandidate);
 
   const loadAll = useCallback(async () => {
     if (!isApproved) { setLoading(false); return; }
@@ -75,6 +83,15 @@ export default function AgentDashboard() {
           <img src={user.profile_photo} alt={user.full_name} className="w-12 h-12 rounded-full object-cover border border-slate-200" />
         )}
         <h1 className="font-display text-3xl font-semibold">Your jobs</h1>
+        {isLiveRideCandidate && (
+          <span className="ml-auto flex items-center gap-1.5 text-xs font-mono text-slate">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-delivered opacity-75" />
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-delivered" />
+            </span>
+            Visible to riders nearby
+          </span>
+        )}
       </div>
 
       {/* Profile summary */}
