@@ -60,7 +60,7 @@ export default function NearbyDriversMap({ height = 360, className = "" }) {
 
     async function poll() {
       try {
-        const { drivers } = await api.publicNearbyDrivers({ lat: center.lat, lng: center.lng, radius_km: 10 });
+        const { drivers } = await api.publicNearbyDrivers({ lat: center.lat, lng: center.lng, radius_km: 25 });
         setDriverCount(drivers.length);
         syncMarkers(drivers);
       } catch {
