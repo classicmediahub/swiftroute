@@ -1,12 +1,18 @@
+import { lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
 import HeroLiveMap from "../components/HeroLiveMap";
 import HeroQuoteWidget from "../components/HeroQuoteWidget";
 import StatsBar from "../components/StatsBar";
 import TrackingDemo from "../components/TrackingDemo";
-import NearbyDriversMap from "../components/NearbyDriversMap";
 import HowItWorksDiagram from "../components/HowItWorksDiagram";
 import ReviewsSection from "../components/ReviewsSection";
 import BusinessSection from "../components/BusinessSection";
+
+// Lazy-loaded on purpose: this pulls in mapbox-gl, a large dependency.
+// Without this, it would ship inside the main homepage bundle and
+// download on every visit — including for people who never scroll down
+// far enough to see it.
+const NearbyDriversMap = lazy(() => import("../components/NearbyDriversMap"));
 
 // Admin signup is intentionally not offered here. Public marketing pages
 // shouldn't surface a self-serve path to an admin role — that invite should
@@ -100,7 +106,9 @@ export default function Landing() {
           isn't there. */}
       <section className="max-w-6xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-10 items-center">
         <div className="order-2 md:order-1">
-          <NearbyDriversMap height={340} />
+          <Suspense fallback={<div className="h-[340px] rounded-2xl border border-slate-200 bg-slate-50 animate-pulse" />}>
+            <NearbyDriversMap height={340} />
+          </Suspense>
         </div>
         <div className="order-1 md:order-2">
           <div className="font-mono text-xs text-slate mb-2">RIDES — COMING SOON</div>
