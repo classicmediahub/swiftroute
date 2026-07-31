@@ -7,13 +7,13 @@
 
   --color-ink: #0b1220;
   --color-ink-soft: #131e33;
-  --color-route: #ffc63d;
-  --color-route-dark: #e6ac1f;
-  --color-signal: #ff6b35;
-  --color-paper: #f7f7f5;
+  --color-route: #f0aa33;
+  --color-route-dark: #d4901f;
+  --color-signal: #d93a2b;
+  --color-paper: #f8f5ef;
   --color-slate: #5b6472;
   --color-slate-light: #9aa3b2;
-  --color-delivered: #1fae6b;
+  --color-delivered: #12946b;
   --color-line: #223049;
 }
 
