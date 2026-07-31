@@ -74,6 +74,7 @@ export const api = {
   publicEstimate: (payload) => request("/public/estimate", { method: "POST", body: payload }),
   publicTrack: (code) => request(`/public/track/${code}`),
   publicReviews: () => request("/public/reviews"),
+  publicRideEstimate: (payload) => request("/public/estimate-ride", { method: "POST", body: payload }),
 
   // Rides phase 1: live location broadcasting for cab agents
   agentUpdateLocation: (token, { lat, lng }) => request("/agent/location", { method: "PATCH", body: { lat, lng }, token }),

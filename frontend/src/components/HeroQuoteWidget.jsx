@@ -24,6 +24,7 @@ function HeadsetIcon() {
 }
 
 export default function HeroQuoteWidget() {
+  const [mode, setMode] = useState("delivery"); // "delivery" | "ride"
   const [pickup, setPickup] = useState(null);
   const [dropoff, setDropoff] = useState(null);
   const [price, setPrice] = useState(null);
@@ -36,20 +37,35 @@ export default function HeroQuoteWidget() {
       return;
     }
     setLoading(true);
-    api
-      .publicEstimate({
-        pickup_coords: pickup,
-        dropoff_coords: dropoff,
-        pickup_city: pickup.city,
-        dropoff_city: dropoff.city,
-        preferred_vehicle: "any",
-      })
+    const request =
+      mode === "ride"
+        ? api.publicRideEstimate({ pickup_coords: pickup, dropoff_coords: dropoff })
+        : api.publicEstimate({
+            pickup_coords: pickup,
+            dropoff_coords: dropoff,
+            pickup_city: pickup.city,
+            dropoff_city: dropoff.city,
+            preferred_vehicle: "any",
+          });
+
+    request
       .then((res) => setPrice(res.price))
       .catch(() => setPrice(null))
       .finally(() => setLoading(false));
-  }, [pickup, dropoff]);
+  }, [pickup, dropoff, mode]);
+
+  function handleModeChange(next) {
+    if (next === mode) return;
+    setMode(next);
+    setPrice(null); // re-fetches under the new mode's pricing once both points are still set
+  }
 
   function handleContinue() {
+    // Both modes land on signup for now — same as before this toggle was
+    // added. A logged-in visitor scrolling back to this widget still gets
+    // sent through signup rather than straight to /rides or the delivery
+    // form; that's an existing limitation of this widget, not something
+    // introduced by the ride toggle, so it's left as-is here.
     navigate("/signup/customer");
   }
 
@@ -58,6 +74,27 @@ export default function HeroQuoteWidget() {
     // shade as the mockup) so this still reads as a distinct panel against
     // the dark hero, rather than blending into it.
     <div className="bg-[#141d30] border border-line rounded-2xl p-5 shadow-xl space-y-3">
+      <div className="flex gap-1.5 bg-black/20 rounded-lg p-1 w-fit">
+        <button
+          type="button"
+          onClick={() => handleModeChange("delivery")}
+          className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${
+            mode === "delivery" ? "bg-route text-ink" : "text-slate-light hover:text-paper"
+          }`}
+        >
+          Send a delivery
+        </button>
+        <button
+          type="button"
+          onClick={() => handleModeChange("ride")}
+          className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${
+            mode === "ride" ? "bg-route text-ink" : "text-slate-light hover:text-paper"
+          }`}
+        >
+          Get a ride
+        </button>
+      </div>
+
       <div className="flex flex-col sm:flex-row gap-2.5">
         <AddressAutocomplete
           value={pickup}
@@ -95,7 +132,7 @@ export default function HeroQuoteWidget() {
           <ShieldIcon /> ID-verified riders
         </span>
         <span className="flex items-center gap-1.5 text-xs text-slate-light">
-          <HeadsetIcon /> Parcels insured up to ₦50,000
+          <HeadsetIcon /> {mode === "ride" ? "Live tracking on every trip" : "Parcels insured up to ₦50,000"}
         </span>
       </div>
     </div>

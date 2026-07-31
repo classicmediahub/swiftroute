@@ -1,6 +1,6 @@
 const express = require("express");
 const { pool } = require("../db");
-const { getQuote } = require("../quote");
+const { getQuote, getRideQuote } = require("../quote");
 const { suggest } = require("../maps");
 
 const router = express.Router();
@@ -73,6 +73,25 @@ router.post("/estimate", async (req, res) => {
     pickup_coords: pickup_coords || null,
     dropoff_coords: dropoff_coords || null,
   });
+  res.json(quote);
+});
+
+// ---------- RIDE PRICE ESTIMATE (landing page — no login required). Same
+// public-preview role as /estimate above, but for passenger rides. Coords
+// are required (not optional the way delivery's city-name fallback is) —
+// the hero widget's AddressAutocomplete always returns coordinates on
+// selection, so this is never actually a limitation in practice; it's
+// only stricter here because a ride fare with no real route genuinely
+// isn't a fare (see quote.js's getRideQuote for the full reasoning). ----------
+router.post("/estimate-ride", async (req, res) => {
+  const { pickup_coords, dropoff_coords } = req.body;
+  if (!pickup_coords || !dropoff_coords) {
+    return res.status(400).json({ error: "pickup_coords and dropoff_coords are required" });
+  }
+  const quote = await getRideQuote({ pickup_coords, dropoff_coords });
+  if (!quote) {
+    return res.status(502).json({ error: "Couldn't calculate a fare for this route right now" });
+  }
   res.json(quote);
 });
 
