@@ -115,4 +115,60 @@ async function notifyWebhook(delivery, event) {
   }
 }
 
-module.exports = { notifyCustomer, notifyBulkUpload, notifyWebhook };
+// ---------- RIDES — same fire-and-forget pattern as notifyCustomer above,
+// separate template set since a ride has no tracking_code or city fields
+// (it has pickup_address/dropoff_address instead). No ride equivalent of
+// notifyWebhook — that's a merchant/API-integration feature for business
+// delivery accounts, which doesn't apply to passenger rides. ----------
+const RIDE_MESSAGES = {
+  payment_confirmed: {
+    subject: () => `Ride booked — payment received`,
+    sms: (r) => `PickAndEarn: Payment received for your ride to ${r.dropoff_address}. Finding you a driver now.`,
+    html: (r) => `<p>We've received payment for your ride from <strong>${r.pickup_address}</strong> to <strong>${r.dropoff_address}</strong>. We're finding you a nearby driver now.</p>`,
+  },
+  accepted: {
+    subject: () => `Driver on the way`,
+    sms: () => `PickAndEarn: A driver has accepted your ride and is heading to your pickup point.`,
+    html: (r, agent) => `<p>Good news — <strong>${agent?.full_name || "a driver"}</strong> has accepted your ride and is heading to <strong>${r.pickup_address}</strong>.</p>`,
+  },
+  in_progress: {
+    subject: () => `Trip started`,
+    sms: (r) => `PickAndEarn: Your trip to ${r.dropoff_address} is now underway.`,
+    html: (r) => `<p>Your trip to <strong>${r.dropoff_address}</strong> is now underway.</p>`,
+  },
+  completed: {
+    subject: () => `Trip completed`,
+    sms: () => `PickAndEarn: Your trip is complete. Thanks for riding with PickAndEarn!`,
+    html: () => `<p>Your trip is complete. Thanks for riding with PickAndEarn — we'd love it if you left a rating on your dashboard.</p>`,
+  },
+  cancelled: {
+    subject: () => `Ride cancelled`,
+    sms: () => `PickAndEarn: Your ride has been cancelled.`,
+    html: () => `<p>Your ride has been cancelled.</p>`,
+  },
+};
+
+async function notifyRideCustomer(ride, event) {
+  const template = RIDE_MESSAGES[event];
+  if (!template) return;
+  try {
+    const { rows } = await pool.query("SELECT full_name, email, phone FROM users WHERE id = $1", [ride.customer_id]);
+    const customer = rows[0];
+    if (!customer) return;
+
+    let agent = null;
+    if (event === "accepted" && ride.agent_id) {
+      const { rows: agentRows } = await pool.query("SELECT full_name FROM users WHERE id = $1", [ride.agent_id]);
+      agent = agentRows[0] || null;
+    }
+
+    await Promise.allSettled([
+      sendEmail({ to: customer.email, subject: template.subject(ride), html: template.html(ride, agent) }),
+      sendSMS({ to: customer.phone, message: template.sms(ride, agent) }),
+    ]);
+  } catch (err) {
+    console.error("notifyRideCustomer failed:", err.message);
+  }
+}
+
+module.exports = { notifyCustomer, notifyBulkUpload, notifyWebhook, notifyRideCustomer };

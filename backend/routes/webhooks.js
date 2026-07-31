@@ -2,7 +2,7 @@ const express = require("express");
 const { v4: uuidv4 } = require("uuid");
 const { pool } = require("../db");
 const { verifyWebhookSignature } = require("../paystack");
-const { notifyCustomer, notifyWebhook } = require("../notify");
+const { notifyCustomer, notifyWebhook, notifyRideCustomer } = require("../notify");
 
 const router = express.Router();
 
@@ -60,16 +60,18 @@ async function confirmDeliveryPayment(reference) {
   }
 }
 
-// No delivery_events-equivalent table for rides, and no email/SMS
-// notification template for ride status changes yet (see rides.js and
-// notify.js — this is a deliberate phase-2 scope cut, not an oversight).
-// The frontend's "My rides" list polls the ride row directly, so marking
-// payment_status here is enough for the customer to see it update.
+// No delivery_events-equivalent table for rides — the frontend's "My
+// rides" list polls the ride row directly, so status history isn't
+// separately logged anywhere. Notifications ARE wired (notifyRideCustomer,
+// see notify.js) — this webhook path covers the case where the customer
+// closes the tab before the frontend's own verify call fires.
 async function confirmRidePayment(reference) {
   const { rows } = await pool.query("SELECT * FROM rides WHERE paystack_reference = $1", [reference]);
   const ride = rows[0];
   if (ride && ride.payment_status !== "paid") {
     await pool.query("UPDATE rides SET payment_status = 'paid' WHERE id = $1", [ride.id]);
+    const { rows: updated } = await pool.query("SELECT * FROM rides WHERE id = $1", [ride.id]);
+    notifyRideCustomer(updated[0], "payment_confirmed"); // fire-and-forget
   }
 }
 

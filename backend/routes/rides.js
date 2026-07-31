@@ -4,6 +4,7 @@ const { pool } = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getRideQuote } = require("../quote");
 const { initializeTransaction, verifyTransaction } = require("../paystack");
+const { notifyRideCustomer } = require("../notify");
 
 const router = express.Router();
 
@@ -146,6 +147,9 @@ router.get("/verify/:reference", requireAuth, async (req, res) => {
     }
 
     const { rows: updated } = await pool.query("SELECT * FROM rides WHERE id = $1", [ride.id]);
+    if (updated[0].payment_status === "paid") {
+      notifyRideCustomer(updated[0], "payment_confirmed"); // fire-and-forget
+    }
     res.json({ ride: updated[0], payment_status: updated[0].payment_status });
   } catch (err) {
     console.error(err);
@@ -187,6 +191,7 @@ router.patch("/:id/cancel", requireAuth, requireRole("customer"), async (req, re
     // ride needs a real Paystack refund done separately for now.
 
     const { rows: updated } = await pool.query("SELECT * FROM rides WHERE id = $1", [ride.id]);
+    notifyRideCustomer(updated[0], "cancelled"); // fire-and-forget
     res.json(updated[0]);
   } catch (err) {
     console.error(err);
@@ -272,6 +277,7 @@ router.post("/:id/accept", requireAuth, requireRole("agent"), async (req, res) =
     await client.query("COMMIT");
 
     const { rows: updated } = await pool.query("SELECT * FROM rides WHERE id = $1", [ride.id]);
+    notifyRideCustomer(updated[0], "accepted"); // fire-and-forget
     res.json(updated[0]);
   } catch (err) {
     await client.query("ROLLBACK").catch(() => {});
@@ -315,6 +321,7 @@ router.patch("/:id/advance", requireAuth, requireRole("agent"), async (req, res)
     }
 
     const { rows: updated } = await pool.query("SELECT * FROM rides WHERE id = $1", [ride.id]);
+    notifyRideCustomer(updated[0], next); // fire-and-forget — "in_progress" or "completed"
     res.json(updated[0]);
   } catch (err) {
     console.error(err);
