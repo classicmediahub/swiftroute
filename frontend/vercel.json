@@ -5,6 +5,8 @@
     { "source": "/agent/dashboard", "destination": "/" },
     { "source": "/admin/dashboard", "destination": "/" },
     { "source": "/payment/callback", "destination": "/" },
-    { "source": "/wallet/callback", "destination": "/" }
+    { "source": "/wallet/callback", "destination": "/" },
+    { "source": "/rides", "destination": "/" },
+    { "source": "/ride/payment/callback", "destination": "/" }
   ]
 }
