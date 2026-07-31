@@ -1,5 +1,5 @@
 const { geocode, drivingDistanceKm } = require("./maps");
-const { estimatePrice, priceFromDistance } = require("./pricing");
+const { estimatePrice, priceFromDistance, priceForRide } = require("./pricing");
 
 // Returns { price, distanceKm, method, origin, destination }. Always
 // succeeds — if Mapbox isn't configured, or a specific address can't be
@@ -56,4 +56,36 @@ function geocodeOrThrow(address, city) {
   return geocode(query, city);
 }
 
-module.exports = { getQuote };
+// ---------- RIDE QUOTE — deliberately no flat-fallback here, unlike
+// getQuote() above. A parcel delivery between two named cities can fall
+// back to a flat intercity estimate and still make sense; a passenger ride
+// with no real route makes no sense to quote at all — if we can't compute
+// an actual driving distance, we return null and the caller shows "can't
+// estimate a fare right now" rather than a fabricated number.
+//
+// In practice this path is low-risk: the frontend flow always confirms
+// exact pickup/dropoff pins on a map before requesting a fare (same PinMap
+// component deliveries use), so pickup_coords/dropoff_coords are almost
+// always already present here and no geocoding call is even needed. ----------
+async function getRideQuote({ pickup_address, pickup_city, dropoff_address, dropoff_city, pickup_coords, dropoff_coords }) {
+  try {
+    const origin = pickup_coords || (await geocodeOrThrow(pickup_address, pickup_city));
+    const destination = dropoff_coords || (await geocodeOrThrow(dropoff_address, dropoff_city));
+    if (!origin || !destination) return null;
+
+    const distanceKm = await drivingDistanceKm(origin, destination);
+    if (distanceKm === null) return null;
+
+    return {
+      price: priceForRide({ distanceKm }),
+      distanceKm: Math.round(distanceKm * 10) / 10,
+      origin,
+      destination,
+    };
+  } catch (err) {
+    console.error("Ride quote failed:", err.message);
+    return null;
+  }
+}
+
+module.exports = { getQuote, getRideQuote };

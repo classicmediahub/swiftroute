@@ -39,6 +39,23 @@ function priceFromDistance({ distanceKm, vehicle_type }) {
   return Math.max(price, MIN_FARE);
 }
 
+// ---------- RIDE (passenger) pricing — separate constants from parcel
+// pricing above on purpose. Carrying a person and carrying cargo in the
+// same cab are different businesses with different expectations, and
+// tying ride fares to the parcel-cab rate would mean any future change to
+// one silently changes the other. These are starting numbers, not
+// researched ones — tune once you have a handful of real trips to compare
+// against what riders locally expect (Bolt/inDrive rates, etc.). ----------
+const RIDE_BASE_FARE = 400;
+const RIDE_PER_KM_RATE = 150;
+const RIDE_MIN_FARE = 600;
+
+function priceForRide({ distanceKm }) {
+  let price = RIDE_BASE_FARE + distanceKm * RIDE_PER_KM_RATE;
+  price = Math.round(price / 50) * 50;
+  return Math.max(price, RIDE_MIN_FARE);
+}
+
 function trackingCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "PAE-";
@@ -46,4 +63,4 @@ function trackingCode() {
   return code;
 }
 
-module.exports = { estimatePrice, priceFromDistance, trackingCode };
+module.exports = { estimatePrice, priceFromDistance, priceForRide, trackingCode };

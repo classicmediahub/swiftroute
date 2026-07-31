@@ -12,6 +12,8 @@ import AgentDashboard from "./pages/AgentDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import PaymentCallback from "./pages/PaymentCallback";
 import WalletCallback from "./pages/WalletCallback";
+import RequestRide from "./pages/RequestRide";
+import RideCallback from "./pages/RideCallback";
 import TrackPublic from "./pages/TrackPublic";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
@@ -66,6 +68,22 @@ const routes = [
         element: (
           <ProtectedRoute role="customer">
             <WalletCallback />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "rides",
+        element: (
+          <ProtectedRoute role="customer">
+            <RequestRide />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "ride/payment/callback",
+        element: (
+          <ProtectedRoute role="customer">
+            <RideCallback />
           </ProtectedRoute>
         ),
       },

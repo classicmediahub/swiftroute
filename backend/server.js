@@ -13,6 +13,7 @@ const walletRoutes = require("./routes/wallet");
 const apiKeyRoutes = require("./routes/apikeys");
 const v1Routes = require("./routes/v1");
 const agentRoutes = require("./routes/agent");
+const rideRoutes = require("./routes/rides");
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use("/api/wallet", walletRoutes);
 app.use("/api/keys", apiKeyRoutes);
 app.use("/api/v1", v1Routes);
 app.use("/api/agent", agentRoutes);
+app.use("/api/rides", rideRoutes);
 
 app.use((req, res) => res.status(404).json({ error: "Not found" }));
 // eslint-disable-next-line no-unused-vars

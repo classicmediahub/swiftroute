@@ -25,7 +25,6 @@ async function initSchema() {
       password_hash TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'active',
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-     
     );
   `);
 
@@ -179,9 +178,49 @@ async function initSchema() {
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS nin_verification_method TEXT NOT NULL DEFAULT 'format_only';`);
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS face_liveness_verified BOOLEAN NOT NULL DEFAULT false;`);
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS face_liveness_verified_at TIMESTAMPTZ;`);
+
+  // --- Rides phase 1: live driver position, independent of any specific
+  // job (see routes/agent.js and routes/public.js's /nearby-drivers). ---
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS current_lat REAL;`);
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS current_lng REAL;`);
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS location_updated_at TIMESTAMPTZ;`);
+
+  // --- Rides phase 2: booking, payment, and matching (see routes/rides.js).
+  // A separate table from `deliveries` on purpose — a ride has no package
+  // or recipient, but does need its own live position during an active
+  // trip, tracked the same way a delivery's current_lat/lng is. No
+  // ride_events table yet (unlike delivery_events) — status history isn't
+  // shown anywhere in the UI yet, so one would go unused for now. ---
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS rides (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT NOT NULL REFERENCES users(id),
+      agent_id TEXT REFERENCES users(id),
+      pickup_address TEXT NOT NULL,
+      pickup_lat REAL NOT NULL,
+      pickup_lng REAL NOT NULL,
+      dropoff_address TEXT NOT NULL,
+      dropoff_lat REAL NOT NULL,
+      dropoff_lng REAL NOT NULL,
+      price REAL NOT NULL,
+      distance_km REAL,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','in_progress','completed','cancelled')),
+      payment_status TEXT NOT NULL DEFAULT 'unpaid',
+      paystack_reference TEXT,
+      current_lat REAL,
+      current_lng REAL,
+      location_updated_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      accepted_at TIMESTAMPTZ,
+      started_at TIMESTAMPTZ,
+      completed_at TIMESTAMPTZ,
+      cancelled_at TIMESTAMPTZ
+    );
+  `);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS rides_paystack_reference_idx
+    ON rides(paystack_reference) WHERE paystack_reference IS NOT NULL;
+  `);
 }
 
 module.exports = { pool, initSchema };

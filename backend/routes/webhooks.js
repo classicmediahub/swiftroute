@@ -6,10 +6,10 @@ const { notifyCustomer, notifyWebhook } = require("../notify");
 
 const router = express.Router();
 
-// This exists as a safety net alongside the /verify/:reference endpoint the
-// frontend calls after checkout. If a customer pays but closes the tab
+// This exists as a safety net alongside the /verify/:reference endpoints
+// the frontend calls after checkout. If a customer pays but closes the tab
 // before the redirect completes, this webhook is what still marks the
-// delivery paid — otherwise they'd have paid with nothing to show for it.
+// delivery/ride paid — otherwise they'd have paid with nothing to show for it.
 //
 // IMPORTANT: this route needs the raw request body (not JSON-parsed) to
 // check the signature, so it's mounted before express.json() in server.js.
@@ -31,6 +31,8 @@ router.post("/paystack", async (req, res) => {
     try {
       if (reference && reference.startsWith("PAEWALLET-")) {
         await confirmWalletTopup(reference);
+      } else if (reference && reference.startsWith("PAERIDE-")) {
+        await confirmRidePayment(reference);
       } else {
         await confirmDeliveryPayment(reference);
       }
@@ -55,6 +57,19 @@ async function confirmDeliveryPayment(reference) {
     );
     notifyCustomer(delivery, "payment_confirmed"); // fire-and-forget
     notifyWebhook(delivery, "payment_confirmed"); // fire-and-forget
+  }
+}
+
+// No delivery_events-equivalent table for rides, and no email/SMS
+// notification template for ride status changes yet (see rides.js and
+// notify.js — this is a deliberate phase-2 scope cut, not an oversight).
+// The frontend's "My rides" list polls the ride row directly, so marking
+// payment_status here is enough for the customer to see it update.
+async function confirmRidePayment(reference) {
+  const { rows } = await pool.query("SELECT * FROM rides WHERE paystack_reference = $1", [reference]);
+  const ride = rows[0];
+  if (ride && ride.payment_status !== "paid") {
+    await pool.query("UPDATE rides SET payment_status = 'paid' WHERE id = $1", [ride.id]);
   }
 }
 

@@ -12,14 +12,33 @@ const NEXT_LABEL = {
   in_transit: "Mark delivered",
 };
 
+const RIDE_NEXT_LABEL = {
+  accepted: "Start trip",
+  in_progress: "Complete trip",
+};
+const RIDE_STATUS_LABEL = {
+  pending: "Finding a driver",
+  accepted: "Heading to pickup",
+  in_progress: "Trip in progress",
+  completed: "Completed",
+  cancelled: "Cancelled",
+};
+
 export default function AgentDashboard() {
   const { token, user, agentProfile, refresh } = useAuth();
+  const [section, setSection] = useState("deliveries"); // "deliveries" | "rides" — rides only shown to cab agents
   const [tab, setTab] = useState("available");
   const [available, setAvailable] = useState([]);
   const [assigned, setAssigned] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState("");
+
+  const [rideTab, setRideTab] = useState("available");
+  const [availableRides, setAvailableRides] = useState([]);
+  const [assignedRides, setAssignedRides] = useState([]);
+  const [loadingRides, setLoadingRides] = useState(true);
+  const [rideError, setRideError] = useState("");
 
   const isApproved = agentProfile?.approval_status === "approved";
 
@@ -45,6 +64,21 @@ export default function AgentDashboard() {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
+  const loadRides = useCallback(async () => {
+    if (!isLiveRideCandidate) { setLoadingRides(false); return; }
+    try {
+      const [avail, mine] = await Promise.all([api.availableRides(token), api.assignedRides(token)]);
+      setAvailableRides(avail);
+      setAssignedRides(mine);
+    } catch (err) {
+      setRideError(err.message);
+    } finally {
+      setLoadingRides(false);
+    }
+  }, [token, isLiveRideCandidate]);
+
+  useEffect(() => { loadRides(); }, [loadRides]);
+
   async function handleAccept(id) {
     setBusyId(id);
     try {
@@ -63,6 +97,32 @@ export default function AgentDashboard() {
     try {
       await api.advanceDelivery(token, id);
       await loadAll();
+      await refresh();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleAcceptRide(id) {
+    setBusyId(id);
+    try {
+      await api.acceptRide(token, id);
+      await loadRides();
+      setRideTab("mine");
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleAdvanceRide(id) {
+    setBusyId(id);
+    try {
+      await api.advanceRide(token, id);
+      await loadRides();
       await refresh();
     } catch (err) {
       alert(err.message);
@@ -125,94 +185,185 @@ export default function AgentDashboard() {
         </div>
       ) : (
         <>
-          <div className="flex gap-2 mb-6 border-b border-slate-200">
-            <TabButton active={tab === "available"} onClick={() => setTab("available")}>
-              Available ({available.length})
-            </TabButton>
-            <TabButton active={tab === "mine"} onClick={() => setTab("mine")}>
-              My deliveries ({assigned.length})
-            </TabButton>
-          </div>
+          {/* Deliveries vs Rides — only cab agents get a Rides section at all */}
+          {isLiveRideCandidate && (
+            <div className="flex gap-2 mb-4">
+              <SectionButton active={section === "deliveries"} onClick={() => setSection("deliveries")}>
+                Deliveries
+              </SectionButton>
+              <SectionButton active={section === "rides"} onClick={() => setSection("rides")}>
+                Rides ({availableRides.length})
+              </SectionButton>
+            </div>
+          )}
 
-          {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
-          {loading ? (
-            <p className="text-sm text-slate">Loading…</p>
-          ) : tab === "available" ? (
-            available.length === 0 ? (
-              <EmptyState text="No pending deliveries match your vehicle type right now." />
-            ) : (
-              <div className="space-y-3">
-                {available.map((d) => (
-                  <div key={d.id} className="border border-slate-200 rounded-xl p-4 bg-white flex items-start justify-between gap-4">
-                    <div>
-                      <div className="font-mono text-xs text-slate mb-1">{d.tracking_code}</div>
-                      <div className="font-semibold text-sm mb-1">
-                        {d.package_type} · {d.pickup_city} → {d.dropoff_city}
-                        {d.distance_km && <span className="text-slate font-normal"> · {d.distance_km} km</span>}
+          {section === "deliveries" ? (
+            <>
+              <div className="flex gap-2 mb-6 border-b border-slate-200">
+                <TabButton active={tab === "available"} onClick={() => setTab("available")}>
+                  Available ({available.length})
+                </TabButton>
+                <TabButton active={tab === "mine"} onClick={() => setTab("mine")}>
+                  My deliveries ({assigned.length})
+                </TabButton>
+              </div>
+
+              {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+              {loading ? (
+                <p className="text-sm text-slate">Loading…</p>
+              ) : tab === "available" ? (
+                available.length === 0 ? (
+                  <EmptyState text="No pending deliveries match your vehicle type right now." />
+                ) : (
+                  <div className="space-y-3">
+                    {available.map((d) => (
+                      <div key={d.id} className="border border-slate-200 rounded-xl p-4 bg-white flex items-start justify-between gap-4">
+                        <div>
+                          <div className="font-mono text-xs text-slate mb-1">{d.tracking_code}</div>
+                          <div className="font-semibold text-sm mb-1">
+                            {d.package_type} · {d.pickup_city} → {d.dropoff_city}
+                            {d.distance_km && <span className="text-slate font-normal"> · {d.distance_km} km</span>}
+                          </div>
+                          <div className="text-xs text-slate space-y-0.5">
+                            <div>Pickup: {d.pickup_address}{d.pickup_landmark && ` (${d.pickup_landmark})`}</div>
+                            <div>Drop-off: {d.dropoff_address}{d.dropoff_landmark && ` (${d.dropoff_landmark})`}</div>
+                            <div>Customer: {d.customer_name} · {d.customer_phone}</div>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="font-mono font-semibold mb-2">₦{d.price.toLocaleString()}</div>
+                          <button
+                            disabled={busyId === d.id}
+                            onClick={() => handleAccept(d.id)}
+                            className="text-xs font-semibold bg-ink text-paper rounded-lg px-3 py-2 hover:bg-ink-soft transition-colors disabled:opacity-60"
+                          >
+                            {busyId === d.id ? "Accepting…" : "Accept job"}
+                          </button>
+                        </div>
                       </div>
-                      <div className="text-xs text-slate space-y-0.5">
+                    ))}
+                  </div>
+                )
+              ) : assigned.length === 0 ? (
+                <EmptyState text="You haven't accepted any deliveries yet." />
+              ) : (
+                <div className="space-y-3">
+                  {assigned.map((d) => (
+                    <div key={d.id} className="border border-slate-200 rounded-xl p-4 bg-white">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <div className="font-mono text-xs text-slate mb-1">{d.tracking_code}</div>
+                          <div className="font-semibold text-sm">
+                          {d.package_type} · {d.pickup_city} → {d.dropoff_city}
+                          {d.distance_km && <span className="text-slate font-normal"> · {d.distance_km} km</span>}
+                        </div>
+                        </div>
+                        <StatusBadge status={d.status} />
+                      </div>
+                      <div className="text-xs text-slate space-y-0.5 mb-3">
                         <div>Pickup: {d.pickup_address}{d.pickup_landmark && ` (${d.pickup_landmark})`}</div>
-                        <div>Drop-off: {d.dropoff_address}{d.dropoff_landmark && ` (${d.dropoff_landmark})`}</div>
+                        <div>Drop-off: {d.dropoff_address}{d.dropoff_landmark && ` (${d.dropoff_landmark})`} · to {d.recipient_name} ({d.recipient_phone})</div>
                         <div>Customer: {d.customer_name} · {d.customer_phone}</div>
                       </div>
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-sm font-semibold">₦{d.price.toLocaleString()}</span>
+                        {NEXT_LABEL[d.status] && (
+                          <button
+                            disabled={busyId === d.id}
+                            onClick={() => handleAdvance(d.id)}
+                            className="text-xs font-semibold bg-route hover:bg-route-dark text-ink rounded-lg px-3 py-2 transition-colors disabled:opacity-60"
+                          >
+                            {busyId === d.id ? "Updating…" : NEXT_LABEL[d.status]}
+                          </button>
+                        )}
+                      </div>
+                      <div className="border-t border-slate-100 mt-3 pt-3">
+                        <ShareLocationToggle
+                          deliveryId={d.id}
+                          token={token}
+                          active={["accepted", "picked_up", "in_transit"].includes(d.status)}
+                        />
+                      </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <div className="font-mono font-semibold mb-2">₦{d.price.toLocaleString()}</div>
-                      <button
-                        disabled={busyId === d.id}
-                        onClick={() => handleAccept(d.id)}
-                        className="text-xs font-semibold bg-ink text-paper rounded-lg px-3 py-2 hover:bg-ink-soft transition-colors disabled:opacity-60"
-                      >
-                        {busyId === d.id ? "Accepting…" : "Accept job"}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )
-          ) : assigned.length === 0 ? (
-            <EmptyState text="You haven't accepted any deliveries yet." />
-          ) : (
-            <div className="space-y-3">
-              {assigned.map((d) => (
-                <div key={d.id} className="border border-slate-200 rounded-xl p-4 bg-white">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <div className="font-mono text-xs text-slate mb-1">{d.tracking_code}</div>
-                      <div className="font-semibold text-sm">
-                      {d.package_type} · {d.pickup_city} → {d.dropoff_city}
-                      {d.distance_km && <span className="text-slate font-normal"> · {d.distance_km} km</span>}
-                    </div>
-                    </div>
-                    <StatusBadge status={d.status} />
-                  </div>
-                  <div className="text-xs text-slate space-y-0.5 mb-3">
-                    <div>Pickup: {d.pickup_address}{d.pickup_landmark && ` (${d.pickup_landmark})`}</div>
-                    <div>Drop-off: {d.dropoff_address}{d.dropoff_landmark && ` (${d.dropoff_landmark})`} · to {d.recipient_name} ({d.recipient_phone})</div>
-                    <div>Customer: {d.customer_name} · {d.customer_phone}</div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-sm font-semibold">₦{d.price.toLocaleString()}</span>
-                    {NEXT_LABEL[d.status] && (
-                      <button
-                        disabled={busyId === d.id}
-                        onClick={() => handleAdvance(d.id)}
-                        className="text-xs font-semibold bg-route hover:bg-route-dark text-ink rounded-lg px-3 py-2 transition-colors disabled:opacity-60"
-                      >
-                        {busyId === d.id ? "Updating…" : NEXT_LABEL[d.status]}
-                      </button>
-                    )}
-                  </div>
-                  <div className="border-t border-slate-100 mt-3 pt-3">
-                    <ShareLocationToggle
-                      deliveryId={d.id}
-                      token={token}
-                      active={["accepted", "picked_up", "in_transit"].includes(d.status)}
-                    />
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="flex gap-2 mb-6 border-b border-slate-200">
+                <TabButton active={rideTab === "available"} onClick={() => setRideTab("available")}>
+                  Available ({availableRides.length})
+                </TabButton>
+                <TabButton active={rideTab === "mine"} onClick={() => setRideTab("mine")}>
+                  My rides ({assignedRides.length})
+                </TabButton>
+              </div>
+
+              {rideError && <p className="text-sm text-red-600 mb-4">{rideError}</p>}
+              {loadingRides ? (
+                <p className="text-sm text-slate">Loading…</p>
+              ) : rideTab === "available" ? (
+                availableRides.length === 0 ? (
+                  <EmptyState text="No ride requests right now." />
+                ) : (
+                  <div className="space-y-3">
+                    {availableRides.map((r) => (
+                      <div key={r.id} className="border border-slate-200 rounded-xl p-4 bg-white flex items-start justify-between gap-4">
+                        <div>
+                          <div className="font-semibold text-sm mb-1">
+                            {r.pickup_address} → {r.dropoff_address}
+                            {r.distance_km && <span className="text-slate font-normal"> · {r.distance_km} km</span>}
+                          </div>
+                          <div className="text-xs text-slate">Rider: {r.customer_name} · {r.customer_phone}</div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="font-mono font-semibold mb-2">₦{r.price.toLocaleString()}</div>
+                          <button
+                            disabled={busyId === r.id}
+                            onClick={() => handleAcceptRide(r.id)}
+                            className="text-xs font-semibold bg-ink text-paper rounded-lg px-3 py-2 hover:bg-ink-soft transition-colors disabled:opacity-60"
+                          >
+                            {busyId === r.id ? "Accepting…" : "Accept ride"}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : assignedRides.length === 0 ? (
+                <EmptyState text="You haven't accepted any rides yet." />
+              ) : (
+                <div className="space-y-3">
+                  {assignedRides.map((r) => (
+                    <div key={r.id} className="border border-slate-200 rounded-xl p-4 bg-white">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="font-semibold text-sm">
+                          {r.pickup_address} → {r.dropoff_address}
+                          {r.distance_km && <span className="text-slate font-normal"> · {r.distance_km} km</span>}
+                        </div>
+                        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-100 text-blue-800">
+                          {RIDE_STATUS_LABEL[r.status] || r.status}
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate mb-3">Rider: {r.customer_name} · {r.customer_phone}</div>
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-sm font-semibold">₦{r.price.toLocaleString()}</span>
+                        {RIDE_NEXT_LABEL[r.status] && (
+                          <button
+                            disabled={busyId === r.id}
+                            onClick={() => handleAdvanceRide(r.id)}
+                            className="text-xs font-semibold bg-route hover:bg-route-dark text-ink rounded-lg px-3 py-2 transition-colors disabled:opacity-60"
+                          >
+                            {busyId === r.id ? "Updating…" : RIDE_NEXT_LABEL[r.status]}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </>
       )}
@@ -226,6 +377,19 @@ function SummaryCard({ label, value, custom }) {
       <div className="text-xs text-slate mb-1">{label}</div>
       {custom || <div className="font-mono font-semibold capitalize">{value}</div>}
     </div>
+  );
+}
+
+function SectionButton({ active, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`text-sm font-semibold px-4 py-2 rounded-full transition-colors ${
+        active ? "bg-ink text-paper" : "bg-slate-100 text-slate hover:bg-slate-200"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
