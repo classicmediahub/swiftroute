@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { useLiveLocation } from "../hooks/useLiveLocation";
+import { useRideLocation } from "../hooks/useRideLocation";
 import StatusBadge from "../components/StatusBadge";
 import StarRating from "../components/StarRating";
 import ShareLocationToggle from "../components/ShareLocationToggle";
@@ -23,6 +24,7 @@ const RIDE_STATUS_LABEL = {
   completed: "Completed",
   cancelled: "Cancelled",
 };
+const RIDE_ACTIVE_STATUSES = ["accepted", "in_progress"];
 
 export default function AgentDashboard() {
   const { token, user, agentProfile, refresh } = useAuth();
@@ -48,6 +50,13 @@ export default function AgentDashboard() {
   // just don't run this at all yet.
   const isLiveRideCandidate = isApproved && agentProfile?.vehicle_type === "cab";
   useLiveLocation(token, isLiveRideCandidate);
+
+  // Rides phase 2: while this agent has a ride actively accepted/in
+  // progress, also broadcast position to that SPECIFIC ride (separate from
+  // the general "online" broadcast above, which keeps running regardless).
+  // This is what lets the customer's live map actually move.
+  const activeRide = assignedRides.find((r) => RIDE_ACTIVE_STATUSES.includes(r.status));
+  useRideLocation(token, activeRide?.id);
 
   const loadAll = useCallback(async () => {
     if (!isApproved) { setLoading(false); return; }
@@ -347,6 +356,15 @@ export default function AgentDashboard() {
                         </span>
                       </div>
                       <div className="text-xs text-slate mb-3">Rider: {r.customer_name} · {r.customer_phone}</div>
+                      {RIDE_ACTIVE_STATUSES.includes(r.status) && r.id === activeRide?.id && (
+                        <div className="text-xs text-emerald-700 mb-3 flex items-center gap-1.5">
+                          <span className="relative flex h-1.5 w-1.5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-delivered opacity-75" />
+                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-delivered" />
+                          </span>
+                          Sharing your live location with the rider
+                        </div>
+                      )}
                       <div className="flex items-center justify-between">
                         <span className="font-mono text-sm font-semibold">₦{r.price.toLocaleString()}</span>
                         {RIDE_NEXT_LABEL[r.status] && (

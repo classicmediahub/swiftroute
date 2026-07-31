@@ -1,9 +1,13 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import PinMap from "../components/PinMap";
+import DeliveryMap from "../components/DeliveryMap";
 
 const CITIES = ["Lagos", "Ota", "Ogun", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City"];
+
+const ACTIVE_STATUSES = ["accepted", "in_progress"];
+const MAP_POLL_INTERVAL_MS = 8000; // matches useRideLocation's ping interval on the agent side
 
 // Small local status badge, not the shared StatusBadge component — ride
 // statuses (in_progress/completed) are a different set of strings than
@@ -49,6 +53,7 @@ export default function RequestRide() {
 
   const [rides, setRides] = useState([]);
   const [loadingRides, setLoadingRides] = useState(true);
+  const pollRef = useRef(null);
 
   const loadRides = useCallback(async () => {
     try {
@@ -61,6 +66,19 @@ export default function RequestRide() {
   }, [token]);
 
   useEffect(() => { loadRides(); }, [loadRides]);
+
+  // While on "My rides" and at least one ride is actively underway, poll
+  // for updates so the live map below actually shows the driver moving —
+  // otherwise this would just be a single static snapshot from page load.
+  const hasActiveRide = rides.some((r) => ACTIVE_STATUSES.includes(r.status));
+  useEffect(() => {
+    if (tab !== "mine" || !hasActiveRide) {
+      if (pollRef.current) clearInterval(pollRef.current);
+      return;
+    }
+    pollRef.current = setInterval(loadRides, MAP_POLL_INTERVAL_MS);
+    return () => clearInterval(pollRef.current);
+  }, [tab, hasActiveRide, loadRides]);
 
   const canEstimate = pickupCoords && dropoffCoords && pickupAddress && dropoffAddress;
 
@@ -229,32 +247,47 @@ export default function RequestRide() {
         </div>
       ) : (
         <div className="space-y-3">
-          {rides.map((r) => (
-            <div key={r.id} className="border border-slate-200 rounded-xl p-4 bg-white">
-              <div className="flex items-start justify-between mb-2">
-                <div className="text-sm">
-                  <div className="font-semibold mb-0.5">{r.pickup_address} → {r.dropoff_address}</div>
-                  <div className="text-xs text-slate">{r.distance_km ? `${r.distance_km} km · ` : ""}₦{r.price.toLocaleString()}</div>
+          {rides.map((r) => {
+            const isActive = ACTIVE_STATUSES.includes(r.status);
+            return (
+              <div key={r.id} className="border border-slate-200 rounded-xl p-4 bg-white">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="text-sm">
+                    <div className="font-semibold mb-0.5">{r.pickup_address} → {r.dropoff_address}</div>
+                    <div className="text-xs text-slate">{r.distance_km ? `${r.distance_km} km · ` : ""}₦{r.price.toLocaleString()}</div>
+                  </div>
+                  <RideStatusBadge status={r.status} />
                 </div>
-                <RideStatusBadge status={r.status} />
-              </div>
-              {r.agent_name && (
-                <div className="text-xs text-slate mb-2">Driver: {r.agent_name} · {r.agent_phone}</div>
-              )}
-              <div className="flex items-center gap-3">
-                {r.payment_status !== "paid" && r.status !== "cancelled" && (
-                  <button onClick={() => handleRetryPayment(r.id)} className="text-xs font-semibold text-ink underline">
-                    Complete payment
-                  </button>
+                {r.agent_name && (
+                  <div className="text-xs text-slate mb-2">Driver: {r.agent_name} · {r.agent_phone}</div>
                 )}
-                {["pending", "accepted"].includes(r.status) && (
-                  <button onClick={() => handleCancel(r.id)} className="text-xs font-semibold text-red-600 underline">
-                    Cancel
-                  </button>
+
+                {isActive && (
+                  <div className="my-3">
+                    <DeliveryMap
+                      pickup={{ lat: r.pickup_lat, lng: r.pickup_lng }}
+                      dropoff={{ lat: r.dropoff_lat, lng: r.dropoff_lng }}
+                      current={r.current_lat != null && r.current_lng != null ? { lat: r.current_lat, lng: r.current_lng } : null}
+                      height={240}
+                    />
+                  </div>
                 )}
+
+                <div className="flex items-center gap-3">
+                  {r.payment_status !== "paid" && r.status !== "cancelled" && (
+                    <button onClick={() => handleRetryPayment(r.id)} className="text-xs font-semibold text-ink underline">
+                      Complete payment
+                    </button>
+                  )}
+                  {["pending", "accepted"].includes(r.status) && (
+                    <button onClick={() => handleCancel(r.id)} className="text-xs font-semibold text-red-600 underline">
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
