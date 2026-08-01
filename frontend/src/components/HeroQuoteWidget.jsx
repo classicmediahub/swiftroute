@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
+import { useAuth } from "../context/AuthContext";
 import AddressAutocomplete from "./AddressAutocomplete";
 
 function ShieldIcon() {
@@ -30,6 +31,7 @@ export default function HeroQuoteWidget() {
   const [price, setPrice] = useState(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     if (!pickup || !dropoff) {
@@ -61,12 +63,20 @@ export default function HeroQuoteWidget() {
   }
 
   function handleContinue() {
-    // Both modes land on signup for now — same as before this toggle was
-    // added. A logged-in visitor scrolling back to this widget still gets
-    // sent through signup rather than straight to /rides or the delivery
-    // form; that's an existing limitation of this widget, not something
-    // introduced by the ride toggle, so it's left as-is here.
-    navigate("/signup/customer");
+    // A signed-in customer continues straight to the right page instead of
+    // being sent through signup again — this was a real bug before the
+    // ride toggle existed too (it just showed up more obviously once /rides
+    // became a full separate page from the delivery form embedded in the
+    // customer dashboard). Coordinates picked here aren't carried over —
+    // /rides uses PinMap for location picking, a different component than
+    // this widget's AddressAutocomplete, so re-confirming there is
+    // required either way; this fix is purely about not forcing an
+    // already-logged-in customer through signup a second time.
+    if (user?.role === "customer") {
+      navigate(mode === "ride" ? "/rides" : "/customer/dashboard");
+    } else {
+      navigate("/signup/customer");
+    }
   }
 
   return (
