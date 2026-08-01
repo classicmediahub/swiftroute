@@ -7,6 +7,7 @@ import TrackingDemo from "../components/TrackingDemo";
 import HowItWorksDiagram from "../components/HowItWorksDiagram";
 import ReviewsSection from "../components/ReviewsSection";
 import BusinessSection from "../components/BusinessSection";
+import EarningsCalculator from "../components/EarningsCalculator";
 
 // Lazy-loaded on purpose: this pulls in mapbox-gl, a large dependency.
 // Without this, it would ship inside the main homepage bundle and
@@ -100,10 +101,9 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* RIDES PREVIEW — deliberately no "Book a ride" CTA here: the
-          booking flow doesn't exist yet, only live driver visibility does.
-          Copy stays honest about that instead of implying a feature that
-          isn't there. */}
+      {/* RIDES PREVIEW — booking is live now (was "coming soon" copy
+          before rides phase 2 shipped); updated to reflect that and point
+          straight at /rides instead of only at agent signup. */}
       <section className="max-w-6xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-10 items-center">
         <div className="order-2 md:order-1">
           <Suspense fallback={<div className="h-[340px] rounded-2xl border border-slate-200 bg-slate-50 animate-pulse" />}>
@@ -111,15 +111,20 @@ export default function Landing() {
           </Suspense>
         </div>
         <div className="order-1 md:order-2">
-          <div className="font-mono text-xs text-slate mb-2">RIDES — COMING SOON</div>
+          <div className="font-mono text-xs text-slate mb-2">RIDES</div>
           <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-4">Cab agents, live on the map</h2>
           <p className="text-slate text-sm mb-6 max-w-md">
-            These are real cab agents on the PickAndEarn network, online right now. Full ride booking
-            is on the way — for now, delivery is what you can request end to end.
+            These are real cab agents on the PickAndEarn network, online right now. Book a ride with one
+            of them directly — live tracking from pickup to drop-off included.
           </p>
-          <Link to="/signup/agent" className="text-sm font-semibold text-ink border-b-2 border-route w-fit pb-0.5 hover:border-signal transition-colors">
-            Register as a cab agent →
-          </Link>
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            <Link to="/rides" className="text-sm font-semibold text-ink border-b-2 border-route w-fit pb-0.5 hover:border-signal transition-colors">
+              Book a ride →
+            </Link>
+            <Link to="/signup/agent" className="text-sm font-semibold text-ink border-b-2 border-route w-fit pb-0.5 hover:border-signal transition-colors">
+              Register as a cab agent →
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -138,6 +143,27 @@ export default function Landing() {
               </Link>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* EARNINGS CALCULATOR — sits right after the role cards, since
+          "Deliver & earn" is exactly the card a prospective agent just
+          read. Clearly labeled as an estimate throughout (see the
+          component itself) — never presented as a guarantee. */}
+      <section className="bg-ink-soft/[0.03] border-y border-slate-200">
+        <div className="max-w-6xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-10 items-center">
+          <div>
+            <div className="font-mono text-xs text-slate mb-2">DELIVER & EARN</div>
+            <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-4">See what a typical week could look like</h2>
+            <p className="text-slate text-sm mb-6 max-w-md">
+              Pick your vehicle and how many jobs you'd realistically take a day — the numbers update instantly.
+              This is a starting-point estimate based on our real fare pricing, not a promise.
+            </p>
+            <Link to="/signup/agent" className="text-sm font-semibold text-ink border-b-2 border-route w-fit pb-0.5 hover:border-signal transition-colors">
+              Become an agent →
+            </Link>
+          </div>
+          <EarningsCalculator />
         </div>
       </section>
 
