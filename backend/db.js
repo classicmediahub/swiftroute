@@ -221,6 +221,28 @@ async function initSchema() {
     CREATE UNIQUE INDEX IF NOT EXISTS rides_paystack_reference_idx
     ON rides(paystack_reference) WHERE paystack_reference IS NOT NULL;
   `);
+
+  // --- Ride ratings/reviews. Separate table from `reviews` (delivery-
+  // specific, its delivery_id is NOT NULL) rather than generalizing that
+  // one — keeps the delivery review code untouched. agent_profiles.rating
+  // stays a single blended number across both job types (see rides.js's
+  // recomputeAgentRating), since a cab agent has one reputation to
+  // customers regardless of which kind of job it came from — but
+  // total_rides is tracked as its own counter, separate from
+  // total_deliveries, since a ride isn't a delivery even when the same
+  // agent does both. ---
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ride_reviews (
+      id TEXT PRIMARY KEY,
+      ride_id TEXT NOT NULL UNIQUE REFERENCES rides(id) ON DELETE CASCADE,
+      customer_id TEXT NOT NULL REFERENCES users(id),
+      agent_id TEXT NOT NULL REFERENCES users(id),
+      rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+      comment TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+  await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS total_rides INTEGER NOT NULL DEFAULT 0;`);
 }
 
 module.exports = { pool, initSchema };

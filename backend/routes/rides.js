@@ -28,6 +28,26 @@ function callbackUrl() {
   return `${base.replace(/\/$/, "")}/ride/payment/callback`;
 }
 
+// Recomputes an agent's single blended rating across BOTH delivery
+// reviews and ride reviews, and writes it back to agent_profiles. Called
+// after any new ride review — the delivery-side review endpoint (not
+// touched by this file) presumably does the equivalent after a delivery
+// review, so both paths converge on the same combined number.
+async function recomputeAgentRating(agentId) {
+  const { rows } = await pool.query(
+    `SELECT AVG(rating)::float AS avg_rating FROM (
+       SELECT rating FROM reviews WHERE agent_id = $1
+       UNION ALL
+       SELECT rating FROM ride_reviews WHERE agent_id = $1
+     ) combined`,
+    [agentId]
+  );
+  const avg = rows[0]?.avg_rating;
+  if (avg != null) {
+    await pool.query("UPDATE agent_profiles SET rating = $1 WHERE user_id = $2", [avg, agentId]);
+  }
+}
+
 // ---------- FARE ESTIMATE (customer) — called after pickup/dropoff pins
 // are confirmed on the map, before requesting the ride. ----------
 router.post("/estimate", requireAuth, async (req, res) => {
@@ -157,13 +177,17 @@ router.get("/verify/:reference", requireAuth, async (req, res) => {
   }
 });
 
-// ---------- MY RIDES (customer) ----------
+// ---------- MY RIDES (customer) — includes whether this ride already has
+// a review, so the frontend knows when to show the review form vs. a
+// "you rated this X stars" summary instead. ----------
 router.get("/mine", requireAuth, requireRole("customer"), async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT r.*, u.full_name AS agent_name, u.phone AS agent_phone, u.profile_photo AS agent_photo
+      `SELECT r.*, u.full_name AS agent_name, u.phone AS agent_phone, u.profile_photo AS agent_photo,
+              rr.rating AS review_rating, rr.comment AS review_comment
        FROM rides r
        LEFT JOIN users u ON u.id = r.agent_id
+       LEFT JOIN ride_reviews rr ON rr.ride_id = r.id
        WHERE r.customer_id = $1 ORDER BY r.created_at DESC`,
       [req.user.id]
     );
@@ -171,6 +195,50 @@ router.get("/mine", requireAuth, requireRole("customer"), async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong loading your rides" });
+  }
+});
+
+// ---------- SUBMIT A REVIEW (customer, own completed ride only, one per
+// ride — enforced by ride_reviews.ride_id being UNIQUE). ----------
+router.post("/:id/review", requireAuth, requireRole("customer"), async (req, res) => {
+  try {
+    const rating = Number(req.body.rating);
+    const comment = (req.body.comment || "").trim().slice(0, 1000);
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: "Rating must be a whole number from 1 to 5" });
+    }
+
+    const { rows } = await pool.query("SELECT * FROM rides WHERE id = $1", [req.params.id]);
+    const ride = rows[0];
+    if (!ride) return res.status(404).json({ error: "Ride not found" });
+    if (ride.customer_id !== req.user.id) return res.status(403).json({ error: "Not your ride" });
+    if (ride.status !== "completed") return res.status(409).json({ error: "You can only review a completed ride" });
+    if (!ride.agent_id) return res.status(409).json({ error: "This ride has no driver to review" });
+
+    try {
+      await pool.query(
+        `INSERT INTO ride_reviews (id, ride_id, customer_id, agent_id, rating, comment)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [uuidv4(), ride.id, req.user.id, ride.agent_id, rating, comment || null]
+      );
+    } catch (err) {
+      if (err.code === "23505") { // unique_violation on ride_id
+        return res.status(409).json({ error: "You've already reviewed this ride" });
+      }
+      throw err;
+    }
+
+    await recomputeAgentRating(ride.agent_id);
+
+    const { rows: updated } = await pool.query(
+      `SELECT r.*, rr.rating AS review_rating, rr.comment AS review_comment
+       FROM rides r LEFT JOIN ride_reviews rr ON rr.ride_id = r.id WHERE r.id = $1`,
+      [ride.id]
+    );
+    res.status(201).json(updated[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong submitting your review" });
   }
 });
 
@@ -313,9 +381,11 @@ router.patch("/:id/advance", requireAuth, requireRole("agent"), async (req, res)
 
     if (next === "completed") {
       // Same 80% cut agents get on delivered parcels — kept consistent
-      // rather than inventing a different split for rides.
+      // rather than inventing a different split for rides. total_rides is
+      // its own counter, separate from total_deliveries, since a ride
+      // isn't a delivery even though the same agent can do both.
       await pool.query(
-        `UPDATE agent_profiles SET wallet_balance = wallet_balance + $1 WHERE user_id = $2`,
+        `UPDATE agent_profiles SET wallet_balance = wallet_balance + $1, total_rides = total_rides + 1 WHERE user_id = $2`,
         [ride.price * 0.8, req.user.id]
       );
     }

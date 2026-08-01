@@ -3,6 +3,7 @@ import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import PinMap from "../components/PinMap";
 import DeliveryMap from "../components/DeliveryMap";
+import StarRating from "../components/StarRating";
 
 const CITIES = ["Lagos", "Ota", "Ogun", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City"];
 
@@ -273,6 +274,10 @@ export default function RequestRide() {
                   </div>
                 )}
 
+                {r.status === "completed" && (
+                  <RideReview ride={r} token={token} onSubmitted={loadRides} />
+                )}
+
                 <div className="flex items-center gap-3">
                   {r.payment_status !== "paid" && r.status !== "cancelled" && (
                     <button onClick={() => handleRetryPayment(r.id)} className="text-xs font-semibold text-ink underline">
@@ -290,6 +295,64 @@ export default function RequestRide() {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+function RideReview({ ride, token, onSubmitted }) {
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  // Already reviewed — /rides/mine joins ride_reviews, so review_rating is
+  // present directly on the ride object once one exists. Read-only display,
+  // no need to hit the API again.
+  if (ride.review_rating != null) {
+    return (
+      <div className="border-t border-slate-100 mt-3 pt-3">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-xs text-slate">Your rating:</span>
+          <StarRating value={ride.review_rating} readOnly size={14} />
+        </div>
+        {ride.review_comment && <p className="text-xs text-slate italic">"{ride.review_comment}"</p>}
+      </div>
+    );
+  }
+
+  async function handleSubmit() {
+    if (!rating) return;
+    setError("");
+    setSubmitting(true);
+    try {
+      await api.submitRideReview(token, ride.id, { rating, comment });
+      onSubmitted();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="border-t border-slate-100 mt-3 pt-3">
+      <div className="text-xs font-medium text-ink mb-2">Rate this trip</div>
+      <StarRating value={rating} onChange={setRating} size={20} />
+      <textarea
+        value={comment}
+        onChange={(e) => setComment(e.target.value.slice(0, 1000))}
+        placeholder="Optional comment"
+        rows={2}
+        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-2"
+      />
+      {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+      <button
+        disabled={!rating || submitting}
+        onClick={handleSubmit}
+        className="mt-2 text-xs font-semibold bg-ink text-paper rounded-lg px-3 py-2 hover:bg-ink-soft transition-colors disabled:opacity-50"
+      >
+        {submitting ? "Submitting…" : "Submit review"}
+      </button>
     </div>
   );
 }
