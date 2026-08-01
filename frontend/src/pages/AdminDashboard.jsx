@@ -3,6 +3,32 @@ import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import StatusBadge from "../components/StatusBadge";
 
+// Ride statuses are a different string set than delivery statuses
+// (in_progress/completed vs in_transit/delivered) — a small local badge
+// here rather than assuming StatusBadge's internals handle arbitrary
+// values gracefully, same approach used on the customer/agent ride pages.
+const RIDE_STATUS_LABEL = {
+  pending: "Finding driver",
+  accepted: "Accepted",
+  in_progress: "In progress",
+  completed: "Completed",
+  cancelled: "Cancelled",
+};
+const RIDE_STATUS_COLOR = {
+  pending: "bg-amber-100 text-amber-800",
+  accepted: "bg-blue-100 text-blue-800",
+  in_progress: "bg-blue-100 text-blue-800",
+  completed: "bg-emerald-100 text-emerald-800",
+  cancelled: "bg-slate-100 text-slate-600",
+};
+function RideStatusBadge({ status }) {
+  return (
+    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${RIDE_STATUS_COLOR[status] || "bg-slate-100 text-slate-600"}`}>
+      {RIDE_STATUS_LABEL[status] || status}
+    </span>
+  );
+}
+
 export default function AdminDashboard() {
   const { token } = useAuth();
   const [tab, setTab] = useState("agents");
@@ -10,15 +36,16 @@ export default function AdminDashboard() {
   const [agents, setAgents] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
+  const [rides, setRides] = useState([]);
   const [busyId, setBusyId] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const loadAll = useCallback(async () => {
     try {
-      const [s, a, c, d] = await Promise.all([
-        api.adminStats(token), api.adminAgents(token), api.adminCustomers(token), api.adminDeliveries(token),
+      const [s, a, c, d, r] = await Promise.all([
+        api.adminStats(token), api.adminAgents(token), api.adminCustomers(token), api.adminDeliveries(token), api.adminRides(token),
       ]);
-      setStats(s); setAgents(a); setCustomers(c); setDeliveries(d);
+      setStats(s); setAgents(a); setCustomers(c); setDeliveries(d); setRides(r);
     } finally {
       setLoading(false);
     }
@@ -52,24 +79,33 @@ export default function AdminDashboard() {
 
   if (loading) return <div className="max-w-6xl mx-auto px-5 py-10 text-slate">Loading dashboard…</div>;
 
+  const totalPlatformRevenue = stats.revenue + stats.rideRevenue;
+
   return (
     <div className="max-w-6xl mx-auto px-5 py-10">
       <div className="font-mono text-xs text-slate mb-2">ADMIN DASHBOARD</div>
       <h1 className="font-display text-3xl font-semibold mb-8">Network overview</h1>
 
-      <div className="grid sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-10">
+      <div className="grid sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
         <Stat label="Customers" value={stats.totalUsers} />
         <Stat label="Agents" value={stats.totalAgents} />
         <Stat label="Pending approvals" value={stats.pendingAgents} highlight={stats.pendingAgents > 0} />
         <Stat label="Active deliveries" value={stats.activeDeliveries} />
-        <Stat label="Completed" value={stats.completedDeliveries} />
-        <Stat label="Platform revenue" value={`₦${Math.round(stats.revenue).toLocaleString()}`} />
+        <Stat label="Completed deliveries" value={stats.completedDeliveries} />
+        <Stat label="Delivery revenue" value={`₦${Math.round(stats.revenue).toLocaleString()}`} />
+      </div>
+      <div className="grid sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-10">
+        <Stat label="Active rides" value={stats.activeRides} />
+        <Stat label="Completed rides" value={stats.completedRides} />
+        <Stat label="Ride revenue" value={`₦${Math.round(stats.rideRevenue).toLocaleString()}`} />
+        <Stat label="Total platform revenue" value={`₦${Math.round(totalPlatformRevenue).toLocaleString()}`} highlight />
       </div>
 
-      <div className="flex gap-2 mb-6 border-b border-slate-200">
+      <div className="flex gap-2 mb-6 border-b border-slate-200 flex-wrap">
         <TabButton active={tab === "agents"} onClick={() => setTab("agents")}>Agents ({agents.length})</TabButton>
         <TabButton active={tab === "customers"} onClick={() => setTab("customers")}>Customers ({customers.length})</TabButton>
         <TabButton active={tab === "deliveries"} onClick={() => setTab("deliveries")}>Deliveries ({deliveries.length})</TabButton>
+        <TabButton active={tab === "rides"} onClick={() => setTab("rides")}>Rides ({rides.length})</TabButton>
       </div>
 
       {tab === "agents" && (
@@ -82,6 +118,7 @@ export default function AdminDashboard() {
                 <th className="px-4 py-3">City</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Deliveries</th>
+                <th className="px-4 py-3">Rides</th>
                 <th className="px-4 py-3">Wallet</th>
                 <th className="px-4 py-3">Actions</th>
               </tr>
@@ -109,6 +146,7 @@ export default function AdminDashboard() {
                   <td className="px-4 py-3">{a.city}</td>
                   <td className="px-4 py-3"><StatusBadge status={a.approval_status} /></td>
                   <td className="px-4 py-3">{a.total_deliveries}</td>
+                  <td className="px-4 py-3">{a.vehicle_type === "cab" ? a.total_rides : <span className="text-slate">—</span>}</td>
                   <td className="px-4 py-3 font-mono">₦{a.wallet_balance.toLocaleString()}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2 flex-wrap">
@@ -129,7 +167,7 @@ export default function AdminDashboard() {
                 </tr>
               ))}
               {agents.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-slate">No agents have registered yet.</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-slate">No agents have registered yet.</td></tr>
               )}
             </tbody>
           </table>
@@ -200,6 +238,47 @@ export default function AdminDashboard() {
               ))}
               {deliveries.length === 0 && (
                 <tr><td colSpan={6} className="px-4 py-8 text-center text-slate">No deliveries yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tab === "rides" && (
+        <div className="overflow-x-auto border border-slate-200 rounded-xl">
+          <table className="w-full text-sm">
+            <thead className="bg-paper text-left text-xs text-slate uppercase font-mono">
+              <tr>
+                <th className="px-4 py-3">Route</th>
+                <th className="px-4 py-3">Customer</th>
+                <th className="px-4 py-3">Driver</th>
+                <th className="px-4 py-3">Fare</th>
+                <th className="px-4 py-3">Payment</th>
+                <th className="px-4 py-3">Rating</th>
+                <th className="px-4 py-3">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rides.map((r) => (
+                <tr key={r.id} className="border-t border-slate-100">
+                  <td className="px-4 py-3">
+                    <div className="max-w-xs truncate">{r.pickup_address} → {r.dropoff_address}</div>
+                    {r.distance_km && <div className="text-xs text-slate">{r.distance_km} km</div>}
+                  </td>
+                  <td className="px-4 py-3">{r.customer_name}</td>
+                  <td className="px-4 py-3">{r.agent_name || <span className="text-slate">Unassigned</span>}</td>
+                  <td className="px-4 py-3 font-mono">₦{r.price.toLocaleString()}</td>
+                  <td className="px-4 py-3 capitalize">
+                    <span className={r.payment_status === "paid" ? "text-emerald-700" : "text-amber-700"}>
+                      {r.payment_status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">{r.review_rating ? `${r.review_rating} ★` : <span className="text-slate">—</span>}</td>
+                  <td className="px-4 py-3"><RideStatusBadge status={r.status} /></td>
+                </tr>
+              ))}
+              {rides.length === 0 && (
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-slate">No rides yet.</td></tr>
               )}
             </tbody>
           </table>

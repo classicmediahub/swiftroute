@@ -16,7 +16,22 @@ router.get("/stats", async (req, res) => {
       "SELECT COUNT(*) c FROM deliveries WHERE status IN ('pending','accepted','picked_up','in_transit')"
     )).rows[0].c;
     const completedDeliveries = (await pool.query("SELECT COUNT(*) c FROM deliveries WHERE status = 'delivered'")).rows[0].c;
-    const revenue = (await pool.query("SELECT COALESCE(SUM(price),0) s FROM deliveries WHERE status = 'delivered'")).rows[0].s;
+    const deliveryRevenue = (await pool.query("SELECT COALESCE(SUM(price),0) s FROM deliveries WHERE status = 'delivered'")).rows[0].s;
+
+    // Rides — same shape as the delivery stats above, kept as separate
+    // counters rather than merged into the delivery numbers, since a ride
+    // and a delivery are different products even though the same cab
+    // agents can do both. "Paid" rides count toward revenue the same way
+    // "delivered" ones do for parcels (i.e. money that's actually landed,
+    // not pending/requested).
+    const totalRides = (await pool.query("SELECT COUNT(*) c FROM rides")).rows[0].c;
+    const activeRides = (await pool.query(
+      "SELECT COUNT(*) c FROM rides WHERE status IN ('pending','accepted','in_progress')"
+    )).rows[0].c;
+    const completedRides = (await pool.query("SELECT COUNT(*) c FROM rides WHERE status = 'completed'")).rows[0].c;
+    const rideRevenue = (await pool.query(
+      "SELECT COALESCE(SUM(price),0) s FROM rides WHERE payment_status = 'paid'"
+    )).rows[0].s;
 
     res.json({
       totalUsers: Number(totalUsers),
@@ -25,7 +40,11 @@ router.get("/stats", async (req, res) => {
       totalDeliveries: Number(totalDeliveries),
       activeDeliveries: Number(activeDeliveries),
       completedDeliveries: Number(completedDeliveries),
-      revenue: Number(revenue) * 0.2,
+      revenue: Number(deliveryRevenue) * 0.2,
+      totalRides: Number(totalRides),
+      activeRides: Number(activeRides),
+      completedRides: Number(completedRides),
+      rideRevenue: Number(rideRevenue) * 0.2,
     });
   } catch (err) {
     console.error(err);
@@ -39,7 +58,7 @@ router.get("/agents", async (req, res) => {
     const { rows } = await pool.query(`
       SELECT u.id, u.full_name, u.email, u.phone, u.status, u.created_at, u.profile_photo,
              a.vehicle_type, a.vehicle_make, a.vehicle_plate, a.license_number, a.city,
-             a.approval_status, a.is_online, a.rating, a.total_deliveries, a.wallet_balance
+             a.approval_status, a.is_online, a.rating, a.total_deliveries, a.total_rides, a.wallet_balance
       FROM users u JOIN agent_profiles a ON a.user_id = u.id
       WHERE u.role = 'agent'
       ORDER BY a.approval_status ASC, u.created_at DESC
@@ -117,6 +136,25 @@ router.get("/deliveries", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong loading deliveries" });
+  }
+});
+
+// ---------- LIST ALL RIDES ----------
+router.get("/rides", async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT r.*, c.full_name AS customer_name, a.full_name AS agent_name,
+             rr.rating AS review_rating
+      FROM rides r
+      JOIN users c ON c.id = r.customer_id
+      LEFT JOIN users a ON a.id = r.agent_id
+      LEFT JOIN ride_reviews rr ON rr.ride_id = r.id
+      ORDER BY r.created_at DESC
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong loading rides" });
   }
 });
 

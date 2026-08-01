@@ -68,6 +68,7 @@ export const api = {
   setUserStatus: (token, id, status) =>
     request(`/admin/users/${id}/status`, { method: "PATCH", body: { status }, token }),
   adminDeliveries: (token) => request("/admin/deliveries", { token }),
+  adminRides: (token) => request("/admin/rides", { token }),
 
   publicStats: () => request("/public/stats"),
   publicAutocomplete: (query) => request("/public/autocomplete", { method: "POST", body: { query } }),
