@@ -27,6 +27,17 @@ export default function Navbar() {
         </Link>
 
         <nav className="flex items-center gap-3">
+          {/* Rides is a customer-facing feature — shown to logged-out
+              visitors (clicking it while logged out routes through the
+              existing ProtectedRoute login gate, same as any other
+              protected link) and to logged-in customers, but not to
+              agents/admins, since /rides' ProtectedRoute is customer-only
+              and would just redirect them away. */}
+          {(!user || user.role === "customer") && (
+            <Link to="/rides" className="text-sm text-slate-light hover:text-paper transition-colors font-medium">
+              Rides
+            </Link>
+          )}
           {user ? (
             <>
               <Link
