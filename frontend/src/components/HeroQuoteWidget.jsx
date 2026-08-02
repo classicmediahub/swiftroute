@@ -84,12 +84,16 @@ export default function HeroQuoteWidget() {
     // shade as the mockup) so this still reads as a distinct panel against
     // the dark hero, rather than blending into it.
     <div className="bg-[#141d30] border border-line rounded-2xl p-5 shadow-xl space-y-3">
-      <div className="flex gap-1.5 bg-black/20 rounded-lg p-1 w-fit">
+      <div className="relative flex bg-black/20 rounded-lg p-1 w-fit">
+        <div
+          className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-route rounded-md transition-transform duration-300 ease-out"
+          style={{ transform: mode === "ride" ? "translateX(calc(100% + 4px))" : "translateX(0)" }}
+        />
         <button
           type="button"
           onClick={() => handleModeChange("delivery")}
-          className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${
-            mode === "delivery" ? "bg-route text-ink" : "text-slate-light hover:text-paper"
+          className={`relative z-10 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${
+            mode === "delivery" ? "text-ink" : "text-slate-light hover:text-paper"
           }`}
         >
           Send a delivery
@@ -97,8 +101,8 @@ export default function HeroQuoteWidget() {
         <button
           type="button"
           onClick={() => handleModeChange("ride")}
-          className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${
-            mode === "ride" ? "bg-route text-ink" : "text-slate-light hover:text-paper"
+          className={`relative z-10 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${
+            mode === "ride" ? "text-ink" : "text-slate-light hover:text-paper"
           }`}
         >
           Get a ride
@@ -132,7 +136,7 @@ export default function HeroQuoteWidget() {
       <button
         onClick={handleContinue}
         disabled={!pickup || !dropoff || loading}
-        className="w-full bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="btn-tactile w-full bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? "Getting price…" : "See prices"}
       </button>

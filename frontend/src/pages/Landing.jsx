@@ -48,8 +48,21 @@ export default function Landing() {
           Rider/agent signup stays available but as a secondary link, not a
           second headline competing for attention. */}
       <section className="bg-ink text-paper relative overflow-hidden">
-        <div className="max-w-6xl mx-auto px-5 pt-20 pb-16 grid md:grid-cols-2 gap-10 items-center">
-          <div>
+        {/* Ambient depth layer — purely decorative, sits behind everything */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+          <div
+            className="hero-glow-a absolute -top-24 -left-24 w-[420px] h-[420px] rounded-full blur-[100px] opacity-30"
+            style={{ background: "radial-gradient(circle, var(--color-route) 0%, transparent 70%)" }}
+          />
+          <div
+            className="hero-glow-b absolute top-1/3 -right-32 w-[480px] h-[480px] rounded-full blur-[110px] opacity-25"
+            style={{ background: "radial-gradient(circle, var(--color-signal) 0%, transparent 70%)" }}
+          />
+          <div className="absolute inset-0 grain-overlay" />
+        </div>
+
+        <div className="max-w-6xl mx-auto px-5 pt-20 pb-16 grid md:grid-cols-2 gap-10 items-center relative">
+          <div className="fade-up-stagger">
             <div className="inline-flex items-center gap-2 font-mono text-xs text-route border border-line rounded-full px-3 py-1 mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-route" />
               VERIFIED RIDERS · INSURED PARCELS
