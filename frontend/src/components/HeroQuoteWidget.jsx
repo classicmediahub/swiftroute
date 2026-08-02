@@ -84,7 +84,7 @@ export default function HeroQuoteWidget() {
     // shade as the mockup) so this still reads as a distinct panel against
     // the dark hero, rather than blending into it.
     <div className="bg-[#141d30] border border-line rounded-2xl p-5 shadow-xl space-y-3">
-      <div className="relative flex bg-black/20 rounded-lg p-1 w-fit">
+      <div className="relative flex bg-black/20 rounded-lg p-1">
         <div
           className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-route rounded-md transition-transform duration-300 ease-out"
           style={{ transform: mode === "ride" ? "translateX(calc(100% + 4px))" : "translateX(0)" }}
@@ -92,7 +92,7 @@ export default function HeroQuoteWidget() {
         <button
           type="button"
           onClick={() => handleModeChange("delivery")}
-          className={`relative z-10 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${
+          className={`relative z-10 flex-1 text-center text-xs font-semibold px-3 py-1.5 rounded-md transition-colors whitespace-nowrap ${
             mode === "delivery" ? "text-ink" : "text-slate-light hover:text-paper"
           }`}
         >
@@ -101,7 +101,7 @@ export default function HeroQuoteWidget() {
         <button
           type="button"
           onClick={() => handleModeChange("ride")}
-          className={`relative z-10 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${
+          className={`relative z-10 flex-1 text-center text-xs font-semibold px-3 py-1.5 rounded-md transition-colors whitespace-nowrap ${
             mode === "ride" ? "text-ink" : "text-slate-light hover:text-paper"
           }`}
         >

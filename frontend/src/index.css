@@ -114,25 +114,49 @@ body {
 .fade-up-stagger > *:nth-child(3) { animation-delay: 180ms; }
 .fade-up-stagger > *:nth-child(4) { animation-delay: 270ms; }
 
-/* Real tactile press feedback instead of a flat color swap on interaction. */
+/* Real tactile press feedback instead of a flat color swap on interaction.
+   Hover styles are gated to devices that actually have hover+a precise
+   pointer (i.e. a mouse) — without this, tapping a card/button on a
+   touchscreen triggers the hover state and it stays visually "stuck" until
+   the person taps something else, since there's no mouse to move away.
+   The :active (press) feedback below still applies everywhere, touch
+   included — that's the correct touch equivalent. */
 .btn-tactile {
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
-.btn-tactile:hover {
-  box-shadow: 0 8px 24px -8px rgba(240, 170, 51, 0.45);
+@media (hover: hover) and (pointer: fine) {
+  .btn-tactile:hover {
+    box-shadow: 0 8px 24px -8px rgba(240, 170, 51, 0.45);
+  }
 }
 .btn-tactile:active {
   transform: scale(0.97);
 }
 
-/* Same tactile-feedback idea as buttons, but for cards — a small lift and
-   shadow deepen on hover instead of just a border color change. */
 .card-tactile {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-.card-tactile:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 32px -12px rgba(11, 18, 32, 0.18);
+@media (hover: hover) and (pointer: fine) {
+  .card-tactile:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 32px -12px rgba(11, 18, 32, 0.18);
+  }
+}
+.card-tactile:active {
+  transform: scale(0.98);
+}
+
+/* Glow blobs are genuinely expensive to render (large blur + continuous
+   animation) — fine on a desktop GPU, a real jank/battery risk on the
+   lower-end Android devices common in Nigeria. Smaller and static (no
+   drift animation) below the tablet breakpoint. */
+@media (max-width: 767px) {
+  .hero-glow-a, .hero-glow-b {
+    animation: none;
+    width: 220px !important;
+    height: 220px !important;
+    filter: blur(60px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
