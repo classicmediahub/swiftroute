@@ -8,6 +8,7 @@ import HowItWorksDiagram from "../components/HowItWorksDiagram";
 import ReviewsSection from "../components/ReviewsSection";
 import BusinessSection from "../components/BusinessSection";
 import EarningsCalculator from "../components/EarningsCalculator";
+import Reveal from "../components/Reveal";
 
 // Lazy-loaded on purpose: this pulls in mapbox-gl, a large dependency.
 // Without this, it would ship inside the main homepage bundle and
@@ -98,7 +99,7 @@ export default function Landing() {
 
       {/* LIVE TRACKING DEMO */}
       <section className="bg-ink-soft/[0.03] border-y border-slate-200">
-        <div className="max-w-6xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-10 items-center">
+        <Reveal className="max-w-6xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-10 items-center">
           <div>
             <div className="font-mono text-xs text-slate mb-2">REAL-TIME VISIBILITY</div>
             <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-4">Watch it move, start to finish</h2>
@@ -111,52 +112,56 @@ export default function Landing() {
             </Link>
           </div>
           <TrackingDemo />
-        </div>
+        </Reveal>
       </section>
 
       {/* RIDES PREVIEW — booking is live now (was "coming soon" copy
           before rides phase 2 shipped); updated to reflect that and point
           straight at /rides instead of only at agent signup. */}
-      <section className="max-w-6xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-10 items-center">
-        <div className="order-2 md:order-1">
-          <Suspense fallback={<div className="h-[340px] rounded-2xl border border-slate-200 bg-slate-50 animate-pulse" />}>
-            <NearbyDriversMap height={340} />
-          </Suspense>
-        </div>
-        <div className="order-1 md:order-2">
-          <div className="font-mono text-xs text-slate mb-2">RIDES</div>
-          <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-4">Cab agents, live on the map</h2>
-          <p className="text-slate text-sm mb-6 max-w-md">
-            These are real cab agents on the PickAndEarn network, online right now. Book a ride with one
-            of them directly — live tracking from pickup to drop-off included.
-          </p>
-          <div className="flex flex-wrap gap-x-5 gap-y-2">
-            <Link to="/rides" className="text-sm font-semibold text-ink border-b-2 border-route w-fit pb-0.5 hover:border-signal transition-colors">
-              Book a ride →
-            </Link>
-            <Link to="/signup/agent" className="text-sm font-semibold text-ink border-b-2 border-route w-fit pb-0.5 hover:border-signal transition-colors">
-              Register as a cab agent →
-            </Link>
+      <section>
+        <Reveal className="max-w-6xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-10 items-center">
+          <div className="order-2 md:order-1">
+            <Suspense fallback={<div className="h-[340px] rounded-2xl border border-slate-200 bg-slate-50 animate-pulse" />}>
+              <NearbyDriversMap height={340} />
+            </Suspense>
           </div>
-        </div>
+          <div className="order-1 md:order-2">
+            <div className="font-mono text-xs text-slate mb-2">RIDES</div>
+            <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-4">Cab agents, live on the map</h2>
+            <p className="text-slate text-sm mb-6 max-w-md">
+              These are real cab agents on the PickAndEarn network, online right now. Book a ride with one
+              of them directly — live tracking from pickup to drop-off included.
+            </p>
+            <div className="flex flex-wrap gap-x-5 gap-y-2">
+              <Link to="/rides" className="text-sm font-semibold text-ink border-b-2 border-route w-fit pb-0.5 hover:border-signal transition-colors">
+                Book a ride →
+              </Link>
+              <Link to="/signup/agent" className="text-sm font-semibold text-ink border-b-2 border-route w-fit pb-0.5 hover:border-signal transition-colors">
+                Register as a cab agent →
+              </Link>
+            </div>
+          </div>
+        </Reveal>
       </section>
 
       {/* ROLE CARDS */}
-      <section className="max-w-6xl mx-auto px-5 py-16">
-        <div className="font-mono text-xs text-slate mb-2">CHOOSE YOUR ROLE</div>
-        <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-10">Two ways onto the network</h2>
-        <div className="grid md:grid-cols-2 gap-5">
-          {ROLE_CARDS.map((card) => (
-            <div key={card.code} className="border border-slate-200 rounded-2xl p-6 bg-white hover:border-ink transition-colors flex flex-col">
-              <div className="font-mono text-xs text-signal mb-4">[{card.code}]</div>
-              <h3 className="font-display text-xl font-semibold mb-2">{card.title}</h3>
-              <p className="text-slate text-sm mb-6 flex-1">{card.desc}</p>
-              <Link to={card.to} className="text-sm font-semibold text-ink border-b-2 border-route w-fit pb-0.5 hover:border-signal transition-colors">
-                {card.cta} →
-              </Link>
-            </div>
-          ))}
-        </div>
+      <section>
+        <Reveal className="max-w-6xl mx-auto px-5 py-16">
+          <div className="font-mono text-xs text-slate mb-2">CHOOSE YOUR ROLE</div>
+          <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-10">Two ways onto the network</h2>
+          <div className="grid md:grid-cols-2 gap-5">
+            {ROLE_CARDS.map((card) => (
+              <div key={card.code} className="card-tactile border border-slate-200 rounded-2xl p-6 bg-white hover:border-ink transition-colors flex flex-col">
+                <div className="font-mono text-xs text-signal mb-4">[{card.code}]</div>
+                <h3 className="font-display text-xl font-semibold mb-2">{card.title}</h3>
+                <p className="text-slate text-sm mb-6 flex-1">{card.desc}</p>
+                <Link to={card.to} className="text-sm font-semibold text-ink border-b-2 border-route w-fit pb-0.5 hover:border-signal transition-colors">
+                  {card.cta} →
+                </Link>
+              </div>
+            ))}
+          </div>
+        </Reveal>
       </section>
 
       {/* EARNINGS CALCULATOR — sits right after the role cards, since
@@ -164,7 +169,7 @@ export default function Landing() {
           read. Clearly labeled as an estimate throughout (see the
           component itself) — never presented as a guarantee. */}
       <section className="bg-ink-soft/[0.03] border-y border-slate-200">
-        <div className="max-w-6xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-10 items-center">
+        <Reveal className="max-w-6xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-10 items-center">
           <div>
             <div className="font-mono text-xs text-slate mb-2">DELIVER & EARN</div>
             <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-4">See what a typical week could look like</h2>
@@ -176,46 +181,62 @@ export default function Landing() {
               Become an agent →
             </Link>
           </div>
-          <EarningsCalculator />
-        </div>
+          <div className="card-tactile rounded-2xl">
+            <EarningsCalculator />
+          </div>
+        </Reveal>
       </section>
 
-      <BusinessSection />
+      <Reveal>
+        <BusinessSection />
+      </Reveal>
 
       {/* HOW IT WORKS */}
       <section className="bg-ink-soft/[0.03] border-y border-slate-200">
-        <div className="max-w-6xl mx-auto px-5 py-16">
+        <Reveal className="max-w-6xl mx-auto px-5 py-16">
           <div className="font-mono text-xs text-slate mb-2">THE ROUTE</div>
           <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-12">From booking to proof of delivery</h2>
           <HowItWorksDiagram />
-        </div>
+        </Reveal>
       </section>
 
       {/* VEHICLE TYPES */}
-      <section className="max-w-6xl mx-auto px-5 py-16">
-        <div className="font-mono text-xs text-slate mb-2">AGENT FLEET</div>
-        <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-10">Every kind of drop, covered</h2>
-        <div className="grid sm:grid-cols-3 gap-5">
-          {VEHICLES.map((v) => (
-            <div key={v.name} className="rounded-2xl p-6 bg-ink text-paper">
-              <h3 className="font-display text-lg font-semibold mb-2 text-route">{v.name}</h3>
-              <p className="text-sm text-slate-light">{v.detail}</p>
-            </div>
-          ))}
-        </div>
+      <section>
+        <Reveal className="max-w-6xl mx-auto px-5 py-16">
+          <div className="font-mono text-xs text-slate mb-2">AGENT FLEET</div>
+          <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-10">Every kind of drop, covered</h2>
+          <div className="grid sm:grid-cols-3 gap-5">
+            {VEHICLES.map((v) => (
+              <div key={v.name} className="card-tactile rounded-2xl p-6 bg-ink text-paper">
+                <h3 className="font-display text-lg font-semibold mb-2 text-route">{v.name}</h3>
+                <p className="text-sm text-slate-light">{v.detail}</p>
+              </div>
+            ))}
+          </div>
+        </Reveal>
       </section>
 
-      <ReviewsSection />
+      <Reveal>
+        <ReviewsSection />
+      </Reveal>
 
-      {/* FOOTER CTA */}
-      <section className="bg-ink text-paper">
-        <div className="max-w-6xl mx-auto px-5 py-16 text-center">
+      {/* FOOTER CTA — same glow+grain treatment as the hero, tying the
+          opening and closing moments of the page together visually. */}
+      <section className="bg-ink text-paper relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+          <div
+            className="hero-glow-a absolute top-0 left-1/3 w-[400px] h-[400px] rounded-full blur-[100px] opacity-25"
+            style={{ background: "radial-gradient(circle, var(--color-route) 0%, transparent 70%)" }}
+          />
+          <div className="absolute inset-0 grain-overlay" />
+        </div>
+        <Reveal className="max-w-6xl mx-auto px-5 py-16 text-center relative">
           <h2 className="font-display text-3xl font-semibold mb-4">Ready to move something?</h2>
           <p className="text-slate-light mb-8">Get a quote above, or sign up in under a minute.</p>
-          <Link to="/signup" className="bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-7 py-3 transition-colors inline-block">
+          <Link to="/signup" className="btn-tactile bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-7 py-3 transition-colors inline-block">
             Create your account
           </Link>
-        </div>
+        </Reveal>
       </section>
 
     </div>

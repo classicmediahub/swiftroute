@@ -125,6 +125,16 @@ body {
   transform: scale(0.97);
 }
 
+/* Same tactile-feedback idea as buttons, but for cards — a small lift and
+   shadow deepen on hover instead of just a border color change. */
+.card-tactile {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-tactile:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px -12px rgba(11, 18, 32, 0.18);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hero-glow-a, .hero-glow-b, .fade-up-stagger > * {
     animation: none !important;
