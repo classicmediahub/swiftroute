@@ -10,7 +10,9 @@ export default function Footer() {
       <div className="max-w-6xl mx-auto px-5 py-14 grid sm:grid-cols-2 md:grid-cols-4 gap-10">
         <div>
           <Link to="/" className="flex items-center mb-3">
-            <img src={logo} alt="Pick N' Earn" className="h-8 w-auto" />
+            <span className="bg-paper rounded-lg px-2.5 py-1.5 flex items-center">
+              <img src={logo} alt="Pick N' Earn" className="h-7 w-auto" />
+            </span>
           </Link>
           <p className="text-sm">Nigeria's on-demand delivery network — bikes, cabs, and self agents, matched to your parcel in minutes.</p>
         </div>

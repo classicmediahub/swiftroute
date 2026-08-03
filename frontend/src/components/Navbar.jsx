@@ -20,7 +20,9 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 bg-ink/95 backdrop-blur border-b border-line">
       <div className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center">
-          <img src={logo} alt="Pick N' Earn" className="h-9 w-auto" />
+          <span className="bg-paper rounded-lg px-2.5 py-1.5 flex items-center">
+            <img src={logo} alt="Pick N' Earn" className="h-8 w-auto" />
+          </span>
         </Link>
 
         <nav className="flex items-center gap-3">
