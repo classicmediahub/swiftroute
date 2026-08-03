@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import logo from "../assets/pne-logo.png";
 
 const WHATSAPP_NUMBER = "2348147412719";
 const SUPPORT_EMAIL = "support@pickandearn.com.ng";
@@ -8,12 +9,8 @@ export default function Footer() {
     <footer className="bg-ink border-t border-line text-slate-light">
       <div className="max-w-6xl mx-auto px-5 py-14 grid sm:grid-cols-2 md:grid-cols-4 gap-10">
         <div>
-          <Link to="/" className="flex items-center gap-2 font-display font-semibold text-lg text-paper mb-3">
-            <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
-              <rect width="32" height="32" rx="7" fill="#FFC63D" />
-              <path d="M6 22 C10 22, 10 10, 16 10 S22 22, 26 22" stroke="#0B1220" strokeWidth="3" fill="none" strokeLinecap="round" />
-            </svg>
-            PickAndEarn
+          <Link to="/" className="flex items-center mb-3">
+            <img src={logo} alt="Pick N' Earn" className="h-8 w-auto" />
           </Link>
           <p className="text-sm">Nigeria's on-demand delivery network — bikes, cabs, and self agents, matched to your parcel in minutes.</p>
         </div>
@@ -64,7 +61,7 @@ export default function Footer() {
 
       <div className="border-t border-line">
         <div className="max-w-6xl mx-auto px-5 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono">
-          <span>© {new Date().getFullYear()} PickAndEarn — Built for Nigerian logistics.</span>
+          <span>© {new Date().getFullYear()} Pick N' Earn — Built for Nigerian logistics.</span>
           <span>Lagos · Ogun</span>
         </div>
       </div>

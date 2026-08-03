@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import logo from "../assets/pne-logo.png";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -18,12 +19,8 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 bg-ink/95 backdrop-blur border-b border-line">
       <div className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2 font-display font-semibold text-lg text-paper">
-          <svg width="26" height="26" viewBox="0 0 32 32" fill="none">
-            <rect width="32" height="32" rx="7" fill="#FFC63D" />
-            <path d="M6 22 C10 22, 10 10, 16 10 S22 22, 26 22" stroke="#0B1220" strokeWidth="3" fill="none" strokeLinecap="round" />
-          </svg>
-          PickAndEarn
+        <Link to="/" className="flex items-center">
+          <img src={logo} alt="Pick N' Earn" className="h-9 w-auto" />
         </Link>
 
         <nav className="flex items-center gap-3">

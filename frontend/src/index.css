@@ -5,16 +5,19 @@
   --font-body: "Inter", sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
 
-  --color-ink: #0b1220;
-  --color-ink-soft: #131e33;
-  --color-route: #f0aa33;
-  --color-route-dark: #d4901f;
+  --color-ink: #1a0d13;
+  --color-ink-soft: #2a1420;
+  --color-brand: #5c1327;
+  --color-brand-dark: #43091b;
+  --color-brand-blue: #2b3a8f;
+  --color-route: #f0b400;
+  --color-route-dark: #c79000;
   --color-signal: #d93a2b;
   --color-paper: #f8f5ef;
   --color-slate: #5b6472;
   --color-slate-light: #9aa3b2;
   --color-delivered: #12946b;
-  --color-line: #223049;
+  --color-line: #3a1f2a;
 }
 
 html {
@@ -126,7 +129,7 @@ body {
 }
 @media (hover: hover) and (pointer: fine) {
   .btn-tactile:hover {
-    box-shadow: 0 8px 24px -8px rgba(240, 170, 51, 0.45);
+    box-shadow: 0 8px 24px -8px rgba(240, 180, 0, 0.45);
   }
 }
 .btn-tactile:active {
