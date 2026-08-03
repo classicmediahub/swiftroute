@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import logo from "../assets/pne-logo.png";
 
 // PLACEHOLDER — replace with a real value as the VITE_LAUNCH_DATE env var
 // on Vercel. ISO format with timezone, e.g. "2026-09-01T09:00:00+01:00".
@@ -39,12 +40,10 @@ export default function ComingSoon() {
       </div>
 
       <div className="relative text-center max-w-lg fade-up-stagger">
-        <div className="flex items-center justify-center gap-2 font-display font-semibold text-xl mb-8">
-          <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-            <rect width="32" height="32" rx="7" fill="var(--color-route)" />
-            <path d="M6 22 C10 22, 10 10, 16 10 S22 22, 26 22" stroke="var(--color-ink)" strokeWidth="3" fill="none" strokeLinecap="round" />
-          </svg>
-          PickAndEarn
+        <div className="flex items-center justify-center mb-8">
+          <span className="bg-paper rounded-lg px-3 py-2 inline-flex items-center">
+            <img src={logo} alt="Pick N' Earn" className="h-9 w-auto" />
+          </span>
         </div>
 
         <div className="inline-flex items-center gap-2 font-mono text-xs text-route border border-line rounded-full px-3 py-1 mb-6">
