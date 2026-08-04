@@ -83,7 +83,7 @@ export default function HeroQuoteWidget() {
     // Slightly lighter than the hero's own background (not the same dark
     // shade as the mockup) so this still reads as a distinct panel against
     // the dark hero, rather than blending into it.
-    <div className="bg-[#141d30] border border-line rounded-2xl p-5 shadow-xl space-y-3">
+    <div className="bg-ink-soft border border-line rounded-2xl p-5 shadow-xl space-y-3">
       <div className="relative flex bg-black/20 rounded-lg p-1">
         <div
           className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-route rounded-md transition-transform duration-300 ease-out"
