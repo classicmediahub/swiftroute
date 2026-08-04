@@ -80,11 +80,10 @@ export default function HeroQuoteWidget() {
   }
 
   return (
-    // Uses the theme's ink-soft token (a lighter maroon-black than the
-    // hero's own ink background) so this panel still reads as distinct
-    // from the page behind it, but stays in the same brand tone instead
-    // of standing out as an unrelated color.
-    <div className="bg-ink-soft border border-line rounded-2xl p-5 shadow-xl space-y-3">
+    // Slightly lighter than the hero's own background (not the same dark
+    // shade as the mockup) so this still reads as a distinct panel against
+    // the dark hero, rather than blending into it.
+    <div className="bg-[#141d30] border border-line rounded-2xl p-5 shadow-xl space-y-3">
       <div className="relative flex bg-black/20 rounded-lg p-1">
         <div
           className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-route rounded-md transition-transform duration-300 ease-out"
@@ -111,20 +110,24 @@ export default function HeroQuoteWidget() {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-2.5">
-        <AddressAutocomplete
-          value={pickup}
-          onSelect={setPickup}
-          placeholder="Pickup location"
-          theme="dark"
-          icon={<span className="w-2.5 h-2.5 rounded-full bg-signal shrink-0" />}
-        />
-        <AddressAutocomplete
-          value={dropoff}
-          onSelect={setDropoff}
-          placeholder="Drop-off location"
-          theme="dark"
-          icon={<span className="w-2.5 h-2.5 rounded-sm bg-delivered shrink-0" />}
-        />
+        <div className="flex-1 min-w-0">
+          <AddressAutocomplete
+            value={pickup}
+            onSelect={setPickup}
+            placeholder="Pickup location"
+            theme="dark"
+            icon={<span className="w-2.5 h-2.5 rounded-full bg-signal shrink-0" />}
+          />
+        </div>
+        <div className="flex-1 min-w-0">
+          <AddressAutocomplete
+            value={dropoff}
+            onSelect={setDropoff}
+            placeholder="Drop-off location"
+            theme="dark"
+            icon={<span className="w-2.5 h-2.5 rounded-sm bg-delivered shrink-0" />}
+          />
+        </div>
       </div>
 
       {price !== null && (
