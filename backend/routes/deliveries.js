@@ -8,6 +8,7 @@ const { geocode } = require("../maps");
 const { initializeTransaction, verifyTransaction } = require("../paystack");
 const { notifyCustomer, notifyBulkUpload, notifyWebhook } = require("../notify");
 const { recordStreakActivity } = require("../streaks");
+const { checkReferralReward } = require("../referrals");
 
 const router = express.Router();
 
@@ -684,6 +685,8 @@ router.patch("/:id/advance", requireAuth, requireRole("agent"), async (req, res)
         [delivery.price * 0.8, req.user.id]
       );
       await recordStreakActivity(req.user.id); // agent streak day: job completed
+      await checkReferralReward(req.user.id, "agent"); // pays out if this agent was referred and this is their first completed job
+      await checkReferralReward(delivery.customer_id, "customer"); // pays out if the customer was referred and this is their first completed delivery
     }
 
     await logEvent(delivery.id, next);

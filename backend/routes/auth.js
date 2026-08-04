@@ -6,6 +6,7 @@ const { pool } = require("../db");
 const { compareFaces, checkLiveness } = require("../face");
 const { verifyNIN } = require("../nin");
 const { sendEmail } = require("../notifications");
+const { assignUniqueReferralCode, attachReferrer } = require("../referrals");
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -41,7 +42,7 @@ function publicUser(u) {
   return {
     id: u.id, role: u.role, full_name: u.full_name, email: u.email, phone: u.phone, status: u.status,
     account_type: u.account_type, company_name: u.company_name, profile_photo: u.profile_photo,
-    email_verified: u.email_verified,
+    email_verified: u.email_verified, referral_code: u.referral_code,
   };
 }
 
@@ -52,7 +53,7 @@ function isLikelyPhoto(dataUrl) {
 // ---------- CUSTOMER SIGNUP ---------- (unchanged)
 router.post("/signup/customer", async (req, res) => {
   try {
-    const { full_name, email, phone, password, is_business, company_name } = req.body;
+    const { full_name, email, phone, password, is_business, company_name, referral_code } = req.body;
     if (!full_name || !email || !phone || !password) {
       return res.status(400).json({ error: "All fields are required" });
     }
@@ -74,6 +75,8 @@ router.post("/signup/customer", async (req, res) => {
        VALUES ($1, 'customer', $2, $3, $4, $5, $6, $7)`,
       [id, full_name, email.toLowerCase(), phone, hash, accountType, is_business ? company_name : null]
     );
+    await assignUniqueReferralCode(id); // give this new customer their own shareable code
+    await attachReferrer(id, referral_code); // link them to whoever referred them, if anyone (no-ops on missing/invalid code)
 
     const { rows } = await pool.query("SELECT * FROM users WHERE id = $1", [id]);
     const user = rows[0];
@@ -100,6 +103,7 @@ router.post("/signup/agent", async (req, res) => {
       vehicle_type, vehicle_make, vehicle_plate, license_number, city,
       profile_photo, date_of_birth, nin,
       liveness_challenge, liveness_samples,
+      referral_code,
     } = req.body;
 
     if (!full_name || !email || !phone || !password || !vehicle_type || !city) {
@@ -161,6 +165,8 @@ router.post("/signup/agent", async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, now(), $9, true, now())`,
       [id, vehicle_type, vehicle_make || null, vehicle_plate || null, license_number || null, city, date_of_birth, nin, ninResult.verificationMethod || "format_only"]
     );
+    await assignUniqueReferralCode(id); // give this new agent their own shareable code
+    await attachReferrer(id, referral_code); // link them to whoever referred them, if anyone (no-ops on missing/invalid code)
 
     const { rows: userRows } = await pool.query("SELECT * FROM users WHERE id = $1", [id]);
     const { rows: profileRows } = await pool.query("SELECT * FROM agent_profiles WHERE user_id = $1", [id]);

@@ -318,8 +318,33 @@ async function initSchema() {
   await pool.query(`ALTER TABLE wallet_transactions DROP CONSTRAINT IF EXISTS wallet_transactions_type_check;`);
   await pool.query(`
     ALTER TABLE wallet_transactions ADD CONSTRAINT wallet_transactions_type_check
-    CHECK (type IN ('topup','delivery_payment','refund','streak_reward'));
+    CHECK (type IN ('topup','delivery_payment','refund','streak_reward','referral_reward'));
   `);
+
+  // --- Referrals (customer + agent) — same "only the referrer earns"
+  // model for both roles, only the trigger event differs: a referred
+  // customer's first COMPLETED delivery, or a referred agent's first
+  // COMPLETED job (see referrals.js — both checks fire from the same
+  // "delivered" transition in routes/deliveries.js, no separate polling
+  // needed). referral_reward_given lives on the REFERRED user's row, not
+  // the referrer's — it's a one-shot flag meaning "the reward for
+  // referring me has already been paid out", so a referred user's second,
+  // third, etc. completed job never pays out again.
+  //
+  // referral_code existed nowhere before this migration, so existing
+  // users get one backfilled here rather than left NULL — otherwise
+  // anyone who signed up before this feature shipped would have no code
+  // to share. New signups get theirs assigned at signup time instead (see
+  // referrals.js's assignUniqueReferralCode, called from routes/auth.js). ---
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code TEXT;`);
+  await pool.query(`
+    UPDATE users SET referral_code = upper(substr(md5(random()::text || id), 1, 7))
+    WHERE referral_code IS NULL;
+  `);
+  await pool.query(`ALTER TABLE users ALTER COLUMN referral_code SET NOT NULL;`);
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS users_referral_code_idx ON users(referral_code);`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by TEXT REFERENCES users(id);`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_reward_given BOOLEAN NOT NULL DEFAULT false;`);
 }
 
 module.exports = { pool, initSchema };
