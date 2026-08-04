@@ -32,6 +32,7 @@ export const api = {
   me: (token) => request("/auth/me", { token }),
   verifyEmail: (token) => request("/auth/verify-email", { method: "POST", body: { token } }),
   resendVerificationEmail: (email) => request("/auth/verify-email/resend", { method: "POST", body: { email } }),
+  getStreak: (token) => request("/streaks/me", { token }),
 
   estimate: (token, payload) => request("/deliveries/estimate", { method: "POST", body: payload, token }),
   geocodeAddress: (token, payload) => request("/deliveries/geocode", { method: "POST", body: payload, token }),
