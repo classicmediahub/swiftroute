@@ -9,6 +9,7 @@ export default function SignupCustomer() {
   const [form, setForm] = useState({
     full_name: "", email: "", phone: "", password: "",
     is_business: params.get("business") === "1", company_name: "",
+    referral_code: params.get("ref") || "",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -37,6 +38,11 @@ export default function SignupCustomer() {
   return (
     <AuthLayout eyebrow="[WB-01] SEND DELIVERIES" title="Create your customer account">
       <form onSubmit={handleSubmit}>
+        {form.referral_code && (
+          <p className="text-xs text-route bg-route/10 border border-route/30 rounded-lg px-3 py-2 mb-4">
+            Referral code <span className="font-mono font-semibold">{form.referral_code}</span> applied.
+          </p>
+        )}
         <Field label="Full name">
           <input required className={inputClass} value={form.full_name} onChange={(e) => update("full_name", e.target.value)} placeholder="Amaka Obi" />
         </Field>

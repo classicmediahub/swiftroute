@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import AuthLayout, { Field, inputClass } from "../components/AuthLayout";
@@ -14,11 +14,13 @@ const VEHICLES = [
 const CITIES = ["Lagos", "Ota", "Ogun", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City"];
 
 export default function SignupAgent() {
+  const [params] = useSearchParams();
   const [form, setForm] = useState({
     full_name: "", email: "", phone: "", password: "",
     vehicle_type: "bike", vehicle_make: "", vehicle_plate: "", license_number: "", city: "Lagos",
     profile_photo: null, date_of_birth: "", nin: "",
     liveness_challenge: null, liveness_samples: null,
+    referral_code: params.get("ref") || "",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -67,6 +69,11 @@ export default function SignupAgent() {
       wide
     >
       <form onSubmit={handleSubmit}>
+        {form.referral_code && (
+          <p className="text-xs text-route bg-route/10 border border-route/30 rounded-lg px-3 py-2 mb-4">
+            Referral code <span className="font-mono font-semibold">{form.referral_code}</span> applied.
+          </p>
+        )}
         <div className="grid sm:grid-cols-2 gap-x-4">
           <Field label="Full name">
             <input required className={inputClass} value={form.full_name} onChange={(e) => update("full_name", e.target.value)} placeholder="Tunde Bello" />
