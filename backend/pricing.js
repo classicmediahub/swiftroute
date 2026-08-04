@@ -23,7 +23,7 @@ function estimatePrice({ pickup_city, dropoff_city, vehicle_type }) {
   const base = sameCity ? BASE_SAME_CITY : BASE_INTERCITY;
   const multiplier = VEHICLE_MULTIPLIER[vehicle_type] || VEHICLE_MULTIPLIER.any;
   const price = Math.round((base * multiplier) / 50) * 50; // round to nearest 50 naira
-  return price;
+  return applyLaunchPromo(price);
 }
 
 // Naira per km, by vehicle type — set to roughly match typical Nigerian
@@ -36,7 +36,7 @@ function priceFromDistance({ distanceKm, vehicle_type }) {
   const rate = PER_KM_RATE[vehicle_type] || PER_KM_RATE.any;
   let price = BASE_FARE + distanceKm * rate;
   price = Math.round(price / 50) * 50; // round to nearest 50 naira
-  return Math.max(price, MIN_FARE);
+  return applyLaunchPromo(Math.max(price, MIN_FARE));
 }
 
 // ---------- RIDE (passenger) pricing — separate constants from parcel
@@ -53,7 +53,7 @@ const RIDE_MIN_FARE = 600;
 function priceForRide({ distanceKm }) {
   let price = RIDE_BASE_FARE + distanceKm * RIDE_PER_KM_RATE;
   price = Math.round(price / 50) * 50;
-  return Math.max(price, RIDE_MIN_FARE);
+  return applyLaunchPromo(Math.max(price, RIDE_MIN_FARE));
 }
 
 function trackingCode() {
@@ -63,4 +63,60 @@ function trackingCode() {
   return code;
 }
 
-module.exports = { estimatePrice, priceFromDistance, priceForRide, trackingCode };
+// ---------- LAUNCH-WEEK PROMO — 50% off (capped at ₦5,000), applied
+// automatically for exactly 7 days starting at LAUNCH_DATE. Set LAUNCH_DATE
+// in backend/.env to the SAME value as the frontend's VITE_LAUNCH_DATE
+// (see LaunchGate.jsx / ComingSoon.jsx) — that keeps "launch" meaning the
+// same moment everywhere instead of drifting into two different dates.
+// ISO format with timezone, e.g. "2026-09-01T09:00:00+01:00".
+//
+// Applied centrally inside the three price functions below rather than in
+// each route, so every path that ever computes a price — normal delivery
+// quotes, campus/landmark quotes, and rides — gets the discount for free
+// with no changes needed anywhere else in the codebase. To end the promo
+// early, just remove LAUNCH_DATE from .env (or let the 7 days lapse
+// naturally); nothing else needs touching.
+const LAUNCH_PROMO_DAYS = 7;
+const LAUNCH_PROMO_PERCENT = 0.5;
+const LAUNCH_PROMO_MAX_DISCOUNT = 5000;
+
+function launchPromoWindow() {
+  const launchDate = process.env.LAUNCH_DATE;
+  if (!launchDate) return null;
+  const start = new Date(launchDate).getTime();
+  if (Number.isNaN(start)) return null;
+  return { start, end: start + LAUNCH_PROMO_DAYS * 24 * 60 * 60 * 1000 };
+}
+
+function isLaunchPromoActive() {
+  const window = launchPromoWindow();
+  if (!window) return false;
+  const now = Date.now();
+  return now >= window.start && now < window.end;
+}
+
+// Exposed so a frontend banner can show "launch week — X days left" later
+// without duplicating the date math.
+function launchPromoInfo() {
+  const window = launchPromoWindow();
+  if (!window) return { active: false };
+  const now = Date.now();
+  return {
+    active: now >= window.start && now < window.end,
+    percent: LAUNCH_PROMO_PERCENT,
+    maxDiscount: LAUNCH_PROMO_MAX_DISCOUNT,
+    endsAt: new Date(window.end).toISOString(),
+  };
+}
+
+function applyLaunchPromo(price) {
+  if (!isLaunchPromoActive()) return price;
+  const discount = Math.min(price * LAUNCH_PROMO_PERCENT, LAUNCH_PROMO_MAX_DISCOUNT);
+  const discounted = Math.round((price - discount) / 50) * 50;
+  return Math.max(discounted, 0);
+}
+
+module.exports = {
+  estimatePrice, priceFromDistance, priceForRide, trackingCode,
+  isLaunchPromoActive, launchPromoInfo,
+};
