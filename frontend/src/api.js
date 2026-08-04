@@ -35,6 +35,9 @@ export const api = {
 
   estimate: (token, payload) => request("/deliveries/estimate", { method: "POST", body: payload, token }),
   geocodeAddress: (token, payload) => request("/deliveries/geocode", { method: "POST", body: payload, token }),
+  listInstitutions: (token) => request("/deliveries/institutions", { token }),
+  listLandmarks: (token, institutionId) => request(`/deliveries/institutions/${institutionId}/landmarks`, { token }),
+  estimateCampus: (token, payload) => request("/deliveries/estimate-campus", { method: "POST", body: payload, token }),
   createDelivery: (token, payload) => request("/deliveries", { method: "POST", body: payload, token }),
   bulkCreateDeliveries: (token, deliveries) => request("/deliveries/bulk", { method: "POST", body: { deliveries }, token }),
   myDeliveries: (token) => request("/deliveries/mine", { token }),

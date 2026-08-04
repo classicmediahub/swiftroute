@@ -29,6 +29,7 @@ const emptyForm = {
   dropoff_address: "", dropoff_city: "Lagos", dropoff_landmark: "", dropoff_coords: null,
   recipient_name: "", recipient_phone: "",
   preferred_vehicle: "any", payment_method: "paystack",
+  institution_id: "", pickup_landmark_id: "", dropoff_landmark_id: "",
 };
 
 export default function CustomerDashboard() {
@@ -44,6 +45,34 @@ export default function CustomerDashboard() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [loadingList, setLoadingList] = useState(true);
+
+  // Campus/institution delivery mode — an alternative to typing a
+  // free-text address, for institutions we have pre-mapped landmarks for
+  // (see backend/seed-landmarks.js). Off by default; nothing here affects
+  // the normal address-based flow unless a customer explicitly opts in.
+  const [campusMode, setCampusMode] = useState(false);
+  const [institutions, setInstitutions] = useState([]);
+  const [landmarks, setLandmarks] = useState([]);
+
+  useEffect(() => {
+    api.listInstitutions(token).then(setInstitutions).catch(() => setInstitutions([]));
+  }, [token]);
+
+  useEffect(() => {
+    if (!form.institution_id) { setLandmarks([]); return; }
+    api.listLandmarks(token, form.institution_id).then(setLandmarks).catch(() => setLandmarks([]));
+  }, [token, form.institution_id]);
+
+  function toggleCampusMode() {
+    setCampusMode((v) => !v);
+    setEstimate(null);
+    setEstimateDistance(null);
+    setForm((f) => ({
+      ...f,
+      institution_id: "", pickup_landmark_id: "", dropoff_landmark_id: "",
+      pickup_address: "", dropoff_address: "", pickup_coords: null, dropoff_coords: null,
+    }));
+  }
 
   const refreshWallet = useCallback(() => {
     api.getWallet(token).then((w) => setWalletBalance(w.balance)).catch(() => {});
@@ -75,6 +104,7 @@ export default function CustomerDashboard() {
   }, [deliveries, loadDeliveries]);
 
   useEffect(() => {
+    if (campusMode) return; // campus mode has its own estimate effect below
     if (!form.pickup_city || !form.dropoff_city) return;
     const t = setTimeout(async () => {
       try {
@@ -95,7 +125,32 @@ export default function CustomerDashboard() {
       }
     }, 500);
     return () => clearTimeout(t);
-  }, [form.pickup_city, form.dropoff_city, form.pickup_address, form.dropoff_address, form.preferred_vehicle, token]);
+  }, [campusMode, form.pickup_city, form.dropoff_city, form.pickup_address, form.dropoff_address, form.preferred_vehicle, token]);
+
+  // Campus mode: no geocoding at all — just a direct lookup against the
+  // pre-computed landmark_distances table, so it's instant and can never
+  // fail the way address geocoding sometimes does.
+  useEffect(() => {
+    if (!campusMode) return;
+    const { institution_id, pickup_landmark_id, dropoff_landmark_id } = form;
+    if (!institution_id || !pickup_landmark_id || !dropoff_landmark_id || pickup_landmark_id === dropoff_landmark_id) {
+      setEstimate(null);
+      setEstimateDistance(null);
+      return;
+    }
+    let cancelled = false;
+    api.estimateCampus(token, {
+      institution_id, pickup_landmark_id, dropoff_landmark_id,
+      preferred_vehicle: form.preferred_vehicle,
+    }).then((res) => {
+      if (cancelled) return;
+      setEstimate(res.price);
+      setEstimateDistance(res.distanceKm);
+    }).catch(() => {
+      if (!cancelled) { setEstimate(null); setEstimateDistance(null); }
+    });
+    return () => { cancelled = true; };
+  }, [campusMode, form.institution_id, form.pickup_landmark_id, form.dropoff_landmark_id, form.preferred_vehicle, token]);
 
   function update(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -166,53 +221,112 @@ export default function CustomerDashboard() {
             <input className={inputClass} value={form.package_note} onChange={(e) => update("package_note", e.target.value)} placeholder="Fragile — handle with care" />
           </Field>
 
-          <div className="grid grid-cols-2 gap-x-3">
-            <Field label="Pickup address">
-              <input required className={inputClass} value={form.pickup_address} onChange={(e) => update("pickup_address", e.target.value)} placeholder="12 Allen Ave" />
-            </Field>
-            <Field label="Pickup city">
-              <select className={inputClass} value={form.pickup_city} onChange={(e) => update("pickup_city", e.target.value)}>
-                {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </Field>
-          </div>
-          <Field label="Pickup landmark (optional)">
-            <input className={inputClass} value={form.pickup_landmark} onChange={(e) => update("pickup_landmark", e.target.value)} placeholder="Opposite First Bank, blue gate" />
-          </Field>
-          <Suspense fallback={null}>
-            <PinMap
-              token={token}
-              address={form.pickup_address}
-              city={form.pickup_city}
-              coords={form.pickup_coords}
-              onCoordsChange={(c) => update("pickup_coords", c)}
-              suggestOpen={addressLookupFailed}
-            />
-          </Suspense>
+          {institutions.length > 0 && (
+            <button
+              type="button"
+              onClick={toggleCampusMode}
+              className={`w-full text-left text-sm font-medium rounded-lg px-3.5 py-2.5 border mb-4 transition-colors ${
+                campusMode ? "border-ink bg-ink text-paper" : "border-slate-300 hover:border-slate-400 text-ink"
+              }`}
+            >
+              {campusMode ? "✓ Delivering within a campus" : "Delivering within a campus?"}
+            </button>
+          )}
 
-          <div className="grid grid-cols-2 gap-x-3">
-            <Field label="Drop-off address">
-              <input required className={inputClass} value={form.dropoff_address} onChange={(e) => update("dropoff_address", e.target.value)} placeholder="5 Admiralty Way" />
-            </Field>
-            <Field label="Drop-off city">
-              <select className={inputClass} value={form.dropoff_city} onChange={(e) => update("dropoff_city", e.target.value)}>
-                {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </Field>
-          </div>
-          <Field label="Drop-off landmark (optional)">
-            <input className={inputClass} value={form.dropoff_landmark} onChange={(e) => update("dropoff_landmark", e.target.value)} placeholder="Near Shoprite entrance" />
-          </Field>
-          <Suspense fallback={null}>
-            <PinMap
-              token={token}
-              address={form.dropoff_address}
-              city={form.dropoff_city}
-              coords={form.dropoff_coords}
-              onCoordsChange={(c) => update("dropoff_coords", c)}
-              suggestOpen={addressLookupFailed}
-            />
-          </Suspense>
+          {campusMode ? (
+            <>
+              <Field label="Institution">
+                <select
+                  required={campusMode}
+                  className={inputClass}
+                  value={form.institution_id}
+                  onChange={(e) => setForm((f) => ({ ...f, institution_id: e.target.value, pickup_landmark_id: "", dropoff_landmark_id: "" }))}
+                >
+                  <option value="">Select an institution…</option>
+                  {institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+                </select>
+              </Field>
+              <div className="grid grid-cols-2 gap-x-3">
+                <Field label="Pickup landmark">
+                  <select
+                    required={campusMode}
+                    disabled={!form.institution_id}
+                    className={inputClass}
+                    value={form.pickup_landmark_id}
+                    onChange={(e) => update("pickup_landmark_id", e.target.value)}
+                  >
+                    <option value="">Select…</option>
+                    {landmarks.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  </select>
+                </Field>
+                <Field label="Drop-off landmark">
+                  <select
+                    required={campusMode}
+                    disabled={!form.institution_id}
+                    className={inputClass}
+                    value={form.dropoff_landmark_id}
+                    onChange={(e) => update("dropoff_landmark_id", e.target.value)}
+                  >
+                    <option value="">Select…</option>
+                    {landmarks.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  </select>
+                </Field>
+              </div>
+              {form.pickup_landmark_id && form.pickup_landmark_id === form.dropoff_landmark_id && (
+                <p className="text-xs text-signal mb-4">Pickup and drop-off landmarks can't be the same.</p>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-x-3">
+                <Field label="Pickup address">
+                  <input required className={inputClass} value={form.pickup_address} onChange={(e) => update("pickup_address", e.target.value)} placeholder="12 Allen Ave" />
+                </Field>
+                <Field label="Pickup city">
+                  <select className={inputClass} value={form.pickup_city} onChange={(e) => update("pickup_city", e.target.value)}>
+                    {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </Field>
+              </div>
+              <Field label="Pickup landmark (optional)">
+                <input className={inputClass} value={form.pickup_landmark} onChange={(e) => update("pickup_landmark", e.target.value)} placeholder="Opposite First Bank, blue gate" />
+              </Field>
+              <Suspense fallback={null}>
+                <PinMap
+                  token={token}
+                  address={form.pickup_address}
+                  city={form.pickup_city}
+                  coords={form.pickup_coords}
+                  onCoordsChange={(c) => update("pickup_coords", c)}
+                  suggestOpen={addressLookupFailed}
+                />
+              </Suspense>
+
+              <div className="grid grid-cols-2 gap-x-3">
+                <Field label="Drop-off address">
+                  <input required className={inputClass} value={form.dropoff_address} onChange={(e) => update("dropoff_address", e.target.value)} placeholder="5 Admiralty Way" />
+                </Field>
+                <Field label="Drop-off city">
+                  <select className={inputClass} value={form.dropoff_city} onChange={(e) => update("dropoff_city", e.target.value)}>
+                    {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </Field>
+              </div>
+              <Field label="Drop-off landmark (optional)">
+                <input className={inputClass} value={form.dropoff_landmark} onChange={(e) => update("dropoff_landmark", e.target.value)} placeholder="Near Shoprite entrance" />
+              </Field>
+              <Suspense fallback={null}>
+                <PinMap
+                  token={token}
+                  address={form.dropoff_address}
+                  city={form.dropoff_city}
+                  coords={form.dropoff_coords}
+                  onCoordsChange={(c) => update("dropoff_coords", c)}
+                  suggestOpen={addressLookupFailed}
+                />
+              </Suspense>
+            </>
+          )}
 
           <div className="grid grid-cols-2 gap-x-3">
             <Field label="Recipient name">
@@ -275,7 +389,10 @@ export default function CustomerDashboard() {
 
           {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
-          <button disabled={submitting} className="w-full bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-2.5 transition-colors disabled:opacity-60">
+          <button
+            disabled={submitting || (campusMode && (!form.institution_id || !form.pickup_landmark_id || !form.dropoff_landmark_id || form.pickup_landmark_id === form.dropoff_landmark_id))}
+            className="w-full bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-2.5 transition-colors disabled:opacity-60"
+          >
             {submitting ? "Redirecting to payment…" : form.payment_method === "wallet" ? "Pay from wallet" : "Continue to payment"}
           </button>
         </form>
