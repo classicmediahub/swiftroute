@@ -243,6 +243,65 @@ async function initSchema() {
     );
   `);
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS total_rides INTEGER NOT NULL DEFAULT 0;`);
+
+  // --- Campus/institution deliveries: lets a customer pick a known
+  // institution (e.g. a university campus) and a specific landmark on it
+  // instead of typing a free-text address. Distances between landmarks are
+  // pre-computed and stored directly (landmark_distances) rather than
+  // geocoded per-request — Nigerian street addressing inside a large
+  // campus is unreliable, but the relative layout of named landmarks on
+  // one campus is stable and only needs computing once (see
+  // seed-landmarks.js). is_verified on landmarks tracks whether its
+  // lat/lng came from a real on-site GPS check or was estimated — see
+  // seed-landmarks.js's "Data Source" column handling. Distances are
+  // stored in km, matching distance_km elsewhere in this file. ---
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS institutions (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      city TEXT NOT NULL,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS landmarks (
+      id TEXT PRIMARY KEY,
+      institution_id TEXT NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      zone TEXT,
+      latitude REAL,
+      longitude REAL,
+      is_verified BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (institution_id, name)
+    );
+  `);
+
+  // Stored as directed pairs (both A->B and B->A) so a lookup never needs
+  // an ORDER BY / LEAST-GREATEST trick — just match from_landmark_id and
+  // to_landmark_id exactly as given. Distances are symmetric in practice
+  // (see seed-landmarks.js), this just avoids extra query complexity.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS landmark_distances (
+      institution_id TEXT NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
+      from_landmark_id TEXT NOT NULL REFERENCES landmarks(id) ON DELETE CASCADE,
+      to_landmark_id TEXT NOT NULL REFERENCES landmarks(id) ON DELETE CASCADE,
+      distance_km REAL NOT NULL,
+      PRIMARY KEY (from_landmark_id, to_landmark_id)
+    );
+  `);
+
+  // Nullable — only set when a delivery was created via the campus/landmark
+  // picker rather than the normal free-text address flow. pickup_address /
+  // dropoff_address / pickup_landmark / dropoff_landmark still get filled
+  // with the landmark's name on creation (see routes/deliveries.js), so
+  // every existing display (delivery list, tracking, agent view) keeps
+  // working unmodified whether or not a delivery used this flow.
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS institution_id TEXT REFERENCES institutions(id);`);
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS pickup_landmark_id TEXT REFERENCES landmarks(id);`);
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS dropoff_landmark_id TEXT REFERENCES landmarks(id);`);
 }
 
 module.exports = { pool, initSchema };

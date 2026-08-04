@@ -2,7 +2,7 @@ const express = require("express");
 const { v4: uuidv4 } = require("uuid");
 const { pool } = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
-const { trackingCode } = require("../pricing");
+const { trackingCode, priceFromDistance } = require("../pricing");
 const { getQuote } = require("../quote");
 const { geocode } = require("../maps");
 const { initializeTransaction, verifyTransaction } = require("../paystack");
@@ -60,6 +60,62 @@ router.post("/geocode", requireAuth, async (req, res) => {
   }
 });
 
+// ---------- INSTITUTIONS (for the campus/landmark delivery picker) ----------
+router.get("/institutions", requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, city FROM institutions WHERE is_active = true ORDER BY name`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Couldn't load institutions right now" });
+  }
+});
+
+router.get("/institutions/:id/landmarks", requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, zone FROM landmarks WHERE institution_id = $1 ORDER BY name`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Couldn't load landmarks right now" });
+  }
+});
+
+// Looks up a pre-computed distance instead of geocoding — see db.js's
+// landmark_distances comment for why. Same response shape as /estimate
+// below (price, distanceKm) so the frontend can treat both the same way.
+async function getCampusQuote({ institution_id, pickup_landmark_id, dropoff_landmark_id, vehicle_type }) {
+  if (pickup_landmark_id === dropoff_landmark_id) {
+    return { price: 0, distanceKm: 0 };
+  }
+  const { rows } = await pool.query(
+    `SELECT distance_km FROM landmark_distances
+     WHERE institution_id = $1 AND from_landmark_id = $2 AND to_landmark_id = $3`,
+    [institution_id, pickup_landmark_id, dropoff_landmark_id]
+  );
+  if (!rows[0]) return null;
+  const distanceKm = Number(rows[0].distance_km);
+  return {
+    price: priceFromDistance({ distanceKm, vehicle_type: vehicle_type || "any" }),
+    distanceKm,
+  };
+}
+
+router.post("/estimate-campus", requireAuth, async (req, res) => {
+  const { institution_id, pickup_landmark_id, dropoff_landmark_id, preferred_vehicle } = req.body;
+  if (!institution_id || !pickup_landmark_id || !dropoff_landmark_id) {
+    return res.status(400).json({ error: "institution_id, pickup_landmark_id and dropoff_landmark_id are required" });
+  }
+  const quote = await getCampusQuote({ institution_id, pickup_landmark_id, dropoff_landmark_id, vehicle_type: preferred_vehicle });
+  if (!quote) return res.status(404).json({ error: "No distance on file for that pair of landmarks" });
+  res.json(quote);
+});
+
 // ---------- CREATE DELIVERY (customer) — creates the delivery as unpaid,
 // then starts a Paystack transaction and hands back the checkout URL.
 // The delivery only becomes visible to agents once payment is confirmed. ----------
@@ -70,29 +126,72 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
       pickup_address, pickup_city, pickup_landmark, pickup_coords,
       dropoff_address, dropoff_city, dropoff_landmark, dropoff_coords,
       recipient_name, recipient_phone,
-      preferred_vehicle, payment_method
+      preferred_vehicle, payment_method,
+      institution_id, pickup_landmark_id, dropoff_landmark_id,
     } = req.body;
 
-    if (!package_type || !pickup_address || !pickup_city || !dropoff_address || !dropoff_city || !recipient_name || !recipient_phone) {
+    const isCampusDelivery = institution_id && pickup_landmark_id && dropoff_landmark_id;
+
+    let resolvedPickupAddress = pickup_address, resolvedPickupCity = pickup_city;
+    let resolvedDropoffAddress = dropoff_address, resolvedDropoffCity = dropoff_city;
+    let resolvedPickupCoords = pickup_coords, resolvedDropoffCoords = dropoff_coords;
+    let campusQuote = null;
+
+    // Campus mode resolves everything from the landmark IDs rather than
+    // trusting whatever address text the client sent — a landmark's name
+    // and coordinates come from our own database, not user input, so the
+    // delivery record ends up with the same real address either way.
+    if (isCampusDelivery) {
+      const { rows: instRows } = await pool.query("SELECT name, city FROM institutions WHERE id = $1", [institution_id]);
+      const institution = instRows[0];
+      if (!institution) return res.status(400).json({ error: "Unknown institution" });
+
+      const { rows: lmRows } = await pool.query(
+        "SELECT id, name, latitude, longitude FROM landmarks WHERE id = ANY($1) AND institution_id = $2",
+        [[pickup_landmark_id, dropoff_landmark_id], institution_id]
+      );
+      const pickupLm = lmRows.find((l) => l.id === pickup_landmark_id);
+      const dropoffLm = lmRows.find((l) => l.id === dropoff_landmark_id);
+      if (!pickupLm || !dropoffLm) return res.status(400).json({ error: "Unknown landmark for this institution" });
+
+      resolvedPickupAddress = `${pickupLm.name}, ${institution.name}`;
+      resolvedDropoffAddress = `${dropoffLm.name}, ${institution.name}`;
+      resolvedPickupCity = institution.city;
+      resolvedDropoffCity = institution.city;
+      resolvedPickupCoords = isValidCoords({ lat: pickupLm.latitude, lng: pickupLm.longitude })
+        ? { lat: pickupLm.latitude, lng: pickupLm.longitude } : null;
+      resolvedDropoffCoords = isValidCoords({ lat: dropoffLm.latitude, lng: dropoffLm.longitude })
+        ? { lat: dropoffLm.latitude, lng: dropoffLm.longitude } : null;
+
+      campusQuote = await getCampusQuote({ institution_id, pickup_landmark_id, dropoff_landmark_id, vehicle_type: preferred_vehicle });
+      if (!campusQuote) return res.status(400).json({ error: "No distance on file for that pair of landmarks" });
+    }
+
+    if (!package_type || !resolvedPickupAddress || !resolvedPickupCity || !resolvedDropoffAddress || !resolvedDropoffCity || !recipient_name || !recipient_phone) {
       return res.status(400).json({ error: "Missing required delivery details" });
     }
 
     const vehicle = preferred_vehicle && ["self", "bike", "cab", "any"].includes(preferred_vehicle) ? preferred_vehicle : "any";
-    const quote = await getQuote({
-      pickup_address, pickup_city, dropoff_address, dropoff_city, vehicle_type: vehicle,
-      pickup_coords: isValidCoords(pickup_coords) ? pickup_coords : null,
-      dropoff_coords: isValidCoords(dropoff_coords) ? dropoff_coords : null,
-    });
+    const quote = isCampusDelivery
+      ? { price: campusQuote.price, distanceKm: campusQuote.distanceKm, origin: resolvedPickupCoords, destination: resolvedDropoffCoords }
+      : await getQuote({
+          pickup_address: resolvedPickupAddress, pickup_city: resolvedPickupCity,
+          dropoff_address: resolvedDropoffAddress, dropoff_city: resolvedDropoffCity,
+          vehicle_type: vehicle,
+          pickup_coords: isValidCoords(resolvedPickupCoords) ? resolvedPickupCoords : null,
+          dropoff_coords: isValidCoords(resolvedDropoffCoords) ? resolvedDropoffCoords : null,
+        });
     const price = quote.price;
     const id = uuidv4();
     const code = trackingCode();
 
     const commonFields = [
       id, req.user.id, package_type, package_note || null,
-      pickup_address, pickup_city, dropoff_address, dropoff_city,
+      resolvedPickupAddress, resolvedPickupCity, resolvedDropoffAddress, resolvedDropoffCity,
       recipient_name, recipient_phone, vehicle, price, code, quote.distanceKm,
       quote.origin?.lat ?? null, quote.origin?.lng ?? null, quote.destination?.lat ?? null, quote.destination?.lng ?? null,
-      pickup_landmark || null, dropoff_landmark || null,
+      isCampusDelivery ? null : (pickup_landmark || null), isCampusDelivery ? null : (dropoff_landmark || null),
+      isCampusDelivery ? institution_id : null, isCampusDelivery ? pickup_landmark_id : null, isCampusDelivery ? dropoff_landmark_id : null,
     ];
 
     if (payment_method === "wallet") {
@@ -114,8 +213,9 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
             recipient_name, recipient_phone, preferred_vehicle, price, tracking_code, distance_km,
             pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
             pickup_landmark, dropoff_landmark,
+            institution_id, pickup_landmark_id, dropoff_landmark_id,
             payment_status, payment_method
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,'paid','wallet')`,
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,'paid','wallet')`,
           commonFields
         );
 
@@ -151,8 +251,9 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
         recipient_name, recipient_phone, preferred_vehicle, price, tracking_code, distance_km,
         pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
         pickup_landmark, dropoff_landmark,
+        institution_id, pickup_landmark_id, dropoff_landmark_id,
         payment_status, paystack_reference, payment_method
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,'unpaid',$21,'paystack')`,
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,'unpaid',$24,'paystack')`,
       [...commonFields, reference]
     );
 
