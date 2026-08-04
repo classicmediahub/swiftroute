@@ -302,6 +302,24 @@ async function initSchema() {
   await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS institution_id TEXT REFERENCES institutions(id);`);
   await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS pickup_landmark_id TEXT REFERENCES landmarks(id);`);
   await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS dropoff_landmark_id TEXT REFERENCES landmarks(id);`);
+
+  // --- Streaks (customer + agent) — shared columns on `users` since both
+  // roles use identical storage and milestone logic; only WHAT counts as a
+  // "streak day" differs per role (see streaks.js: customers on order
+  // creation, agents on delivery/ride completion — called from
+  // routes/deliveries.js and routes/rides.js respectively). Milestone
+  // rewards land as a new 'streak_reward' wallet_transactions row, so a
+  // streak bonus shows up in a customer's/agent's transaction history the
+  // same way a topup or delivery payment would. ---
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS current_streak INTEGER NOT NULL DEFAULT 0;`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS longest_streak INTEGER NOT NULL DEFAULT 0;`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_streak_date DATE;`);
+
+  await pool.query(`ALTER TABLE wallet_transactions DROP CONSTRAINT IF EXISTS wallet_transactions_type_check;`);
+  await pool.query(`
+    ALTER TABLE wallet_transactions ADD CONSTRAINT wallet_transactions_type_check
+    CHECK (type IN ('topup','delivery_payment','refund','streak_reward'));
+  `);
 }
 
 module.exports = { pool, initSchema };

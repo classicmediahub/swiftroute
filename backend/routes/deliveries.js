@@ -7,6 +7,7 @@ const { getQuote } = require("../quote");
 const { geocode } = require("../maps");
 const { initializeTransaction, verifyTransaction } = require("../paystack");
 const { notifyCustomer, notifyBulkUpload, notifyWebhook } = require("../notify");
+const { recordStreakActivity } = require("../streaks");
 
 const router = express.Router();
 
@@ -236,6 +237,7 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
 
       await logEvent(id, "pending", "Delivery request created and paid from wallet");
       await logEvent(id, "payment_confirmed", "Paid instantly from wallet balance");
+      await recordStreakActivity(req.user.id); // customer streak day: order placed
       const { rows } = await pool.query("SELECT * FROM deliveries WHERE id = $1", [id]);
       notifyCustomer(rows[0], "payment_confirmed"); // fire-and-forget
       notifyWebhook(rows[0], "payment_confirmed"); // fire-and-forget
@@ -258,6 +260,7 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
     );
 
     await logEvent(id, "pending", "Delivery request created — awaiting payment");
+    await recordStreakActivity(req.user.id); // customer streak day: order placed (not payment-gated — placing counts)
 
     let authorization_url;
     try {
@@ -680,6 +683,7 @@ router.patch("/:id/advance", requireAuth, requireRole("agent"), async (req, res)
         `UPDATE agent_profiles SET total_deliveries = total_deliveries + 1, wallet_balance = wallet_balance + $1 WHERE user_id = $2`,
         [delivery.price * 0.8, req.user.id]
       );
+      await recordStreakActivity(req.user.id); // agent streak day: job completed
     }
 
     await logEvent(delivery.id, next);
