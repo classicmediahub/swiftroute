@@ -354,6 +354,20 @@ async function initSchema() {
   // computed on demand by reputation.js rather than stored, since it only
   // needs to exist once a delivery actually completes. ---
   await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS estimated_delivery_at TIMESTAMPTZ;`);
+
+  // --- WhatsApp ordering bot: one row per phone number, tracking which
+  // step of the conversation they're on and whatever they've answered so
+  // far (see whatsapp.js). Reset to idle/{} once an order completes or is
+  // cancelled — this is conversation scratch space, not order history;
+  // the actual order lives in `deliveries` like any other. ---
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS whatsapp_sessions (
+      phone TEXT PRIMARY KEY,
+      state TEXT NOT NULL DEFAULT 'idle',
+      data JSONB NOT NULL DEFAULT '{}'::jsonb,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
 }
 
 module.exports = { pool, initSchema };
