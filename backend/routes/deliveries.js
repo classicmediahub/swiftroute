@@ -9,6 +9,7 @@ const { initializeTransaction, verifyTransaction } = require("../paystack");
 const { notifyCustomer, notifyBulkUpload, notifyWebhook } = require("../notify");
 const { recordStreakActivity } = require("../streaks");
 const { checkReferralReward } = require("../referrals");
+const { estimatedDeliveryAt } = require("../eta");
 
 const router = express.Router();
 
@@ -194,6 +195,7 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
       quote.origin?.lat ?? null, quote.origin?.lng ?? null, quote.destination?.lat ?? null, quote.destination?.lng ?? null,
       isCampusDelivery ? null : (pickup_landmark || null), isCampusDelivery ? null : (dropoff_landmark || null),
       isCampusDelivery ? institution_id : null, isCampusDelivery ? pickup_landmark_id : null, isCampusDelivery ? dropoff_landmark_id : null,
+      estimatedDeliveryAt({ distanceKm: quote.distanceKm, vehicle_type: vehicle }),
     ];
 
     if (payment_method === "wallet") {
@@ -216,8 +218,9 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
             pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
             pickup_landmark, dropoff_landmark,
             institution_id, pickup_landmark_id, dropoff_landmark_id,
+            estimated_delivery_at,
             payment_status, payment_method
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,'paid','wallet')`,
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,'paid','wallet')`,
           commonFields
         );
 
@@ -255,8 +258,9 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
         pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
         pickup_landmark, dropoff_landmark,
         institution_id, pickup_landmark_id, dropoff_landmark_id,
+        estimated_delivery_at,
         payment_status, paystack_reference, payment_method
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,'unpaid',$24,'paystack')`,
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,'unpaid',$25,'paystack')`,
       [...commonFields, reference]
     );
 

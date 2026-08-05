@@ -345,6 +345,15 @@ async function initSchema() {
   await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS users_referral_code_idx ON users(referral_code);`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by TEXT REFERENCES users(id);`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_reward_given BOOLEAN NOT NULL DEFAULT false;`);
+
+  // --- Agent reputation: on-time tracking. estimated_delivery_at is set
+  // once, at creation time (see backend/eta.js + routes/deliveries.js),
+  // from distance + vehicle type — NOT re-estimated later, so an agent
+  // can't "beat the clock" by the estimate quietly loosening after they
+  // accept a slow job. "On time" is simply delivered_at <= estimated_delivery_at,
+  // computed on demand by reputation.js rather than stored, since it only
+  // needs to exist once a delivery actually completes. ---
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS estimated_delivery_at TIMESTAMPTZ;`);
 }
 
 module.exports = { pool, initSchema };
