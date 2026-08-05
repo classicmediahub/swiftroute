@@ -15,12 +15,26 @@ const STAGE_LABELS = {
 };
 const ACTIVE_STATUSES = ["accepted", "picked_up", "in_transit"];
 
+// Coarse, human-friendly buckets rather than exact day counts — "2 mo
+// agent" reads better in a small badge than "63 days," and precision past
+// this granularity doesn't add trust signal anyway.
+function tenureLabel(days) {
+  if (days == null) return null;
+  if (days < 14) return "New agent";
+  if (days < 60) return `${Math.floor(days / 7)} wk agent`;
+  if (days < 365) return `${Math.floor(days / 30)} mo agent`;
+  return `${Math.floor(days / 365)} yr agent`;
+}
+
+const VEHICLE_LABELS = { bike: "Bike rider", cab: "Cab driver", self: "Self agent", any: "Agent" };
+
 export default function TrackPublic() {
   const [params] = useSearchParams();
   const [code, setCode] = useState(params.get("code") || "");
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [reputation, setReputation] = useState(null);
 
   const runTrack = useCallback(async (trackCode, { silent } = {}) => {
     if (!trackCode.trim()) return;
@@ -48,6 +62,17 @@ export default function TrackPublic() {
   const delivery = result?.delivery;
   const currentStageIndex = delivery ? STAGE_ORDER.indexOf(delivery.status) : -1;
   const isActive = delivery && ACTIVE_STATUSES.includes(delivery.status);
+  const hasAssignedAgent = delivery && delivery.agent_id && delivery.status !== "pending" && delivery.status !== "cancelled";
+
+  useEffect(() => {
+    if (!hasAssignedAgent) { setReputation(null); return; }
+    let cancelled = false;
+    api.getAgentReputation(delivery.agent_id)
+      .then((r) => { if (!cancelled) setReputation(r); })
+      .catch(() => { if (!cancelled) setReputation(null); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasAssignedAgent, delivery?.agent_id]);
 
   // Keep the map and status fresh while the delivery is actively moving.
   useEffect(() => {
@@ -86,6 +111,46 @@ export default function TrackPublic() {
             </div>
             <StatusBadge status={delivery.status} />
           </div>
+
+          {reputation && (
+            <div className="flex items-center gap-3.5 border border-slate-200 rounded-xl p-3.5 mb-6 bg-paper">
+              {reputation.profile_photo ? (
+                <img
+                  src={reputation.profile_photo}
+                  alt={reputation.full_name}
+                  className="w-12 h-12 rounded-full object-cover border border-slate-200 shrink-0"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-ink text-paper flex items-center justify-center font-display font-semibold text-sm shrink-0">
+                  {reputation.full_name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-display font-semibold text-sm text-ink truncate">{reputation.full_name}</span>
+                  <span className="font-mono text-xs text-slate shrink-0">★ {reputation.rating.toFixed(1)}</span>
+                </div>
+                <div className="text-xs text-slate mt-0.5">
+                  {VEHICLE_LABELS[reputation.vehicle_type] || "Agent"} · {reputation.total_deliveries} deliveries
+                  {tenureLabel(reputation.tenure_days) && ` · ${tenureLabel(reputation.tenure_days)}`}
+                </div>
+                {(reputation.on_time_rate != null || reputation.campus_specialty) && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {reputation.on_time_rate != null && (
+                      <span className="text-[11px] font-medium bg-delivered/10 text-delivered rounded-full px-2 py-0.5">
+                        {reputation.on_time_rate}% on-time · last {reputation.on_time_window_days}d
+                      </span>
+                    )}
+                    {reputation.campus_specialty && (
+                      <span className="text-[11px] font-medium bg-route/10 text-route-dark rounded-full px-2 py-0.5">
+                        🎓 {reputation.campus_specialty} specialist
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {delivery.status === "cancelled" ? (
             <p className="text-sm text-slate">This delivery was cancelled.</p>
