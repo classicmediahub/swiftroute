@@ -30,6 +30,7 @@ const emptyForm = {
   recipient_name: "", recipient_phone: "",
   preferred_vehicle: "any", payment_method: "paystack",
   institution_id: "", pickup_landmark_id: "", dropoff_landmark_id: "",
+  dropoff_locker_id: "",
 };
 
 export default function CustomerDashboard() {
@@ -63,6 +64,16 @@ export default function CustomerDashboard() {
   const [confirmingId, setConfirmingId] = useState(null);
   const [confirmError, setConfirmError] = useState("");
 
+  // Locker delivery — a separate, mutually-exclusive mode from campus
+  // mode (see toggleLockerMode/toggleCampusMode). Only affects the
+  // DROP-OFF side; pickup is always the normal address fields regardless.
+  const [lockerMode, setLockerMode] = useState(false);
+  const [lockerLocationType, setLockerLocationType] = useState("campus"); // "campus" | "city"
+  const [lockerInstitutionId, setLockerInstitutionId] = useState("");
+  const [lockerCity, setLockerCity] = useState("Lagos");
+  const [lockers, setLockers] = useState([]);
+  const selectedLocker = lockers.find((l) => l.id === form.dropoff_locker_id) || null;
+
   useEffect(() => {
     api.listInstitutions(token).then(setInstitutions).catch(() => setInstitutions([]));
   }, [token]);
@@ -77,8 +88,16 @@ export default function CustomerDashboard() {
     api.listPendingLandmarks(token, form.institution_id).then(setPendingLandmarks).catch(() => setPendingLandmarks([]));
   }, [token, form.institution_id]);
 
+  useEffect(() => {
+    if (!lockerMode) { setLockers([]); return; }
+    if (lockerLocationType === "campus" && !lockerInstitutionId) { setLockers([]); return; }
+    const params = lockerLocationType === "campus" ? { institutionId: lockerInstitutionId } : { city: lockerCity };
+    api.listLockers(token, params).then(setLockers).catch(() => setLockers([]));
+  }, [token, lockerMode, lockerLocationType, lockerInstitutionId, lockerCity]);
+
   function toggleCampusMode() {
     setCampusMode((v) => !v);
+    setLockerMode(false); // mutually exclusive — see lockers.js's scope note
     setEstimate(null);
     setEstimateDistance(null);
     setShowSuggestForm(false);
@@ -87,7 +106,21 @@ export default function CustomerDashboard() {
     setForm((f) => ({
       ...f,
       institution_id: "", pickup_landmark_id: "", dropoff_landmark_id: "",
+      dropoff_locker_id: "",
       pickup_address: "", dropoff_address: "", pickup_coords: null, dropoff_coords: null,
+    }));
+  }
+
+  function toggleLockerMode() {
+    setLockerMode((v) => !v);
+    setCampusMode(false); // mutually exclusive
+    setEstimate(null);
+    setEstimateDistance(null);
+    setForm((f) => ({
+      ...f,
+      institution_id: "", pickup_landmark_id: "", dropoff_landmark_id: "",
+      dropoff_locker_id: "",
+      dropoff_address: "", dropoff_coords: null,
     }));
   }
 
@@ -165,17 +198,23 @@ export default function CustomerDashboard() {
 
   useEffect(() => {
     if (campusMode) return; // campus mode has its own estimate effect below
-    if (!form.pickup_city || !form.dropoff_city) return;
+    if (lockerMode && !selectedLocker) return; // nothing picked yet
+    const effectiveDropoffCity = lockerMode ? selectedLocker.city : form.dropoff_city;
+    if (!form.pickup_city || !effectiveDropoffCity) return;
     const t = setTimeout(async () => {
       try {
         const res = await api.estimate(token, {
           pickup_city: form.pickup_city,
-          dropoff_city: form.dropoff_city,
+          dropoff_city: effectiveDropoffCity,
           preferred_vehicle: form.preferred_vehicle,
           // Only send addresses once they're reasonably complete — avoids
           // geocoding "1" or "12 A" while the person is still typing.
+          // Locker mode skips address entirely — this is only a city-based
+          // preview; the actual charged price is computed server-side from
+          // the locker's real coordinates at creation time, so it may be
+          // slightly more accurate than what's previewed here.
           pickup_address: form.pickup_address.trim().length > 5 ? form.pickup_address : undefined,
-          dropoff_address: form.dropoff_address.trim().length > 5 ? form.dropoff_address : undefined,
+          dropoff_address: lockerMode ? undefined : (form.dropoff_address.trim().length > 5 ? form.dropoff_address : undefined),
         });
         setEstimate(res.price);
         setEstimateDistance(res.distanceKm);
@@ -185,7 +224,7 @@ export default function CustomerDashboard() {
       }
     }, 500);
     return () => clearTimeout(t);
-  }, [campusMode, form.pickup_city, form.dropoff_city, form.pickup_address, form.dropoff_address, form.preferred_vehicle, token]);
+  }, [campusMode, lockerMode, selectedLocker, form.pickup_city, form.dropoff_city, form.pickup_address, form.dropoff_address, form.preferred_vehicle, token]);
 
   // Campus mode: no geocoding at all — just a direct lookup against the
   // pre-computed landmark_distances table, so it's instant and can never
@@ -285,13 +324,22 @@ export default function CustomerDashboard() {
             <button
               type="button"
               onClick={toggleCampusMode}
-              className={`w-full text-left text-sm font-medium rounded-lg px-3.5 py-2.5 border mb-4 transition-colors ${
+              className={`w-full text-left text-sm font-medium rounded-lg px-3.5 py-2.5 border mb-2 transition-colors ${
                 campusMode ? "border-ink bg-ink text-paper" : "border-slate-300 hover:border-slate-400 text-ink"
               }`}
             >
               {campusMode ? "✓ Delivering within a campus" : "Delivering within a campus?"}
             </button>
           )}
+          <button
+            type="button"
+            onClick={toggleLockerMode}
+            className={`w-full text-left text-sm font-medium rounded-lg px-3.5 py-2.5 border mb-4 transition-colors ${
+              lockerMode ? "border-ink bg-ink text-paper" : "border-slate-300 hover:border-slate-400 text-ink"
+            }`}
+          >
+            {lockerMode ? "✓ Deliver to a locker" : "Deliver to a locker?"}
+          </button>
 
           {campusMode ? (
             <>
@@ -435,29 +483,95 @@ export default function CustomerDashboard() {
                 />
               </Suspense>
 
-              <div className="grid grid-cols-2 gap-x-3">
-                <Field label="Drop-off address">
-                  <input required className={inputClass} value={form.dropoff_address} onChange={(e) => update("dropoff_address", e.target.value)} placeholder="5 Admiralty Way" />
-                </Field>
-                <Field label="Drop-off city">
-                  <select className={inputClass} value={form.dropoff_city} onChange={(e) => update("dropoff_city", e.target.value)}>
-                    {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </Field>
-              </div>
-              <Field label="Drop-off landmark (optional)">
-                <input className={inputClass} value={form.dropoff_landmark} onChange={(e) => update("dropoff_landmark", e.target.value)} placeholder="Near Shoprite entrance" />
-              </Field>
-              <Suspense fallback={null}>
-                <PinMap
-                  token={token}
-                  address={form.dropoff_address}
-                  city={form.dropoff_city}
-                  coords={form.dropoff_coords}
-                  onCoordsChange={(c) => update("dropoff_coords", c)}
-                  suggestOpen={addressLookupFailed}
-                />
-              </Suspense>
+              {lockerMode ? (
+                <div className="border border-slate-200 rounded-lg p-3.5 mb-4 bg-paper">
+                  <div className="flex gap-2 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => { setLockerLocationType("campus"); update("dropoff_locker_id", ""); }}
+                      className={`flex-1 text-xs font-semibold rounded-lg px-3 py-2 border transition-colors ${
+                        lockerLocationType === "campus" ? "border-ink bg-ink text-paper" : "border-slate-300 text-ink"
+                      }`}
+                    >
+                      On a campus
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setLockerLocationType("city"); update("dropoff_locker_id", ""); }}
+                      className={`flex-1 text-xs font-semibold rounded-lg px-3 py-2 border transition-colors ${
+                        lockerLocationType === "city" ? "border-ink bg-ink text-paper" : "border-slate-300 text-ink"
+                      }`}
+                    >
+                      In the city
+                    </button>
+                  </div>
+
+                  {lockerLocationType === "campus" ? (
+                    <Field label="Institution">
+                      <select
+                        className={inputClass}
+                        value={lockerInstitutionId}
+                        onChange={(e) => { setLockerInstitutionId(e.target.value); update("dropoff_locker_id", ""); }}
+                      >
+                        <option value="">Select an institution…</option>
+                        {institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+                      </select>
+                    </Field>
+                  ) : (
+                    <Field label="City">
+                      <select
+                        className={inputClass}
+                        value={lockerCity}
+                        onChange={(e) => { setLockerCity(e.target.value); update("dropoff_locker_id", ""); }}
+                      >
+                        {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </Field>
+                  )}
+
+                  <Field label="Locker">
+                    <select
+                      required={lockerMode}
+                      disabled={lockerLocationType === "campus" && !lockerInstitutionId}
+                      className={inputClass}
+                      value={form.dropoff_locker_id}
+                      onChange={(e) => update("dropoff_locker_id", e.target.value)}
+                    >
+                      <option value="">{lockers.length === 0 ? "No lockers here yet" : "Select a locker…"}</option>
+                      {lockers.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                    </select>
+                  </Field>
+                  {selectedLocker?.address && (
+                    <p className="text-xs text-slate mt-1.5">{selectedLocker.address}</p>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-x-3">
+                    <Field label="Drop-off address">
+                      <input required className={inputClass} value={form.dropoff_address} onChange={(e) => update("dropoff_address", e.target.value)} placeholder="5 Admiralty Way" />
+                    </Field>
+                    <Field label="Drop-off city">
+                      <select className={inputClass} value={form.dropoff_city} onChange={(e) => update("dropoff_city", e.target.value)}>
+                        {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </Field>
+                  </div>
+                  <Field label="Drop-off landmark (optional)">
+                    <input className={inputClass} value={form.dropoff_landmark} onChange={(e) => update("dropoff_landmark", e.target.value)} placeholder="Near Shoprite entrance" />
+                  </Field>
+                  <Suspense fallback={null}>
+                    <PinMap
+                      token={token}
+                      address={form.dropoff_address}
+                      city={form.dropoff_city}
+                      coords={form.dropoff_coords}
+                      onCoordsChange={(c) => update("dropoff_coords", c)}
+                      suggestOpen={addressLookupFailed}
+                    />
+                  </Suspense>
+                </>
+              )}
             </>
           )}
 
@@ -523,7 +637,7 @@ export default function CustomerDashboard() {
           {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
           <button
-            disabled={submitting || (campusMode && (!form.institution_id || !form.pickup_landmark_id || !form.dropoff_landmark_id || form.pickup_landmark_id === form.dropoff_landmark_id))}
+            disabled={submitting || (campusMode && (!form.institution_id || !form.pickup_landmark_id || !form.dropoff_landmark_id || form.pickup_landmark_id === form.dropoff_landmark_id)) || (lockerMode && !form.dropoff_locker_id)}
             className="w-full bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-2.5 transition-colors disabled:opacity-60"
           >
             {submitting ? "Redirecting to payment…" : form.payment_method === "wallet" ? "Pay from wallet" : "Continue to payment"}
