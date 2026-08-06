@@ -10,6 +10,7 @@ const { notifyCustomer, notifyBulkUpload, notifyWebhook } = require("../notify")
 const { recordStreakActivity } = require("../streaks");
 const { checkReferralReward } = require("../referrals");
 const { estimatedDeliveryAt } = require("../eta");
+const { getLocker, dropAtLocker, redeemLocker, listLockers } = require("../lockers");
 
 const router = express.Router();
 
@@ -89,6 +90,78 @@ router.get("/institutions/:id/landmarks", requireAuth, async (req, res) => {
   }
 });
 
+// ---------- LOCKERS (for the locker drop-off picker) — pass either
+// ?institution_id=... for campus lockers, or ?city=... for standalone
+// market/city lockers not tied to any institution. See lockers.js. ----------
+router.get("/lockers", requireAuth, async (req, res) => {
+  try {
+    const { institution_id, city } = req.query;
+    res.json(await listLockers({ institutionId: institution_id || null, city: city || null }));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Couldn't load lockers right now" });
+  }
+});
+
+// Admin-only — the only way a locker row gets created. institution_id is
+// optional (campus locker); when omitted, city is required (standalone
+// market/city locker) — see lockers.js's scope note.
+router.post("/lockers", requireAuth, requireRole("admin"), async (req, res) => {
+  const { institution_id, name, city, address, latitude, longitude, total_slots } = req.body;
+  if (!name || !city) return res.status(400).json({ error: "name and city are required" });
+  try {
+    const id = uuidv4();
+    await pool.query(
+      `INSERT INTO lockers (id, institution_id, name, city, address, latitude, longitude, total_slots)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [id, institution_id || null, name, city, address || null, latitude ?? null, longitude ?? null, total_slots || 20]
+    );
+    res.status(201).json({ id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Couldn't create this locker right now" });
+  }
+});
+
+// ---------- REDEEM A LOCKER PICKUP (no login required — the tracking
+// code + pickup code together are the access key, same trust model as
+// public tracking-by-code. Deliberately not gated to the account holder:
+// a roommate or friend collecting on someone's behalf is a normal case
+// for a locker. This IS the completion moment for a locker delivery
+// (see nextStatusFor below), so it replicates the same agent
+// payout/streak/referral side effects the normal 'delivered' transition
+// triggers elsewhere in this file. ----------
+router.post("/locker-redeem", async (req, res) => {
+  try {
+    const { tracking_code, pickup_code } = req.body;
+    if (!tracking_code || !pickup_code) {
+      return res.status(400).json({ error: "tracking_code and pickup_code are required" });
+    }
+    const delivery = await redeemLocker(tracking_code, pickup_code);
+    if (!delivery) {
+      return res.status(401).json({ error: "Incorrect code, or this delivery isn't waiting at a locker" });
+    }
+
+    if (delivery.agent_id) {
+      await pool.query(
+        `UPDATE agent_profiles SET total_deliveries = total_deliveries + 1, wallet_balance = wallet_balance + $1 WHERE user_id = $2`,
+        [delivery.price * 0.8, delivery.agent_id]
+      );
+      await recordStreakActivity(delivery.agent_id);
+      await checkReferralReward(delivery.agent_id, "agent");
+    }
+    await checkReferralReward(delivery.customer_id, "customer");
+    await logEvent(delivery.id, "delivered", "Picked up from locker");
+
+    notifyCustomer(delivery, "delivered");
+    notifyWebhook(delivery, "delivered");
+    res.json({ delivery });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong completing this pickup" });
+  }
+});
+
 // Looks up a pre-computed distance instead of geocoding — see db.js's
 // landmark_distances comment for why. Same response shape as /estimate
 // below (price, distanceKm) so the frontend can treat both the same way.
@@ -131,9 +204,11 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
       recipient_name, recipient_phone,
       preferred_vehicle, payment_method,
       institution_id, pickup_landmark_id, dropoff_landmark_id,
+      dropoff_locker_id,
     } = req.body;
 
     const isCampusDelivery = institution_id && pickup_landmark_id && dropoff_landmark_id;
+    const isLockerDelivery = Boolean(dropoff_locker_id) && !isCampusDelivery;
 
     let resolvedPickupAddress = pickup_address, resolvedPickupCity = pickup_city;
     let resolvedDropoffAddress = dropoff_address, resolvedDropoffCity = dropoff_city;
@@ -170,6 +245,21 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
       if (!campusQuote) return res.status(400).json({ error: "No distance on file for that pair of landmarks" });
     }
 
+    // Locker mode only overrides the DROP-OFF side — pickup stays whatever
+    // the customer entered normally (address, or campus landmark if that
+    // ends up supported alongside this later). Kept as its own branch
+    // rather than folded into isCampusDelivery above, since a locker isn't
+    // part of any institution's landmark distance matrix.
+    if (isLockerDelivery) {
+      const locker = await getLocker(dropoff_locker_id);
+      if (!locker || !locker.is_active) return res.status(400).json({ error: "Unknown or inactive locker" });
+
+      resolvedDropoffAddress = `${locker.name} (Locker pickup point)`;
+      resolvedDropoffCity = locker.city;
+      resolvedDropoffCoords = isValidCoords({ lat: locker.latitude, lng: locker.longitude })
+        ? { lat: locker.latitude, lng: locker.longitude } : null;
+    }
+
     if (!package_type || !resolvedPickupAddress || !resolvedPickupCity || !resolvedDropoffAddress || !resolvedDropoffCity || !recipient_name || !recipient_phone) {
       return res.status(400).json({ error: "Missing required delivery details" });
     }
@@ -196,6 +286,7 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
       isCampusDelivery ? null : (pickup_landmark || null), isCampusDelivery ? null : (dropoff_landmark || null),
       isCampusDelivery ? institution_id : null, isCampusDelivery ? pickup_landmark_id : null, isCampusDelivery ? dropoff_landmark_id : null,
       estimatedDeliveryAt({ distanceKm: quote.distanceKm, vehicle_type: vehicle }),
+      isLockerDelivery ? dropoff_locker_id : null,
     ];
 
     if (payment_method === "wallet") {
@@ -218,9 +309,9 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
             pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
             pickup_landmark, dropoff_landmark,
             institution_id, pickup_landmark_id, dropoff_landmark_id,
-            estimated_delivery_at,
+            estimated_delivery_at, locker_id,
             payment_status, payment_method
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,'paid','wallet')`,
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,'paid','wallet')`,
           commonFields
         );
 
@@ -258,9 +349,9 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
         pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
         pickup_landmark, dropoff_landmark,
         institution_id, pickup_landmark_id, dropoff_landmark_id,
-        estimated_delivery_at,
+        estimated_delivery_at, locker_id,
         payment_status, paystack_reference, payment_method
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,'unpaid',$25,'paystack')`,
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,'unpaid',$26,'paystack')`,
       [...commonFields, reference]
     );
 
@@ -660,11 +751,17 @@ router.post("/:id/accept", requireAuth, requireRole("agent"), async (req, res) =
 });
 
 // ---------- UPDATE STATUS (agent, own delivery only) ----------
-const NEXT_STATUS = {
-  accepted: "picked_up",
-  picked_up: "in_transit",
-  in_transit: "delivered",
-};
+// 'delivered' is reached two different ways depending on the delivery:
+// directly from 'in_transit' for a normal delivery, or via 'at_locker'
+// first (this endpoint stops there) followed by a customer/holder
+// redeeming the pickup code through POST /locker-redeem below — see
+// lockers.js and db.js's 'at_locker' status comment for the full reasoning.
+function nextStatusFor(delivery) {
+  if (delivery.status === "accepted") return "picked_up";
+  if (delivery.status === "picked_up") return "in_transit";
+  if (delivery.status === "in_transit") return delivery.locker_id ? "at_locker" : "delivered";
+  return null;
+}
 
 router.patch("/:id/advance", requireAuth, requireRole("agent"), async (req, res) => {
   try {
@@ -673,8 +770,25 @@ router.patch("/:id/advance", requireAuth, requireRole("agent"), async (req, res)
     if (!delivery) return res.status(404).json({ error: "Delivery not found" });
     if (delivery.agent_id !== req.user.id) return res.status(403).json({ error: "Not your delivery" });
 
-    const next = NEXT_STATUS[delivery.status];
+    const next = nextStatusFor(delivery);
     if (!next) return res.status(409).json({ error: `Cannot advance a delivery from status '${delivery.status}'` });
+
+    // Locker drop-off needs its own path — slot assignment + pickup code
+    // generation, not a plain status/timestamp update — and it does NOT
+    // trigger the agent payout/streak/referral side effects below; those
+    // only fire once the delivery is actually 'delivered', which for a
+    // locker delivery happens later via /locker-redeem, not here.
+    if (next === "at_locker") {
+      const result = await dropAtLocker(delivery.id, delivery.locker_id);
+      if (!result) {
+        return res.status(409).json({ error: "This locker is currently full. Please contact support before dropping off." });
+      }
+      await logEvent(delivery.id, "at_locker", `Dropped at locker \u2014 slot ${result.slot}`);
+      const { rows: updatedRows } = await pool.query("SELECT * FROM deliveries WHERE id = $1", [delivery.id]);
+      notifyCustomer(updatedRows[0], "at_locker"); // fire-and-forget — should surface the pickup code, see notify.js
+      notifyWebhook(updatedRows[0], "at_locker");
+      return res.json(updatedRows[0]);
+    }
 
     const timestampCol = next === "picked_up" ? "picked_up_at" : next === "delivered" ? "delivered_at" : null;
     if (timestampCol) {

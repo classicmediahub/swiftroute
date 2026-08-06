@@ -362,6 +362,44 @@ async function initSchema() {
     );
   `);
 
+  // --- Lockers — self-collection points at a campus gate or market,
+  // chosen by the customer at delivery creation as the drop-off
+  // destination (see lockers.js). institution_id is nullable: set for
+  // campus lockers, null + city set for standalone market/city lockers
+  // not tied to any institution. ---
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS lockers (
+      id TEXT PRIMARY KEY,
+      institution_id TEXT REFERENCES institutions(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      city TEXT NOT NULL,
+      address TEXT,
+      latitude REAL,
+      longitude REAL,
+      total_slots INTEGER NOT NULL DEFAULT 20,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS locker_id TEXT REFERENCES lockers(id);`);
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS locker_slot INTEGER;`);
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS locker_pickup_code TEXT;`);
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS locker_dropped_at TIMESTAMPTZ;`);
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS locker_picked_up_at TIMESTAMPTZ;`);
+
+  // 'at_locker' sits between 'in_transit' and 'delivered' — an agent
+  // dropping at a locker stops here (see routes/deliveries.js's /advance
+  // NEXT_STATUS logic); 'delivered' only fires once the customer (or
+  // whoever holds the pickup code) redeems it via /locker-redeem. Every
+  // OTHER delivery's status list is unaffected — 'at_locker' just never
+  // appears unless a delivery actually has a locker_id set.
+  await pool.query(`ALTER TABLE deliveries DROP CONSTRAINT IF EXISTS deliveries_status_check;`);
+  await pool.query(`
+    ALTER TABLE deliveries ADD CONSTRAINT deliveries_status_check
+    CHECK (status IN ('pending','accepted','picked_up','in_transit','at_locker','delivered','cancelled'));
+  `);
+
   // --- Referrals (customer + agent) — same "only the referrer earns"
   // model for both roles, only the trigger event differs: a referred
   // customer's first COMPLETED delivery, or a referred agent's first
