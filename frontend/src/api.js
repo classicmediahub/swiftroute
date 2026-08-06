@@ -33,6 +33,10 @@ export const api = {
   verifyEmail: (token) => request("/auth/verify-email", { method: "POST", body: { token } }),
   resendVerificationEmail: (email) => request("/auth/verify-email/resend", { method: "POST", body: { email } }),
   getStreak: (token) => request("/streaks/me", { token }),
+  getAgentReputation: (agentId) => request(`/agents/${agentId}`),
+  submitLandmark: (token, payload) => request("/landmarks/submit", { method: "POST", body: payload, token }),
+  listPendingLandmarks: (token, institutionId) => request(`/landmarks/pending/${institutionId}`, { token }),
+  confirmLandmark: (token, submissionId) => request(`/landmarks/${submissionId}/confirm`, { method: "POST", token }),
 
   estimate: (token, payload) => request("/deliveries/estimate", { method: "POST", body: payload, token }),
   geocodeAddress: (token, payload) => request("/deliveries/geocode", { method: "POST", body: payload, token }),
