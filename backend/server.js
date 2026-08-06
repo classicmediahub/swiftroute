@@ -17,6 +17,7 @@ const rideRoutes = require("./routes/rides");
 const streakRoutes = require("./routes/streaks");
 const reputationRoutes = require("./routes/reputation");
 const whatsappRoutes = require("./routes/whatsapp");
+const landmarkRoutes = require("./routes/landmarks");
 
 const app = express();
 
@@ -46,6 +47,7 @@ app.use("/api/rides", rideRoutes);
 app.use("/api/streaks", streakRoutes);
 app.use("/api/agents", reputationRoutes);
 app.use("/api/whatsapp", whatsappRoutes);
+app.use("/api/landmarks", landmarkRoutes);
 
 app.use((req, res) => res.status(404).json({ error: "Not found" }));
 // eslint-disable-next-line no-unused-vars

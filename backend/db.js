@@ -318,7 +318,48 @@ async function initSchema() {
   await pool.query(`ALTER TABLE wallet_transactions DROP CONSTRAINT IF EXISTS wallet_transactions_type_check;`);
   await pool.query(`
     ALTER TABLE wallet_transactions ADD CONSTRAINT wallet_transactions_type_check
-    CHECK (type IN ('topup','delivery_payment','refund','streak_reward','referral_reward'));
+    CHECK (type IN ('topup','delivery_payment','refund','streak_reward','referral_reward','landmark_reward'));
+  `);
+
+  // --- Crowdsourced landmarks — extends the institution/landmark system
+  // (originally seeded manually, see seed-landmarks.js) so it improves
+  // itself over time instead of staying frozen at whatever was seeded.
+  // A submission only becomes a real, usable landmark (in the `landmarks`
+  // table routes/deliveries.js's picker reads from) once CONFIRMATION_THRESHOLD
+  // independent users vouch for it — see landmarks.js. Kept as its own
+  // table rather than inserting straight into `landmarks`, so an
+  // unverified submission can never accidentally show up in the delivery
+  // picker before it's actually trusted. ---
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS landmark_submissions (
+      id TEXT PRIMARY KEY,
+      institution_id TEXT NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
+      submitted_by TEXT NOT NULL REFERENCES users(id),
+      name TEXT NOT NULL,
+      zone TEXT,
+      latitude REAL,
+      longitude REAL,
+      note TEXT,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+      confirmation_count INTEGER NOT NULL DEFAULT 0,
+      reward_given BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      reviewed_at TIMESTAMPTZ,
+      reviewed_by TEXT REFERENCES users(id)
+    );
+  `);
+
+  // One confirmation per user per submission (UNIQUE below) — stops
+  // someone gaming the threshold by confirming their own or a friend's
+  // submission repeatedly.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS landmark_confirmations (
+      id TEXT PRIMARY KEY,
+      submission_id TEXT NOT NULL REFERENCES landmark_submissions(id) ON DELETE CASCADE,
+      confirmed_by TEXT NOT NULL REFERENCES users(id),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (submission_id, confirmed_by)
+    );
   `);
 
   // --- Referrals (customer + agent) — same "only the referrer earns"
