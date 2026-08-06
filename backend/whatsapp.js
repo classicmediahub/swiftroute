@@ -6,6 +6,7 @@ const { estimatedDeliveryAt } = require("./eta");
 const { trackingCode } = require("./pricing");
 const { initializeTransaction } = require("./paystack");
 const { recordStreakActivity } = require("./streaks");
+const { getAgentReputation } = require("./reputation");
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "https://www.pickandearn.com.ng";
 
@@ -90,6 +91,18 @@ const MENU =
 
 const VEHICLE_MAP = { "1": "any", "2": "bike", "3": "cab", "4": "self" };
 
+// Mirrors frontend/src/pages/TrackPublic.jsx's STAGE_LABELS — kept as a
+// separate copy here rather than a shared import, since this file has no
+// access to frontend code, but should read identically to what the
+// website shows for the same delivery.
+const STATUS_LABELS = {
+  pending: "Order placed \u2014 waiting to be assigned to an agent",
+  accepted: "Agent assigned",
+  picked_up: "Picked up",
+  in_transit: "In transit",
+  delivered: "Delivered \u2705",
+};
+
 async function handleIncomingMessage(waFromRaw, bodyRaw) {
   const phone = String(waFromRaw || "").replace(/^whatsapp:/, "");
   const body = String(bodyRaw || "").trim();
@@ -115,10 +128,48 @@ async function handleIncomingMessage(waFromRaw, bodyRaw) {
       return "Great! Where should we pick up from? (e.g. 12 Allen Avenue)";
     }
     if (body === "2") {
-      await resetSession(phone);
-      return `Tracking via WhatsApp is coming soon! For now, track your delivery at ${FRONTEND_URL}/track`;
+      await saveSession(phone, "awaiting_tracking_code", {});
+      return "What's your tracking code? (e.g. PAE-Y3BCKLH)";
     }
     return "Please reply 1 to send a delivery, or 2 to track one.";
+  }
+
+  if (state === "awaiting_tracking_code") {
+    const code = body.toUpperCase();
+    let delivery;
+    try {
+      const { rows } = await pool.query("SELECT * FROM deliveries WHERE tracking_code = $1", [code]);
+      delivery = rows[0];
+    } catch (err) {
+      console.error("WhatsApp tracking lookup failed:", err.message);
+      return "Sorry, something went wrong looking that up. Please try again in a moment.";
+    }
+
+    if (!delivery) {
+      return `Couldn't find a delivery with tracking code ${code}. Double-check it and send again, or type CANCEL.`;
+    }
+    await resetSession(phone); // one-shot lookup — back to idle once it resolves
+
+    if (delivery.status === "cancelled") {
+      return `\uD83D\uDCE6 ${delivery.tracking_code}\n${delivery.package_type} \u00b7 ${delivery.pickup_city} \u2192 ${delivery.dropoff_city}\n\nThis delivery was cancelled.\n\nSend any message to do something else.`;
+    }
+
+    const statusLine = STATUS_LABELS[delivery.status] || delivery.status;
+    let agentLine = "";
+    if (delivery.agent_id && delivery.status !== "pending") {
+      try {
+        const rep = await getAgentReputation(delivery.agent_id);
+        if (rep) agentLine = `\n\n\uD83D\uDEF5 ${rep.full_name} \u00b7 \u2605 ${rep.rating.toFixed(1)} \u00b7 ${rep.total_deliveries} deliveries`;
+      } catch (err) {
+        console.error("WhatsApp agent lookup failed:", err.message); // non-fatal — status still shows without this line
+      }
+    }
+
+    return (
+      `\uD83D\uDCE6 ${delivery.tracking_code}\n${delivery.package_type} \u00b7 ${delivery.pickup_city} \u2192 ${delivery.dropoff_city}\n\n` +
+      `Status: ${statusLine}${agentLine}\n\n` +
+      `Live map: ${FRONTEND_URL}/track?code=${delivery.tracking_code}\n\nSend any message to do something else.`
+    );
   }
 
   if (state === "awaiting_pickup_address") {
