@@ -53,6 +53,15 @@ export default function CustomerDashboard() {
   const [campusMode, setCampusMode] = useState(false);
   const [institutions, setInstitutions] = useState([]);
   const [landmarks, setLandmarks] = useState([]);
+  const [pendingLandmarks, setPendingLandmarks] = useState([]);
+  const [showSuggestForm, setShowSuggestForm] = useState(false);
+  const [suggestName, setSuggestName] = useState("");
+  const [suggestZone, setSuggestZone] = useState("");
+  const [suggestNote, setSuggestNote] = useState("");
+  const [suggestStatus, setSuggestStatus] = useState("");
+  const [suggestSubmitting, setSuggestSubmitting] = useState(false);
+  const [confirmingId, setConfirmingId] = useState(null);
+  const [confirmError, setConfirmError] = useState("");
 
   useEffect(() => {
     api.listInstitutions(token).then(setInstitutions).catch(() => setInstitutions([]));
@@ -63,15 +72,66 @@ export default function CustomerDashboard() {
     api.listLandmarks(token, form.institution_id).then(setLandmarks).catch(() => setLandmarks([]));
   }, [token, form.institution_id]);
 
+  useEffect(() => {
+    if (!form.institution_id) { setPendingLandmarks([]); return; }
+    api.listPendingLandmarks(token, form.institution_id).then(setPendingLandmarks).catch(() => setPendingLandmarks([]));
+  }, [token, form.institution_id]);
+
   function toggleCampusMode() {
     setCampusMode((v) => !v);
     setEstimate(null);
     setEstimateDistance(null);
+    setShowSuggestForm(false);
+    setSuggestStatus("");
+    setConfirmError("");
     setForm((f) => ({
       ...f,
       institution_id: "", pickup_landmark_id: "", dropoff_landmark_id: "",
       pickup_address: "", dropoff_address: "", pickup_coords: null, dropoff_coords: null,
     }));
+  }
+
+  async function handleSuggestLandmark(e) {
+    e.preventDefault();
+    if (!suggestName.trim()) return;
+    setSuggestSubmitting(true);
+    setSuggestStatus("");
+    try {
+      await api.submitLandmark(token, {
+        institution_id: form.institution_id,
+        name: suggestName.trim(),
+        zone: suggestZone.trim() || undefined,
+        note: suggestNote.trim() || undefined,
+      });
+      setSuggestStatus("Thanks! Your landmark is pending confirmation from other users.");
+      setSuggestName(""); setSuggestZone(""); setSuggestNote("");
+      api.listPendingLandmarks(token, form.institution_id).then(setPendingLandmarks).catch(() => {});
+    } catch (err) {
+      setSuggestStatus(err.message);
+    } finally {
+      setSuggestSubmitting(false);
+    }
+  }
+
+  async function handleConfirmLandmark(submissionId) {
+    setConfirmingId(submissionId);
+    setConfirmError("");
+    try {
+      const result = await api.confirmLandmark(token, submissionId);
+      if (result.promoted) {
+        // newly-usable landmark — refresh the real dropdown options so it's immediately selectable
+        api.listLandmarks(token, form.institution_id).then(setLandmarks).catch(() => {});
+      }
+      setPendingLandmarks((prev) => prev.filter((p) => p.id !== submissionId));
+    } catch (err) {
+      setConfirmError(err.message);
+    } finally {
+      setConfirmingId(null);
+    }
+  }
+
+  function preventEnterSubmit(e) {
+    if (e.key === "Enter") e.preventDefault(); // these inputs live inside the main delivery form — Enter shouldn't trigger it
   }
 
   const refreshWallet = useCallback(() => {
@@ -274,6 +334,79 @@ export default function CustomerDashboard() {
               </div>
               {form.pickup_landmark_id && form.pickup_landmark_id === form.dropoff_landmark_id && (
                 <p className="text-xs text-signal mb-4">Pickup and drop-off landmarks can't be the same.</p>
+              )}
+
+              {form.institution_id && (
+                <div className="border border-slate-200 rounded-lg p-3.5 mb-4 bg-paper">
+                  <button
+                    type="button"
+                    onClick={() => setShowSuggestForm((v) => !v)}
+                    className="text-xs font-semibold text-ink underline"
+                  >
+                    {showSuggestForm ? "Cancel suggestion" : "Can't find your landmark? Suggest one"}
+                  </button>
+
+                  {showSuggestForm && (
+                    <div className="mt-3 space-y-2">
+                      <input
+                        className={inputClass}
+                        placeholder="Landmark name (e.g. New Cafeteria Block)"
+                        value={suggestName}
+                        onChange={(e) => setSuggestName(e.target.value)}
+                        onKeyDown={preventEnterSubmit}
+                      />
+                      <input
+                        className={inputClass}
+                        placeholder="Zone (optional — e.g. Dining, Academic)"
+                        value={suggestZone}
+                        onChange={(e) => setSuggestZone(e.target.value)}
+                        onKeyDown={preventEnterSubmit}
+                      />
+                      <input
+                        className={inputClass}
+                        placeholder="Note (optional — help others recognize it)"
+                        value={suggestNote}
+                        onChange={(e) => setSuggestNote(e.target.value)}
+                        onKeyDown={preventEnterSubmit}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSuggestLandmark}
+                        disabled={suggestSubmitting || !suggestName.trim()}
+                        className="text-xs font-semibold bg-ink text-paper rounded-lg px-3 py-1.5 disabled:opacity-60"
+                      >
+                        {suggestSubmitting ? "Submitting…" : "Submit landmark"}
+                      </button>
+                      {suggestStatus && <p className="text-xs text-slate mt-1.5">{suggestStatus}</p>}
+                    </div>
+                  )}
+
+                  {pendingLandmarks.length > 0 && (
+                    <div className="mt-4 pt-3 border-t border-slate-200">
+                      <div className="text-xs font-semibold text-ink mb-2">Help verify landmarks near you</div>
+                      <div className="space-y-2">
+                        {pendingLandmarks.map((p) => (
+                          <div key={p.id} className="flex items-center justify-between gap-2 text-xs bg-white border border-slate-200 rounded-lg px-3 py-2">
+                            <div>
+                              <div className="font-medium text-ink">{p.name}</div>
+                              {p.note && <div className="text-slate">{p.note}</div>}
+                              <div className="text-slate-light mt-0.5">{p.confirmation_count} of 3 confirmations</div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleConfirmLandmark(p.id)}
+                              disabled={confirmingId === p.id}
+                              className="shrink-0 text-xs font-semibold bg-route hover:bg-route-dark text-ink rounded-lg px-2.5 py-1.5 disabled:opacity-60"
+                            >
+                              {confirmingId === p.id ? "…" : "Confirm"}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      {confirmError && <p className="text-xs text-signal mt-2">{confirmError}</p>}
+                    </div>
+                  )}
+                </div>
               )}
             </>
           ) : (
