@@ -42,6 +42,19 @@ async function getLocker(lockerId) {
   return rows[0] || null;
 }
 
+// Admin-only view — every locker regardless of active status, with the
+// institution name joined in for display (listLockers above deliberately
+// only returns active ones and needs an institutionId/city filter, since
+// it's the customer-facing picker's data source).
+async function listAllLockers() {
+  const { rows } = await pool.query(
+    `SELECT l.*, i.name AS institution_name
+     FROM lockers l LEFT JOIN institutions i ON i.id = l.institution_id
+     ORDER BY l.created_at DESC`
+  );
+  return rows;
+}
+
 // Called from routes/deliveries.js's /advance endpoint when an agent
 // reaches the locker-drop step. Locks the locker's own row for the
 // duration of the transaction (SELECT ... FOR UPDATE) so two agents
@@ -126,4 +139,4 @@ async function redeemLocker(trackingCode, pickupCode) {
   }
 }
 
-module.exports = { listLockers, getLocker, dropAtLocker, redeemLocker, generatePickupCode };
+module.exports = { listLockers, listAllLockers, getLocker, dropAtLocker, redeemLocker, generatePickupCode };

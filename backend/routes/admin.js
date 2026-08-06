@@ -1,6 +1,7 @@
 const express = require("express");
 const { pool } = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
+const { listAllLockers } = require("../lockers");
 
 const router = express.Router();
 router.use(requireAuth, requireRole("admin"));
@@ -155,6 +156,32 @@ router.get("/rides", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong loading rides" });
+  }
+});
+
+// ---------- LOCKERS — creation itself lives in routes/deliveries.js
+// (POST /deliveries/lockers, already admin-gated there) since that's
+// where the customer-facing GET /deliveries/lockers already lives; this
+// file just adds the admin-only "see everything, toggle active" view on
+// top of the same lockers table. ----------
+router.get("/lockers", async (req, res) => {
+  try {
+    res.json(await listAllLockers());
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong loading lockers" });
+  }
+});
+
+router.patch("/lockers/:id/status", async (req, res) => {
+  try {
+    const { is_active } = req.body;
+    if (typeof is_active !== "boolean") return res.status(400).json({ error: "is_active must be true or false" });
+    await pool.query("UPDATE lockers SET is_active = $1 WHERE id = $2", [is_active, req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong updating this locker" });
   }
 });
 
