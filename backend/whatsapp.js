@@ -7,6 +7,7 @@ const { trackingCode } = require("./pricing");
 const { initializeTransaction } = require("./paystack");
 const { recordStreakActivity } = require("./streaks");
 const { getAgentReputation } = require("./reputation");
+const { generateReferralCode } = require("./referrals");
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "https://www.pickandearn.com.ng";
 
@@ -58,12 +59,26 @@ async function findOrCreateUserByPhone(waPhoneRaw) {
   const id = uuidv4();
   const hash = bcrypt.hashSync(uuidv4(), 10); // random password — this account is only ever accessed via WhatsApp, never logged into directly
 
-  await pool.query(
-    `INSERT INTO users (id, role, full_name, email, phone, password_hash, account_type)
-     VALUES ($1, 'customer', 'WhatsApp Customer', $2, $3, $4, 'individual')
-     ON CONFLICT (email) DO NOTHING`,
-    [id, fakeEmail, `+${digits}`, hash]
-  );
+  // referral_code is NOT NULL on users (see db.js), so it has to be set in
+  // this same INSERT, not added afterward — retrying on collision mirrors
+  // referrals.js's own assignUniqueReferralCode, just inline here since
+  // this INSERT already needs its own single round-trip.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = generateReferralCode();
+    try {
+      await pool.query(
+        `INSERT INTO users (id, role, full_name, email, phone, password_hash, account_type, referral_code)
+         VALUES ($1, 'customer', 'WhatsApp Customer', $2, $3, $4, 'individual', $5)
+         ON CONFLICT (email) DO NOTHING`,
+        [id, fakeEmail, `+${digits}`, hash, code]
+      );
+      break;
+    } catch (err) {
+      if (err.code === "23505" && attempt < 4) continue; // referral_code collision — try another
+      throw err;
+    }
+  }
+
   const { rows: created } = await pool.query("SELECT * FROM users WHERE email = $1", [fakeEmail]);
   return created[0];
 }
