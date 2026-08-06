@@ -37,6 +37,13 @@ export const api = {
   submitLandmark: (token, payload) => request("/landmarks/submit", { method: "POST", body: payload, token }),
   listPendingLandmarks: (token, institutionId) => request(`/landmarks/pending/${institutionId}`, { token }),
   confirmLandmark: (token, submissionId) => request(`/landmarks/${submissionId}/confirm`, { method: "POST", token }),
+  listLockers: (token, { institutionId, city } = {}) => {
+    const params = new URLSearchParams();
+    if (institutionId) params.set("institution_id", institutionId);
+    if (city) params.set("city", city);
+    return request(`/deliveries/lockers?${params.toString()}`, { token });
+  },
+  redeemLocker: (payload) => request("/deliveries/locker-redeem", { method: "POST", body: payload }),
 
   estimate: (token, payload) => request("/deliveries/estimate", { method: "POST", body: payload, token }),
   geocodeAddress: (token, payload) => request("/deliveries/geocode", { method: "POST", body: payload, token }),
