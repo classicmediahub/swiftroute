@@ -37,15 +37,24 @@ export default function AdminDashboard() {
   const [customers, setCustomers] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
   const [rides, setRides] = useState([]);
+  const [lockers, setLockers] = useState([]);
+  const [institutions, setInstitutions] = useState([]);
   const [busyId, setBusyId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showLockerForm, setShowLockerForm] = useState(false);
+  const [lockerForm, setLockerForm] = useState({
+    name: "", city: "Lagos", address: "", institution_id: "", total_slots: 20,
+  });
+  const [lockerFormError, setLockerFormError] = useState("");
+  const [lockerSubmitting, setLockerSubmitting] = useState(false);
 
   const loadAll = useCallback(async () => {
     try {
-      const [s, a, c, d, r] = await Promise.all([
+      const [s, a, c, d, r, l, i] = await Promise.all([
         api.adminStats(token), api.adminAgents(token), api.adminCustomers(token), api.adminDeliveries(token), api.adminRides(token),
+        api.adminLockers(token), api.listInstitutions(token),
       ]);
-      setStats(s); setAgents(a); setCustomers(c); setDeliveries(d); setRides(r);
+      setStats(s); setAgents(a); setCustomers(c); setDeliveries(d); setRides(r); setLockers(l); setInstitutions(i);
     } finally {
       setLoading(false);
     }
@@ -69,6 +78,41 @@ export default function AdminDashboard() {
     setBusyId(id);
     try {
       await api.setUserStatus(token, id, current === "active" ? "suspended" : "active");
+      await loadAll();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleCreateLocker(e) {
+    e.preventDefault();
+    if (!lockerForm.name.trim() || !lockerForm.city.trim()) return;
+    setLockerSubmitting(true);
+    setLockerFormError("");
+    try {
+      await api.createLocker(token, {
+        name: lockerForm.name.trim(),
+        city: lockerForm.city.trim(),
+        address: lockerForm.address.trim() || undefined,
+        institution_id: lockerForm.institution_id || undefined,
+        total_slots: Number(lockerForm.total_slots) || 20,
+      });
+      setLockerForm({ name: "", city: "Lagos", address: "", institution_id: "", total_slots: 20 });
+      setShowLockerForm(false);
+      await loadAll();
+    } catch (err) {
+      setLockerFormError(err.message);
+    } finally {
+      setLockerSubmitting(false);
+    }
+  }
+
+  async function toggleLockerStatus(id, current) {
+    setBusyId(id);
+    try {
+      await api.setLockerStatus(token, id, !current);
       await loadAll();
     } catch (err) {
       alert(err.message);
@@ -106,6 +150,7 @@ export default function AdminDashboard() {
         <TabButton active={tab === "customers"} onClick={() => setTab("customers")}>Customers ({customers.length})</TabButton>
         <TabButton active={tab === "deliveries"} onClick={() => setTab("deliveries")}>Deliveries ({deliveries.length})</TabButton>
         <TabButton active={tab === "rides"} onClick={() => setTab("rides")}>Rides ({rides.length})</TabButton>
+        <TabButton active={tab === "lockers"} onClick={() => setTab("lockers")}>Lockers ({lockers.length})</TabButton>
       </div>
 
       {tab === "agents" && (
@@ -282,6 +327,131 @@ export default function AdminDashboard() {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {tab === "lockers" && (
+        <div>
+          <div className="mb-4">
+            <button
+              onClick={() => setShowLockerForm((v) => !v)}
+              className="text-sm font-semibold bg-ink text-paper rounded-lg px-4 py-2.5"
+            >
+              {showLockerForm ? "Cancel" : "+ Add a locker"}
+            </button>
+          </div>
+
+          {showLockerForm && (
+            <form onSubmit={handleCreateLocker} className="border border-slate-200 rounded-xl p-5 mb-6 bg-white grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-mono text-slate uppercase mb-1.5">Name</label>
+                <input
+                  required
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                  placeholder="Covenant University Main Gate Locker"
+                  value={lockerForm.name}
+                  onChange={(e) => setLockerForm((f) => ({ ...f, name: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-mono text-slate uppercase mb-1.5">Institution (optional — leave blank for a standalone city locker)</label>
+                <select
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                  value={lockerForm.institution_id}
+                  onChange={(e) => setLockerForm((f) => ({ ...f, institution_id: e.target.value }))}
+                >
+                  <option value="">Standalone (not tied to an institution)</option>
+                  {institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-mono text-slate uppercase mb-1.5">City</label>
+                <input
+                  required
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                  placeholder="Lagos"
+                  value={lockerForm.city}
+                  onChange={(e) => setLockerForm((f) => ({ ...f, city: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-mono text-slate uppercase mb-1.5">Total slots</label>
+                <input
+                  type="number"
+                  min={1}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                  value={lockerForm.total_slots}
+                  onChange={(e) => setLockerForm((f) => ({ ...f, total_slots: e.target.value }))}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-mono text-slate uppercase mb-1.5">Address / description (optional)</label>
+                <input
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                  placeholder="Beside the security post, Main Gate"
+                  value={lockerForm.address}
+                  onChange={(e) => setLockerForm((f) => ({ ...f, address: e.target.value }))}
+                />
+              </div>
+              {lockerFormError && <p className="sm:col-span-2 text-sm text-red-600">{lockerFormError}</p>}
+              <div className="sm:col-span-2">
+                <button
+                  disabled={lockerSubmitting}
+                  className="text-sm font-semibold bg-route hover:bg-route-dark text-ink rounded-lg px-4 py-2.5 disabled:opacity-60"
+                >
+                  {lockerSubmitting ? "Creating…" : "Create locker"}
+                </button>
+              </div>
+            </form>
+          )}
+
+          <div className="overflow-x-auto border border-slate-200 rounded-xl">
+            <table className="w-full text-sm">
+              <thead className="bg-paper text-left text-xs text-slate uppercase font-mono">
+                <tr>
+                  <th className="px-4 py-3">Locker</th>
+                  <th className="px-4 py-3">Location</th>
+                  <th className="px-4 py-3">Slots</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lockers.map((l) => (
+                  <tr key={l.id} className="border-t border-slate-100">
+                    <td className="px-4 py-3">
+                      <div className="font-medium">{l.name}</div>
+                      {l.address && <div className="text-xs text-slate">{l.address}</div>}
+                    </td>
+                    <td className="px-4 py-3">
+                      {l.institution_name ? (
+                        <span>{l.institution_name}</span>
+                      ) : (
+                        <span>{l.city} <span className="text-slate text-xs">(standalone)</span></span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 font-mono">{l.total_slots}</td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${l.is_active ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}`}>
+                        {l.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <ActionBtn
+                        busy={busyId === l.id}
+                        onClick={() => toggleLockerStatus(l.id, l.is_active)}
+                        label={l.is_active ? "Deactivate" : "Activate"}
+                        tone={l.is_active ? "negative" : "positive"}
+                      />
+                    </td>
+                  </tr>
+                ))}
+                {lockers.length === 0 && (
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-slate">No lockers yet — add your first one above.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

@@ -44,6 +44,9 @@ export const api = {
     return request(`/deliveries/lockers?${params.toString()}`, { token });
   },
   redeemLocker: (payload) => request("/deliveries/locker-redeem", { method: "POST", body: payload }),
+  adminLockers: (token) => request("/admin/lockers", { token }),
+  createLocker: (token, payload) => request("/deliveries/lockers", { method: "POST", body: payload, token }),
+  setLockerStatus: (token, id, is_active) => request(`/admin/lockers/${id}/status`, { method: "PATCH", body: { is_active }, token }),
 
   estimate: (token, payload) => request("/deliveries/estimate", { method: "POST", body: payload, token }),
   geocodeAddress: (token, payload) => request("/deliveries/geocode", { method: "POST", body: payload, token }),
