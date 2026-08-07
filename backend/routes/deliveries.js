@@ -11,6 +11,7 @@ const { recordStreakActivity } = require("../streaks");
 const { checkReferralReward } = require("../referrals");
 const { estimatedDeliveryAt } = require("../eta");
 const { getLocker, dropAtLocker, redeemLocker, listLockers } = require("../lockers");
+const { findOrCreatePool, rebalancePoolPricing, discountForSize, getPool, listPoolMembers, claimPool, listClaimablePools } = require("../pooling");
 
 const router = express.Router();
 
@@ -204,11 +205,12 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
       recipient_name, recipient_phone,
       preferred_vehicle, payment_method,
       institution_id, pickup_landmark_id, dropoff_landmark_id,
-      dropoff_locker_id,
+      dropoff_locker_id, pool_delivery,
     } = req.body;
 
     const isCampusDelivery = institution_id && pickup_landmark_id && dropoff_landmark_id;
     const isLockerDelivery = Boolean(dropoff_locker_id) && !isCampusDelivery;
+    const isPoolDelivery = Boolean(isCampusDelivery && pool_delivery); // pooling only applies within a campus — see pooling.js
 
     let resolvedPickupAddress = pickup_address, resolvedPickupCity = pickup_city;
     let resolvedDropoffAddress = dropoff_address, resolvedDropoffCity = dropoff_city;
@@ -245,6 +247,28 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
       if (!campusQuote) return res.status(400).json({ error: "No distance on file for that pair of landmarks" });
     }
 
+    // Pool join — brief, self-contained transaction just to claim a spot
+    // in an open pool (or start one). A failure here degrades gracefully:
+    // poolId stays null and this delivery just proceeds as a normal,
+    // full-price campus delivery rather than failing the whole request.
+    let poolId = null;
+    let poolMemberCountAfterJoin = null;
+    if (isPoolDelivery) {
+      const poolClient = await pool.connect();
+      try {
+        await poolClient.query("BEGIN");
+        const { poolId: pid, priorMemberCount } = await findOrCreatePool(poolClient, institution_id);
+        await poolClient.query("COMMIT");
+        poolId = pid;
+        poolMemberCountAfterJoin = priorMemberCount + 1;
+      } catch (err) {
+        await poolClient.query("ROLLBACK").catch(() => {});
+        console.error("Pool join failed, proceeding without pooling:", err.message);
+      } finally {
+        poolClient.release();
+      }
+    }
+
     // Locker mode only overrides the DROP-OFF side — pickup stays whatever
     // the customer entered normally (address, or campus landmark if that
     // ends up supported alongside this later). Kept as its own branch
@@ -274,7 +298,15 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
           pickup_coords: isValidCoords(resolvedPickupCoords) ? resolvedPickupCoords : null,
           dropoff_coords: isValidCoords(resolvedDropoffCoords) ? resolvedDropoffCoords : null,
         });
-    const price = quote.price;
+
+    // Pool discount applies on top of whatever price was already
+    // computed above — this delivery's OWN price reflects the group size
+    // at the moment it joins; existing members get rebalanced separately
+    // after insert (see the rebalancePoolPricing call further down).
+    const poolOriginalPrice = poolId ? quote.price : null;
+    const price = poolId
+      ? Math.round((quote.price * (1 - discountForSize(poolMemberCountAfterJoin))) / 50) * 50
+      : quote.price;
     const id = uuidv4();
     const code = trackingCode();
 
@@ -287,6 +319,7 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
       isCampusDelivery ? institution_id : null, isCampusDelivery ? pickup_landmark_id : null, isCampusDelivery ? dropoff_landmark_id : null,
       estimatedDeliveryAt({ distanceKm: quote.distanceKm, vehicle_type: vehicle }),
       isLockerDelivery ? dropoff_locker_id : null,
+      poolId, poolOriginalPrice,
     ];
 
     if (payment_method === "wallet") {
@@ -309,9 +342,9 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
             pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
             pickup_landmark, dropoff_landmark,
             institution_id, pickup_landmark_id, dropoff_landmark_id,
-            estimated_delivery_at, locker_id,
+            estimated_delivery_at, locker_id, pool_id, pool_original_price,
             payment_status, payment_method
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,'paid','wallet')`,
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,'paid','wallet')`,
           commonFields
         );
 
@@ -333,6 +366,12 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
       await logEvent(id, "pending", "Delivery request created and paid from wallet");
       await logEvent(id, "payment_confirmed", "Paid instantly from wallet balance");
       await recordStreakActivity(req.user.id); // customer streak day: order placed
+
+      if (poolId && poolMemberCountAfterJoin > 1) {
+        rebalancePoolPricing(poolId, poolMemberCountAfterJoin, id, process.env.FRONTEND_URL || "http://localhost:5173")
+          .catch((err) => console.error("Pool rebalance (wallet path) failed:", err.message));
+      }
+
       const { rows } = await pool.query("SELECT * FROM deliveries WHERE id = $1", [id]);
       notifyCustomer(rows[0], "payment_confirmed"); // fire-and-forget
       notifyWebhook(rows[0], "payment_confirmed"); // fire-and-forget
@@ -349,11 +388,16 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
         pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
         pickup_landmark, dropoff_landmark,
         institution_id, pickup_landmark_id, dropoff_landmark_id,
-        estimated_delivery_at, locker_id,
+        estimated_delivery_at, locker_id, pool_id, pool_original_price,
         payment_status, paystack_reference, payment_method
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,'unpaid',$26,'paystack')`,
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,'unpaid',$28,'paystack')`,
       [...commonFields, reference]
     );
+
+    if (poolId && poolMemberCountAfterJoin > 1) {
+      rebalancePoolPricing(poolId, poolMemberCountAfterJoin, id, process.env.FRONTEND_URL || "http://localhost:5173")
+        .catch((err) => console.error("Pool rebalance (paystack path) failed:", err.message));
+    }
 
     await logEvent(id, "pending", "Delivery request created — awaiting payment");
     await recordStreakActivity(req.user.id); // customer streak day: order placed (not payment-gated — placing counts)
@@ -686,7 +730,67 @@ router.get("/available", requireAuth, requireRole("agent"), async (req, res) => 
   }
 });
 
-// ---------- MY ASSIGNED DELIVERIES (agent) ----------
+// ---------- CLAIMABLE POOLS (agent) — pools with 2+ paid, still-pending
+// members, going to the same institution. Separate from /available since
+// a pool is claimed as one action covering multiple deliveries, not
+// browsed delivery-by-delivery — see POST /pools/:poolId/accept. ----------
+router.get("/pools/claimable", requireAuth, requireRole("agent"), async (req, res) => {
+  try {
+    const { rows: profileRows } = await pool.query("SELECT * FROM agent_profiles WHERE user_id = $1", [req.user.id]);
+    const profile = profileRows[0];
+    if (!profile || profile.approval_status !== "approved") {
+      return res.status(403).json({ error: "Your agent account is pending admin approval" });
+    }
+    res.json(await listClaimablePools());
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong loading claimable pools" });
+  }
+});
+
+router.get("/pools/:poolId/members", requireAuth, requireRole("agent"), async (req, res) => {
+  try {
+    res.json(await listPoolMembers(req.params.poolId));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong loading this pool" });
+  }
+});
+
+// ---------- ACCEPT A WHOLE POOL (agent) — one action assigns this agent
+// to every paid, still-pending delivery in the pool at once and closes
+// it to new joiners. See pooling.js's claimPool for the race-safe
+// locking (mirrors the same FOR UPDATE pattern the single-delivery
+// /:id/accept above uses, just across multiple rows at once). ----------
+router.post("/pools/:poolId/accept", requireAuth, requireRole("agent"), async (req, res) => {
+  try {
+    const { rows: profileRows } = await pool.query("SELECT * FROM agent_profiles WHERE user_id = $1", [req.user.id]);
+    const profile = profileRows[0];
+    if (!profile || profile.approval_status !== "approved") {
+      return res.status(403).json({ error: "Your agent account is pending admin approval" });
+    }
+
+    const acceptedIds = await claimPool(req.params.poolId, req.user.id);
+    if (!acceptedIds) {
+      return res.status(409).json({ error: "This pool is no longer available \u2014 it may have already been claimed." });
+    }
+
+    for (const deliveryId of acceptedIds) {
+      await logEvent(deliveryId, "accepted", "Accepted as part of a pooled campus delivery");
+    }
+    const { rows } = await pool.query("SELECT * FROM deliveries WHERE id = ANY($1)", [acceptedIds]);
+    rows.forEach((d) => {
+      notifyCustomer(d, "accepted");
+      notifyWebhook(d, "accepted");
+    });
+    res.json({ accepted: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong accepting this pool" });
+  }
+});
+
+
 router.get("/assigned", requireAuth, requireRole("agent"), async (req, res) => {
   try {
     const { rows } = await pool.query(

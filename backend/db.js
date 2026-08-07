@@ -447,6 +447,28 @@ async function initSchema() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
+
+  // --- Delivery pooling (campus clusters) — see pooling.js. A pool
+  // stays 'open' for POOL_WINDOW_MINUTES so other deliveries to the same
+  // institution can join; whichever agent accepts one pooled delivery
+  // gets offered the WHOLE pool as one job (see routes/deliveries.js's
+  // POST /pools/:id/accept), at which point status flips to 'claimed'
+  // and no new deliveries can join. pool_original_price on `deliveries`
+  // is the pre-discount baseline — needed because rebalancePoolPricing
+  // recomputes every member's discount off their TRUE original price
+  // each time the group grows, never off an already-discounted price. ---
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS delivery_pools (
+      id TEXT PRIMARY KEY,
+      institution_id TEXT NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
+      status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','claimed','expired')),
+      agent_id TEXT REFERENCES users(id),
+      expires_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS pool_id TEXT REFERENCES delivery_pools(id);`);
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS pool_original_price REAL;`);
 }
 
 module.exports = { pool, initSchema };
