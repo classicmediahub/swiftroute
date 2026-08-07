@@ -6,7 +6,7 @@ const { pool } = require("../db");
 const { compareFaces, checkLiveness } = require("../face");
 const { verifyNIN } = require("../nin");
 const { sendEmail } = require("../notifications");
-const { assignUniqueReferralCode, attachReferrer } = require("../referrals");
+const { generateReferralCode, attachReferrer } = require("../referrals");
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -70,12 +70,27 @@ router.post("/signup/customer", async (req, res) => {
     const id = uuidv4();
     const hash = bcrypt.hashSync(password, 10);
     const accountType = is_business ? "business" : "individual";
-    await pool.query(
-      `INSERT INTO users (id, role, full_name, email, phone, password_hash, account_type, company_name)
-       VALUES ($1, 'customer', $2, $3, $4, $5, $6, $7)`,
-      [id, full_name, email.toLowerCase(), phone, hash, accountType, is_business ? company_name : null]
-    );
-    await assignUniqueReferralCode(id); // give this new customer their own shareable code
+
+    // referral_code is NOT NULL with no default (see db.js) — it has to
+    // be part of THIS insert, not set afterward. An UPDATE after the fact
+    // can never run, because the INSERT itself would already have failed
+    // the NOT NULL check first. Retrying on collision here for the same
+    // reason referrals.js's own helpers do.
+    let insertedRow = false;
+    for (let attempt = 0; attempt < 5 && !insertedRow; attempt++) {
+      const code = generateReferralCode();
+      try {
+        await pool.query(
+          `INSERT INTO users (id, role, full_name, email, phone, password_hash, account_type, company_name, referral_code)
+           VALUES ($1, 'customer', $2, $3, $4, $5, $6, $7, $8)`,
+          [id, full_name, email.toLowerCase(), phone, hash, accountType, is_business ? company_name : null, code]
+        );
+        insertedRow = true;
+      } catch (err) {
+        if (err.code === "23505" && attempt < 4) continue; // referral_code or email collision — retry with a fresh code
+        throw err;
+      }
+    }
     await attachReferrer(id, referral_code); // link them to whoever referred them, if anyone (no-ops on missing/invalid code)
 
     const { rows } = await pool.query("SELECT * FROM users WHERE id = $1", [id]);
@@ -152,10 +167,21 @@ router.post("/signup/agent", async (req, res) => {
     const id = uuidv4();
     const hash = bcrypt.hashSync(password, 10);
 
-    await pool.query(
-      `INSERT INTO users (id, role, full_name, email, phone, password_hash, profile_photo) VALUES ($1, 'agent', $2, $3, $4, $5, $6)`,
-      [id, full_name, email.toLowerCase(), phone, hash, profile_photo]
-    );
+    let insertedRow = false;
+    for (let attempt = 0; attempt < 5 && !insertedRow; attempt++) {
+      const code = generateReferralCode();
+      try {
+        await pool.query(
+          `INSERT INTO users (id, role, full_name, email, phone, password_hash, profile_photo, referral_code)
+           VALUES ($1, 'agent', $2, $3, $4, $5, $6, $7)`,
+          [id, full_name, email.toLowerCase(), phone, hash, profile_photo, code]
+        );
+        insertedRow = true;
+      } catch (err) {
+        if (err.code === "23505" && attempt < 4) continue;
+        throw err;
+      }
+    }
 
     await pool.query(
       `INSERT INTO agent_profiles
@@ -165,7 +191,6 @@ router.post("/signup/agent", async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, now(), $9, true, now())`,
       [id, vehicle_type, vehicle_make || null, vehicle_plate || null, license_number || null, city, date_of_birth, nin, ninResult.verificationMethod || "format_only"]
     );
-    await assignUniqueReferralCode(id); // give this new agent their own shareable code
     await attachReferrer(id, referral_code); // link them to whoever referred them, if anyone (no-ops on missing/invalid code)
 
     const { rows: userRows } = await pool.query("SELECT * FROM users WHERE id = $1", [id]);
@@ -197,10 +222,20 @@ router.post("/signup/admin", async (req, res) => {
 
     const id = uuidv4();
     const hash = bcrypt.hashSync(password, 10);
-    await pool.query(
-      `INSERT INTO users (id, role, full_name, email, phone, password_hash) VALUES ($1, 'admin', $2, $3, $4, $5)`,
-      [id, full_name, email.toLowerCase(), phone, hash]
-    );
+    let insertedRow = false;
+    for (let attempt = 0; attempt < 5 && !insertedRow; attempt++) {
+      const code = generateReferralCode();
+      try {
+        await pool.query(
+          `INSERT INTO users (id, role, full_name, email, phone, password_hash, referral_code) VALUES ($1, 'admin', $2, $3, $4, $5, $6)`,
+          [id, full_name, email.toLowerCase(), phone, hash, code]
+        );
+        insertedRow = true;
+      } catch (err) {
+        if (err.code === "23505" && attempt < 4) continue;
+        throw err;
+      }
+    }
 
     const { rows } = await pool.query("SELECT * FROM users WHERE id = $1", [id]);
     const user = rows[0];
