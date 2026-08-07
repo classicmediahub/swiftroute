@@ -15,6 +15,7 @@ import WalletCallback from "./pages/WalletCallback";
 import RequestRide from "./pages/RequestRide";
 import RideCallback from "./pages/RideCallback";
 import TrackPublic from "./pages/TrackPublic";
+import RedeemLocker from "./pages/RedeemLocker";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -38,6 +39,7 @@ const routes = [
       { path: "signup/agent", Component: SignupAgent },
       { path: "signup/admin", Component: SignupAdmin },
       { path: "track", Component: TrackPublic },
+      { path: "redeem-locker", Component: RedeemLocker },
       { path: "about", Component: About },
       { path: "contact", Component: Contact },
       { path: "privacy", Component: PrivacyPolicy },
