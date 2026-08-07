@@ -47,6 +47,12 @@ export const api = {
   adminLockers: (token) => request("/admin/lockers", { token }),
   createLocker: (token, payload) => request("/deliveries/lockers", { method: "POST", body: payload, token }),
   setLockerStatus: (token, id, is_active) => request(`/admin/lockers/${id}/status`, { method: "PATCH", body: { is_active }, token }),
+  claimablePools: (token) => request("/deliveries/pools/claimable", { token }),
+  poolMembers: (token, poolId) => request(`/deliveries/pools/${poolId}/members`, { token }),
+  acceptPool: (token, poolId) => request(`/deliveries/pools/${poolId}/accept`, { method: "POST", token }),
+  listClaimablePools: (token) => request("/deliveries/pools/claimable", { token }),
+  getPoolMembers: (token, poolId) => request(`/deliveries/pools/${poolId}/members`, { token }),
+  acceptPool: (token, poolId) => request(`/deliveries/pools/${poolId}/accept`, { method: "POST", token }),
 
   estimate: (token, payload) => request("/deliveries/estimate", { method: "POST", body: payload, token }),
   geocodeAddress: (token, payload) => request("/deliveries/geocode", { method: "POST", body: payload, token }),
