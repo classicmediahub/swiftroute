@@ -7,11 +7,17 @@ import StatusBadge from "../components/StatusBadge";
 import StarRating from "../components/StarRating";
 import ShareLocationToggle from "../components/ShareLocationToggle";
 
-const NEXT_LABEL = {
-  accepted: "Mark picked up",
-  picked_up: "Mark in transit",
-  in_transit: "Mark delivered",
-};
+// 'in_transit' branches two ways depending on whether this delivery has a
+// locker_id: a normal delivery goes straight to "delivered", a locker
+// delivery stops at "at_locker" instead (see backend/routes/deliveries.js's
+// nextStatusFor) — the button label needs to reflect which one is actually
+// about to happen, not always say "Mark delivered".
+function nextLabelFor(d) {
+  if (d.status === "accepted") return "Mark picked up";
+  if (d.status === "picked_up") return "Mark in transit";
+  if (d.status === "in_transit") return d.locker_id ? "Drop off at locker" : "Mark delivered";
+  return null; // covers 'at_locker' too — no further agent action, see the pickup-code card instead
+}
 
 const RIDE_NEXT_LABEL = {
   accepted: "Start trip",
@@ -276,16 +282,31 @@ export default function AgentDashboard() {
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="font-mono text-sm font-semibold">₦{d.price.toLocaleString()}</span>
-                        {NEXT_LABEL[d.status] && (
+                        {nextLabelFor(d) && (
                           <button
                             disabled={busyId === d.id}
                             onClick={() => handleAdvance(d.id)}
                             className="text-xs font-semibold bg-route hover:bg-route-dark text-ink rounded-lg px-3 py-2 transition-colors disabled:opacity-60"
                           >
-                            {busyId === d.id ? "Updating…" : NEXT_LABEL[d.status]}
+                            {busyId === d.id ? "Updating…" : nextLabelFor(d)}
                           </button>
                         )}
                       </div>
+                      {d.status === "at_locker" && (
+                        <div className="border border-route/40 bg-route/10 rounded-lg p-3 mt-3">
+                          <div className="text-xs font-semibold text-route-dark mb-1.5">
+                            Dropped at locker — awaiting pickup
+                          </div>
+                          <div className="text-sm text-ink">
+                            Slot <span className="font-mono font-semibold">{d.locker_slot}</span>
+                            {"  \u00b7  "}
+                            Pickup code <span className="font-mono font-semibold text-base">{d.locker_pickup_code}</span>
+                          </div>
+                          <div className="text-xs text-slate mt-1.5">
+                            The customer needs both this code and their tracking code to collect it — share it if they haven't received it already.
+                          </div>
+                        </div>
+                      )}
                       <div className="border-t border-slate-100 mt-3 pt-3">
                         <ShareLocationToggle
                           deliveryId={d.id}
