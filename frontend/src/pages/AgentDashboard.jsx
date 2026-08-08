@@ -38,6 +38,8 @@ export default function AgentDashboard() {
   const [tab, setTab] = useState("available");
   const [available, setAvailable] = useState([]);
   const [assigned, setAssigned] = useState([]);
+  const [pools, setPools] = useState([]);
+  const [poolBusyId, setPoolBusyId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState("");
@@ -67,9 +69,17 @@ export default function AgentDashboard() {
   const loadAll = useCallback(async () => {
     if (!isApproved) { setLoading(false); return; }
     try {
-      const [avail, mine] = await Promise.all([api.availableDeliveries(token), api.assignedDeliveries(token)]);
-      setAvailable(avail);
+      const [avail, mine, claimable] = await Promise.all([
+        api.availableDeliveries(token), api.assignedDeliveries(token), api.claimablePools(token),
+      ]);
+      // Pooled deliveries are shown exclusively via the pools section below
+      // (batch-accept only) — excluded here so an agent can't cherry-pick
+      // just one delivery out of a pool through the normal "Accept job"
+      // button, which would defeat the whole point of pooling (guaranteeing
+      // one agent handles the whole cluster in one trip).
+      setAvailable(avail.filter((d) => !d.pool_id));
       setAssigned(mine);
+      setPools(claimable);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -104,6 +114,19 @@ export default function AgentDashboard() {
       alert(err.message);
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function handleAcceptPool(poolId) {
+    setPoolBusyId(poolId);
+    try {
+      await api.acceptPool(token, poolId);
+      await loadAll();
+      setTab("mine");
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setPoolBusyId(null);
     }
   }
 
@@ -224,6 +247,30 @@ export default function AgentDashboard() {
               </div>
 
               {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+              {!loading && tab === "available" && pools.length > 0 && (
+                <div className="space-y-3 mb-4">
+                  {pools.map((p) => (
+                    <div key={p.pool_id} className="border border-route/40 bg-route/10 rounded-xl p-4 flex items-center justify-between gap-4">
+                      <div>
+                        <div className="text-xs font-semibold text-route-dark mb-1">
+                          POOL · {p.member_count} deliveries together
+                        </div>
+                        <div className="font-semibold text-sm">{p.institution_name}</div>
+                        <div className="text-xs text-slate mt-0.5">
+                          Accept once to take the whole group as a single trip.
+                        </div>
+                      </div>
+                      <button
+                        disabled={poolBusyId === p.pool_id}
+                        onClick={() => handleAcceptPool(p.pool_id)}
+                        className="shrink-0 text-xs font-semibold bg-route hover:bg-route-dark text-ink rounded-lg px-3.5 py-2.5 transition-colors disabled:opacity-60"
+                      >
+                        {poolBusyId === p.pool_id ? "Accepting…" : `Accept pool (${p.member_count})`}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
               {loading ? (
                 <p className="text-sm text-slate">Loading…</p>
               ) : tab === "available" ? (
