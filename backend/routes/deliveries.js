@@ -13,6 +13,13 @@ const { estimatedDeliveryAt } = require("../eta");
 const { getLocker, dropAtLocker, redeemLocker, listLockers } = require("../lockers");
 const { findOrCreatePool, rebalancePoolPricing, discountForSize, getPool, listPoolMembers, claimPool, listClaimablePools } = require("../pooling");
 
+// Same shape-check as auth.js uses for the agent signup photo — not
+// verifying it's a real photo of anything in particular, just that it's
+// plausibly image data and not an empty/garbage string.
+function isLikelyPhoto(dataUrl) {
+  return typeof dataUrl === "string" && /^data:image\/\w+;base64,/.test(dataUrl) && dataUrl.length > 1000;
+}
+
 const router = express.Router();
 
 async function logEvent(deliveryId, status, note) {
@@ -895,6 +902,20 @@ router.patch("/:id/advance", requireAuth, requireRole("agent"), async (req, res)
     }
 
     const timestampCol = next === "picked_up" ? "picked_up_at" : next === "delivered" ? "delivered_at" : null;
+
+    // Proof-of-delivery photo — required only for a normal doorstep
+    // 'delivered' transition. A locker delivery never reaches 'delivered'
+    // through this endpoint at all (it stops at 'at_locker' above), so
+    // this check naturally never applies there — the pickup code is that
+    // path's proof instead.
+    if (next === "delivered") {
+      const { proof_photo } = req.body;
+      if (!isLikelyPhoto(proof_photo)) {
+        return res.status(400).json({ error: "A proof-of-delivery photo is required to mark this delivered." });
+      }
+      await pool.query("UPDATE deliveries SET proof_photo = $1 WHERE id = $2", [proof_photo, delivery.id]);
+    }
+
     if (timestampCol) {
       await pool.query(`UPDATE deliveries SET status = $1, ${timestampCol} = now() WHERE id = $2`, [next, delivery.id]);
     } else {

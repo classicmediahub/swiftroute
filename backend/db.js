@@ -469,6 +469,14 @@ async function initSchema() {
   `);
   await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS pool_id TEXT REFERENCES delivery_pools(id);`);
   await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS pool_original_price REAL;`);
+
+  // --- Proof-of-delivery photo — required when an agent marks a normal
+  // (non-locker) delivery as 'delivered' (see routes/deliveries.js's
+  // /advance). Locker deliveries don't need this: the pickup code itself
+  // is already proof of collection. Stored as a base64 data URL directly
+  // in the row, same convention as users.profile_photo elsewhere in this
+  // schema — not a separate file-storage system.
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS proof_photo TEXT;`);
 }
 
 module.exports = { pool, initSchema };
