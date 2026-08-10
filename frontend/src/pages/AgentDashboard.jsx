@@ -40,6 +40,14 @@ export default function AgentDashboard() {
   const [assigned, setAssigned] = useState([]);
   const [pools, setPools] = useState([]);
   const [poolBusyId, setPoolBusyId] = useState(null);
+  const [proofPhotos, setProofPhotos] = useState({}); // deliveryId -> data URL, cleared once submitted
+
+  function handleProofPhotoSelected(deliveryId, file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setProofPhotos((p) => ({ ...p, [deliveryId]: reader.result }));
+    reader.readAsDataURL(file);
+  }
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState("");
@@ -130,10 +138,20 @@ export default function AgentDashboard() {
     }
   }
 
-  async function handleAdvance(id) {
+  async function handleAdvance(id, delivery) {
+    // A normal (non-locker) delivery reaching its final step needs a
+    // proof photo — enforced here client-side (so the agent isn't
+    // surprised by a rejected request) AND server-side (the source of
+    // truth; this check alone is just a better UX, not the real gate).
+    const isFinalDeliveredStep = delivery.status === "in_transit" && !delivery.locker_id;
+    if (isFinalDeliveredStep && !proofPhotos[id]) {
+      alert("Please attach a proof-of-delivery photo before marking this delivered.");
+      return;
+    }
     setBusyId(id);
     try {
-      await api.advanceDelivery(token, id);
+      await api.advanceDelivery(token, id, isFinalDeliveredStep ? { proof_photo: proofPhotos[id] } : undefined);
+      setProofPhotos((p) => { const next = { ...p }; delete next[id]; return next; });
       await loadAll();
       await refresh();
     } catch (err) {
@@ -331,14 +349,45 @@ export default function AgentDashboard() {
                         <span className="font-mono text-sm font-semibold">₦{d.price.toLocaleString()}</span>
                         {nextLabelFor(d) && (
                           <button
-                            disabled={busyId === d.id}
-                            onClick={() => handleAdvance(d.id)}
+                            disabled={busyId === d.id || (d.status === "in_transit" && !d.locker_id && !proofPhotos[d.id])}
+                            onClick={() => handleAdvance(d.id, d)}
                             className="text-xs font-semibold bg-route hover:bg-route-dark text-ink rounded-lg px-3 py-2 transition-colors disabled:opacity-60"
                           >
                             {busyId === d.id ? "Updating…" : nextLabelFor(d)}
                           </button>
                         )}
                       </div>
+                      {d.status === "in_transit" && !d.locker_id && (
+                        <div className="border border-slate-200 rounded-lg p-3 mt-3 bg-paper">
+                          <div className="text-xs font-semibold text-ink mb-2">Proof of delivery photo (required)</div>
+                          {proofPhotos[d.id] ? (
+                            <div className="flex items-center gap-3">
+                              <img src={proofPhotos[d.id]} alt="Proof of delivery" className="w-16 h-16 rounded-lg object-cover border border-slate-300" />
+                              <label className="text-xs font-semibold text-ink underline cursor-pointer">
+                                Retake
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  capture="environment"
+                                  className="hidden"
+                                  onChange={(e) => handleProofPhotoSelected(d.id, e.target.files?.[0])}
+                                />
+                              </label>
+                            </div>
+                          ) : (
+                            <label className="inline-block text-xs font-semibold bg-ink text-paper rounded-lg px-3 py-2 cursor-pointer">
+                              Take photo
+                              <input
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                className="hidden"
+                                onChange={(e) => handleProofPhotoSelected(d.id, e.target.files?.[0])}
+                              />
+                            </label>
+                          )}
+                        </div>
+                      )}
                       {d.status === "at_locker" && (
                         <div className="border border-route/40 bg-route/10 rounded-lg p-3 mt-3">
                           <div className="text-xs font-semibold text-route-dark mb-1.5">

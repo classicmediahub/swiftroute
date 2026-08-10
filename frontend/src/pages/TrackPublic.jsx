@@ -192,6 +192,16 @@ export default function TrackPublic() {
                   )}
                 </div>
               )}
+              {delivery.status === "delivered" && delivery.proof_photo && (
+                <div className="mt-4 pt-4 border-t border-slate-100">
+                  <div className="text-xs font-semibold text-slate uppercase mb-2">Proof of delivery</div>
+                  <img
+                    src={delivery.proof_photo}
+                    alt="Proof of delivery"
+                    className="w-full max-h-80 object-cover rounded-xl border border-slate-200"
+                  />
+                </div>
+              )}
             </>
           )}
         </div>
