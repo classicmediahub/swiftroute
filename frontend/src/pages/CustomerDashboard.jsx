@@ -31,6 +31,8 @@ const emptyForm = {
   preferred_vehicle: "any", payment_method: "paystack",
   institution_id: "", pickup_landmark_id: "", dropoff_landmark_id: "",
   dropoff_locker_id: "",
+  pool_delivery: false,
+  guaranteed: false,
 };
 
 export default function CustomerDashboard() {
@@ -106,7 +108,7 @@ export default function CustomerDashboard() {
     setForm((f) => ({
       ...f,
       institution_id: "", pickup_landmark_id: "", dropoff_landmark_id: "",
-      dropoff_locker_id: "",
+      dropoff_locker_id: "", pool_delivery: false,
       pickup_address: "", dropoff_address: "", pickup_coords: null, dropoff_coords: null,
     }));
   }
@@ -384,6 +386,26 @@ export default function CustomerDashboard() {
                 <p className="text-xs text-signal mb-4">Pickup and drop-off landmarks can't be the same.</p>
               )}
 
+              {form.institution_id && form.pickup_landmark_id && form.dropoff_landmark_id && (
+                <label className="flex items-start gap-2.5 border border-slate-200 rounded-lg p-3.5 mb-4 bg-paper cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.pool_delivery}
+                    onChange={(e) => setForm((f) => ({ ...f, pool_delivery: e.target.checked, guaranteed: e.target.checked ? false : f.guaranteed }))}
+                    className="mt-0.5"
+                  />
+                  <span className="text-sm text-ink">
+                    Pool this delivery to save
+                    <span className="block text-xs text-slate mt-0.5">
+                      Share your trip with others delivering to this campus around the same time — up to 20% off.
+                      If more people join after you order, you'll be refunded the difference straight to your
+                      wallet automatically. The price shown below doesn't include this discount yet, since it
+                      depends on who else joins.
+                    </span>
+                  </span>
+                </label>
+              )}
+
               {form.institution_id && (
                 <div className="border border-slate-200 rounded-lg p-3.5 mb-4 bg-paper">
                   <button
@@ -595,6 +617,24 @@ export default function CustomerDashboard() {
               </button>
             ))}
           </div>
+
+          <label className={`flex items-start gap-2.5 border rounded-lg p-3.5 mb-4 ${form.pool_delivery ? "border-slate-200 bg-slate-50 opacity-60" : "border-slate-200 bg-paper cursor-pointer"}`}>
+            <input
+              type="checkbox"
+              checked={form.guaranteed}
+              disabled={form.pool_delivery}
+              onChange={(e) => update("guaranteed", e.target.checked)}
+              className="mt-0.5"
+            />
+            <span className="text-sm text-ink">
+              Guarantee this delivery — +₦300
+              <span className="block text-xs text-slate mt-0.5">
+                {form.pool_delivery
+                  ? "Not available when pooling — pick one or the other."
+                  : "If it's not handed off within the estimated window, you get ₦500 credited to your wallet automatically. No need to ask."}
+              </span>
+            </span>
+          </label>
 
           <span className="block text-sm font-medium text-ink mb-1.5">Pay with</span>
           <div className="grid grid-cols-2 gap-2 mb-4">
