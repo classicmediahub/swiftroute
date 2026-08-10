@@ -477,6 +477,17 @@ async function initSchema() {
   // in the row, same convention as users.profile_photo elsewhere in this
   // schema — not a separate file-storage system.
   await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS proof_photo TEXT;`);
+
+  // --- Guaranteed delivery windows (see guarantee.js). A customer pays a
+  // small flat surcharge at creation to opt in; if the package isn't
+  // handed off by estimated_delivery_at, the penalty credit fires
+  // automatically — no manual claim. "Handed off" means 'delivered' for a
+  // normal delivery, or the agent's LOCKER DROP-OFF for a locker delivery
+  // (not whenever the customer eventually collects it, which is outside
+  // the platform's control — see routes/deliveries.js's /advance).
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS guaranteed BOOLEAN NOT NULL DEFAULT false;`);
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS guarantee_fee REAL;`);
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS guarantee_penalty_paid BOOLEAN NOT NULL DEFAULT false;`);
 }
 
 module.exports = { pool, initSchema };

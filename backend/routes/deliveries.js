@@ -12,6 +12,7 @@ const { checkReferralReward } = require("../referrals");
 const { estimatedDeliveryAt } = require("../eta");
 const { getLocker, dropAtLocker, redeemLocker, listLockers } = require("../lockers");
 const { findOrCreatePool, rebalancePoolPricing, discountForSize, getPool, listPoolMembers, claimPool, listClaimablePools } = require("../pooling");
+const { checkGuaranteeBreach, GUARANTEE_FEE } = require("../guarantee");
 
 // Same shape-check as auth.js uses for the agent signup photo — not
 // verifying it's a real photo of anything in particular, just that it's
@@ -212,7 +213,7 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
       recipient_name, recipient_phone,
       preferred_vehicle, payment_method,
       institution_id, pickup_landmark_id, dropoff_landmark_id,
-      dropoff_locker_id, pool_delivery,
+      dropoff_locker_id, pool_delivery, guaranteed,
     } = req.body;
 
     const isCampusDelivery = institution_id && pickup_landmark_id && dropoff_landmark_id;
@@ -311,9 +312,17 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
     // at the moment it joins; existing members get rebalanced separately
     // after insert (see the rebalancePoolPricing call further down).
     const poolOriginalPrice = poolId ? quote.price : null;
-    const price = poolId
+    // Guaranteed and pooled are mutually exclusive on purpose: pooling's
+    // rebalance formula (pooling.js) recomputes price purely from the base
+    // delivery cost, with no awareness of a flat guarantee surcharge — 
+    // combining both could silently drop the fee during a rebalance. A
+    // customer can't opt into both at once; the guaranteed flag is simply
+    // ignored for a pooled delivery rather than erroring, since pooling
+    // was the more deliberate choice if both were somehow sent.
+    const isGuaranteed = Boolean(guaranteed) && !poolId;
+    const price = (poolId
       ? Math.round((quote.price * (1 - discountForSize(poolMemberCountAfterJoin))) / 50) * 50
-      : quote.price;
+      : quote.price) + (isGuaranteed ? GUARANTEE_FEE : 0);
     const id = uuidv4();
     const code = trackingCode();
 
@@ -327,6 +336,7 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
       estimatedDeliveryAt({ distanceKm: quote.distanceKm, vehicle_type: vehicle }),
       isLockerDelivery ? dropoff_locker_id : null,
       poolId, poolOriginalPrice,
+      isGuaranteed, isGuaranteed ? GUARANTEE_FEE : null,
     ];
 
     if (payment_method === "wallet") {
@@ -350,8 +360,9 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
             pickup_landmark, dropoff_landmark,
             institution_id, pickup_landmark_id, dropoff_landmark_id,
             estimated_delivery_at, locker_id, pool_id, pool_original_price,
+            guaranteed, guarantee_fee,
             payment_status, payment_method
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,'paid','wallet')`,
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,'paid','wallet')`,
           commonFields
         );
 
@@ -396,8 +407,9 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
         pickup_landmark, dropoff_landmark,
         institution_id, pickup_landmark_id, dropoff_landmark_id,
         estimated_delivery_at, locker_id, pool_id, pool_original_price,
+        guaranteed, guarantee_fee,
         payment_status, paystack_reference, payment_method
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,'unpaid',$28,'paystack')`,
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,'unpaid',$30,'paystack')`,
       [...commonFields, reference]
     );
 
@@ -894,6 +906,7 @@ router.patch("/:id/advance", requireAuth, requireRole("agent"), async (req, res)
       if (!result) {
         return res.status(409).json({ error: "This locker is currently full. Please contact support before dropping off." });
       }
+      await checkGuaranteeBreach(delivery); // "handed off" for a guaranteed LOCKER delivery = drop-off time, not eventual customer pickup
       await logEvent(delivery.id, "at_locker", `Dropped at locker \u2014 slot ${result.slot}`);
       const { rows: updatedRows } = await pool.query("SELECT * FROM deliveries WHERE id = $1", [delivery.id]);
       notifyCustomer(updatedRows[0], "at_locker"); // fire-and-forget — should surface the pickup code, see notify.js
@@ -930,6 +943,7 @@ router.patch("/:id/advance", requireAuth, requireRole("agent"), async (req, res)
       await recordStreakActivity(req.user.id); // agent streak day: job completed
       await checkReferralReward(req.user.id, "agent"); // pays out if this agent was referred and this is their first completed job
       await checkReferralReward(delivery.customer_id, "customer"); // pays out if the customer was referred and this is their first completed delivery
+      await checkGuaranteeBreach(delivery); // "handed off" for a guaranteed NORMAL delivery = this moment
     }
 
     await logEvent(delivery.id, next);
