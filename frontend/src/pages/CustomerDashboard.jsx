@@ -33,6 +33,7 @@ const emptyForm = {
   dropoff_locker_id: "",
   pool_delivery: false,
   guaranteed: false,
+  elite_requested: false,
 };
 
 export default function CustomerDashboard() {
@@ -391,7 +392,11 @@ export default function CustomerDashboard() {
                   <input
                     type="checkbox"
                     checked={form.pool_delivery}
-                    onChange={(e) => setForm((f) => ({ ...f, pool_delivery: e.target.checked, guaranteed: e.target.checked ? false : f.guaranteed }))}
+                    onChange={(e) => setForm((f) => ({
+                      ...f, pool_delivery: e.target.checked,
+                      guaranteed: e.target.checked ? false : f.guaranteed,
+                      elite_requested: e.target.checked ? false : f.elite_requested,
+                    }))}
                     className="mt-0.5"
                   />
                   <span className="text-sm text-ink">
@@ -632,6 +637,24 @@ export default function CustomerDashboard() {
                 {form.pool_delivery
                   ? "Not available when pooling — pick one or the other."
                   : "If it's not handed off within the estimated window, you get ₦500 credited to your wallet automatically. No need to ask."}
+              </span>
+            </span>
+          </label>
+
+          <label className={`flex items-start gap-2.5 border rounded-lg p-3.5 mb-4 ${form.pool_delivery ? "border-slate-200 bg-slate-50 opacity-60" : "border-slate-200 bg-paper cursor-pointer"}`}>
+            <input
+              type="checkbox"
+              checked={form.elite_requested}
+              disabled={form.pool_delivery}
+              onChange={(e) => update("elite_requested", e.target.checked)}
+              className="mt-0.5"
+            />
+            <span className="text-sm text-ink">
+              Elite agent only — +₦400
+              <span className="block text-xs text-slate mt-0.5">
+                {form.pool_delivery
+                  ? "Not available when pooling — pick one or the other."
+                  : "Only our highest-rated, most reliable agents — 4.8★+ and 95%+ on-time — can accept this job."}
               </span>
             </span>
           </label>
