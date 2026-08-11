@@ -488,6 +488,16 @@ async function initSchema() {
   await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS guaranteed BOOLEAN NOT NULL DEFAULT false;`);
   await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS guarantee_fee REAL;`);
   await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS guarantee_penalty_paid BOOLEAN NOT NULL DEFAULT false;`);
+
+  // --- Elite Agents (see elite.js). elite_requested is set at creation
+  // when the customer pays the surcharge; enforcement happens at accept
+  // time (routes/deliveries.js's POST /:id/accept) — an agent who doesn't
+  // currently qualify simply can't accept an elite-requested delivery.
+  // Qualification is computed on demand from the same reputation numbers
+  // a customer already sees (reputation.js), never cached, so it can't
+  // drift stale from an agent's actual recent performance.
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS elite_requested BOOLEAN NOT NULL DEFAULT false;`);
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS elite_fee REAL;`);
 }
 
 module.exports = { pool, initSchema };

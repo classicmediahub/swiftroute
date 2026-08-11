@@ -13,6 +13,7 @@ const { estimatedDeliveryAt } = require("../eta");
 const { getLocker, dropAtLocker, redeemLocker, listLockers } = require("../lockers");
 const { findOrCreatePool, rebalancePoolPricing, discountForSize, getPool, listPoolMembers, claimPool, listClaimablePools } = require("../pooling");
 const { checkGuaranteeBreach, GUARANTEE_FEE } = require("../guarantee");
+const { isEliteAgent, ELITE_FEE } = require("../elite");
 
 // Same shape-check as auth.js uses for the agent signup photo — not
 // verifying it's a real photo of anything in particular, just that it's
@@ -213,7 +214,7 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
       recipient_name, recipient_phone,
       preferred_vehicle, payment_method,
       institution_id, pickup_landmark_id, dropoff_landmark_id,
-      dropoff_locker_id, pool_delivery, guaranteed,
+      dropoff_locker_id, pool_delivery, guaranteed, elite_requested,
     } = req.body;
 
     const isCampusDelivery = institution_id && pickup_landmark_id && dropoff_landmark_id;
@@ -312,17 +313,18 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
     // at the moment it joins; existing members get rebalanced separately
     // after insert (see the rebalancePoolPricing call further down).
     const poolOriginalPrice = poolId ? quote.price : null;
-    // Guaranteed and pooled are mutually exclusive on purpose: pooling's
-    // rebalance formula (pooling.js) recomputes price purely from the base
-    // delivery cost, with no awareness of a flat guarantee surcharge — 
-    // combining both could silently drop the fee during a rebalance. A
-    // customer can't opt into both at once; the guaranteed flag is simply
-    // ignored for a pooled delivery rather than erroring, since pooling
-    // was the more deliberate choice if both were somehow sent.
+    // Guaranteed and Elite are both flat surcharges, and both mutually
+    // exclusive with pooling for the same reason: pooling's rebalance
+    // formula (pooling.js) recomputes price purely from the base delivery
+    // cost, with no awareness of a flat surcharge — combining either with
+    // pooling could silently drop the fee during a rebalance. Guaranteed
+    // and Elite CAN combine with each other, though — neither's math
+    // depends on the other.
     const isGuaranteed = Boolean(guaranteed) && !poolId;
+    const isEliteRequested = Boolean(elite_requested) && !poolId;
     const price = (poolId
       ? Math.round((quote.price * (1 - discountForSize(poolMemberCountAfterJoin))) / 50) * 50
-      : quote.price) + (isGuaranteed ? GUARANTEE_FEE : 0);
+      : quote.price) + (isGuaranteed ? GUARANTEE_FEE : 0) + (isEliteRequested ? ELITE_FEE : 0);
     const id = uuidv4();
     const code = trackingCode();
 
@@ -337,6 +339,7 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
       isLockerDelivery ? dropoff_locker_id : null,
       poolId, poolOriginalPrice,
       isGuaranteed, isGuaranteed ? GUARANTEE_FEE : null,
+      isEliteRequested, isEliteRequested ? ELITE_FEE : null,
     ];
 
     if (payment_method === "wallet") {
@@ -361,8 +364,9 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
             institution_id, pickup_landmark_id, dropoff_landmark_id,
             estimated_delivery_at, locker_id, pool_id, pool_original_price,
             guaranteed, guarantee_fee,
+            elite_requested, elite_fee,
             payment_status, payment_method
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,'paid','wallet')`,
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,'paid','wallet')`,
           commonFields
         );
 
@@ -408,8 +412,9 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
         institution_id, pickup_landmark_id, dropoff_landmark_id,
         estimated_delivery_at, locker_id, pool_id, pool_original_price,
         guaranteed, guarantee_fee,
+        elite_requested, elite_fee,
         payment_status, paystack_reference, payment_method
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,'unpaid',$30,'paystack')`,
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,'unpaid',$32,'paystack')`,
       [...commonFields, reference]
     );
 
@@ -850,6 +855,13 @@ router.post("/:id/accept", requireAuth, requireRole("agent"), async (req, res) =
     if (delivery.status !== "pending") {
       await client.query("ROLLBACK");
       return res.status(409).json({ error: "This delivery has already been accepted by another agent" });
+    }
+    if (delivery.elite_requested) {
+      const qualifies = await isEliteAgent(req.user.id);
+      if (!qualifies) {
+        await client.query("ROLLBACK");
+        return res.status(403).json({ error: "This delivery requires an Elite-rated agent. Keep up strong ratings and on-time deliveries to qualify." });
+      }
     }
 
     await client.query(
