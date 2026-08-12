@@ -498,6 +498,38 @@ async function initSchema() {
   // drift stale from an agent's actual recent performance.
   await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS elite_requested BOOLEAN NOT NULL DEFAULT false;`);
   await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS elite_fee REAL;`);
+
+  // --- Real declared-value insurance (see insurance.js) — turns the
+  // landing page's "insured up to ₦50,000" line into an actual product
+  // rather than just copy. Premium is a small % of the covered value,
+  // paid at creation; a claim is a real, admin-reviewed request, not an
+  // automatic refund — a human has to look at it before money moves,
+  // same spirit as agent NIN/liveness review already requiring a person
+  // in the loop for anything identity/trust related.
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS declared_value REAL;`);
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS insurance_premium REAL;`);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS insurance_claims (
+      id TEXT PRIMARY KEY,
+      delivery_id TEXT NOT NULL REFERENCES deliveries(id) ON DELETE CASCADE,
+      customer_id TEXT NOT NULL REFERENCES users(id),
+      reason TEXT NOT NULL,
+      claim_amount REAL NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+      reviewed_by TEXT REFERENCES users(id),
+      reviewed_at TIMESTAMPTZ,
+      payout_amount REAL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+  // A delivery can only have one active (pending or approved) claim at a
+  // time — a rejected claim can be re-filed (e.g. with better evidence),
+  // but you can't stack multiple simultaneous claims on the same delivery.
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS insurance_claims_one_active_per_delivery
+    ON insurance_claims(delivery_id) WHERE status IN ('pending','approved');
+  `);
 }
 
 module.exports = { pool, initSchema };

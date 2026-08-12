@@ -2,6 +2,7 @@ const express = require("express");
 const { pool } = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { listAllLockers } = require("../lockers");
+const { listClaims, reviewClaim } = require("../insurance");
 
 const router = express.Router();
 router.use(requireAuth, requireRole("admin"));
@@ -183,6 +184,29 @@ router.patch("/lockers/:id/status", async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Something went wrong updating this locker" });
   }
+});
+
+// ---------- INSURANCE CLAIMS — filing itself lives in
+// routes/deliveries.js (POST /:id/claim, customer-facing); this is the
+// admin-only review side. Approval credits the customer's wallet
+// immediately (see insurance.js's reviewClaim). ----------
+router.get("/claims", async (req, res) => {
+  try {
+    res.json(await listClaims());
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong loading claims" });
+  }
+});
+
+router.patch("/claims/:id/review", async (req, res) => {
+  const { decision } = req.body;
+  if (!["approved", "rejected"].includes(decision)) {
+    return res.status(400).json({ error: "decision must be 'approved' or 'rejected'" });
+  }
+  const result = await reviewClaim(req.params.id, req.user.id, decision);
+  if (!result.ok) return res.status(400).json({ error: result.error });
+  res.json({ success: true });
 });
 
 module.exports = router;

@@ -14,6 +14,7 @@ const { getLocker, dropAtLocker, redeemLocker, listLockers } = require("../locke
 const { findOrCreatePool, rebalancePoolPricing, discountForSize, getPool, listPoolMembers, claimPool, listClaimablePools } = require("../pooling");
 const { checkGuaranteeBreach, GUARANTEE_FEE } = require("../guarantee");
 const { isEliteAgent, ELITE_FEE } = require("../elite");
+const { calculatePremium, fileClaim } = require("../insurance");
 
 // Same shape-check as auth.js uses for the agent signup photo — not
 // verifying it's a real photo of anything in particular, just that it's
@@ -214,7 +215,7 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
       recipient_name, recipient_phone,
       preferred_vehicle, payment_method,
       institution_id, pickup_landmark_id, dropoff_landmark_id,
-      dropoff_locker_id, pool_delivery, guaranteed, elite_requested,
+      dropoff_locker_id, pool_delivery, guaranteed, elite_requested, declared_value,
     } = req.body;
 
     const isCampusDelivery = institution_id && pickup_landmark_id && dropoff_landmark_id;
@@ -322,9 +323,13 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
     // depends on the other.
     const isGuaranteed = Boolean(guaranteed) && !poolId;
     const isEliteRequested = Boolean(elite_requested) && !poolId;
+    // Same pooling-exclusion reasoning as Guaranteed/Elite above — a
+    // percentage-of-declared-value premium is still a surcharge pooling's
+    // rebalance formula doesn't know about.
+    const insuranceQuote = (declared_value && !poolId) ? calculatePremium(Number(declared_value)) : { covered: 0, premium: 0 };
     const price = (poolId
       ? Math.round((quote.price * (1 - discountForSize(poolMemberCountAfterJoin))) / 50) * 50
-      : quote.price) + (isGuaranteed ? GUARANTEE_FEE : 0) + (isEliteRequested ? ELITE_FEE : 0);
+      : quote.price) + (isGuaranteed ? GUARANTEE_FEE : 0) + (isEliteRequested ? ELITE_FEE : 0) + insuranceQuote.premium;
     const id = uuidv4();
     const code = trackingCode();
 
@@ -340,6 +345,7 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
       poolId, poolOriginalPrice,
       isGuaranteed, isGuaranteed ? GUARANTEE_FEE : null,
       isEliteRequested, isEliteRequested ? ELITE_FEE : null,
+      insuranceQuote.premium > 0 ? Number(declared_value) : null, insuranceQuote.premium > 0 ? insuranceQuote.premium : null,
     ];
 
     if (payment_method === "wallet") {
@@ -365,8 +371,9 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
             estimated_delivery_at, locker_id, pool_id, pool_original_price,
             guaranteed, guarantee_fee,
             elite_requested, elite_fee,
+            declared_value, insurance_premium,
             payment_status, payment_method
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,'paid','wallet')`,
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,'paid','wallet')`,
           commonFields
         );
 
@@ -413,8 +420,9 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
         estimated_delivery_at, locker_id, pool_id, pool_original_price,
         guaranteed, guarantee_fee,
         elite_requested, elite_fee,
+        declared_value, insurance_premium,
         payment_status, paystack_reference, payment_method
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,'unpaid',$32,'paystack')`,
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,'unpaid',$34,'paystack')`,
       [...commonFields, reference]
     );
 
@@ -726,6 +734,20 @@ router.post("/:id/review", requireAuth, requireRole("customer"), async (req, res
     console.error(err);
     res.status(500).json({ error: "Something went wrong submitting your review" });
   }
+});
+
+// ---------- FILE AN INSURANCE CLAIM (customer, own insured delivery only) ----------
+router.post("/:id/claim", requireAuth, requireRole("customer"), async (req, res) => {
+  const { reason, claim_amount } = req.body;
+  if (!reason || !String(reason).trim()) return res.status(400).json({ error: "A reason is required" });
+  if (!claim_amount || Number(claim_amount) <= 0) return res.status(400).json({ error: "claim_amount must be greater than zero" });
+
+  const result = await fileClaim({
+    deliveryId: req.params.id, customerId: req.user.id,
+    reason: String(reason).trim().slice(0, 1000), claimAmount: Number(claim_amount),
+  });
+  if (!result.ok) return res.status(400).json({ error: result.error });
+  res.status(201).json({ id: result.id, message: "Claim submitted — our team will review it shortly." });
 });
 
 // ---------- AVAILABLE DELIVERIES FOR AGENTS — paid only ----------
