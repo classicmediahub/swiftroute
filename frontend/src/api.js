@@ -50,9 +50,9 @@ export const api = {
   claimablePools: (token) => request("/deliveries/pools/claimable", { token }),
   poolMembers: (token, poolId) => request(`/deliveries/pools/${poolId}/members`, { token }),
   acceptPool: (token, poolId) => request(`/deliveries/pools/${poolId}/accept`, { method: "POST", token }),
-  listClaimablePools: (token) => request("/deliveries/pools/claimable", { token }),
-  getPoolMembers: (token, poolId) => request(`/deliveries/pools/${poolId}/members`, { token }),
-  acceptPool: (token, poolId) => request(`/deliveries/pools/${poolId}/accept`, { method: "POST", token }),
+  fileClaim: (token, deliveryId, payload) => request(`/deliveries/${deliveryId}/claim`, { method: "POST", body: payload, token }),
+  adminClaims: (token) => request("/admin/claims", { token }),
+  reviewClaim: (token, claimId, decision) => request(`/admin/claims/${claimId}/review`, { method: "PATCH", body: { decision }, token }),
 
   estimate: (token, payload) => request("/deliveries/estimate", { method: "POST", body: payload, token }),
   geocodeAddress: (token, payload) => request("/deliveries/geocode", { method: "POST", body: payload, token }),
