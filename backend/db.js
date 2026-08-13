@@ -530,6 +530,16 @@ async function initSchema() {
     CREATE UNIQUE INDEX IF NOT EXISTS insurance_claims_one_active_per_delivery
     ON insurance_claims(delivery_id) WHERE status IN ('pending','approved');
   `);
+
+  // --- Returns / reverse logistics — deliberately NOT a separate system.
+  // A return is functionally an ordinary delivery (same pricing, tracking,
+  // agent matching, proof-of-delivery) just framed in reverse: pickup is
+  // the customer's location, drop-off is the business's. These three
+  // columns are purely metadata for that framing + linking back to the
+  // original outbound order — no new pricing/quote logic needed anywhere.
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS is_return BOOLEAN NOT NULL DEFAULT false;`);
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS original_delivery_id TEXT REFERENCES deliveries(id);`);
+  await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS return_reason TEXT;`);
 }
 
 module.exports = { pool, initSchema };

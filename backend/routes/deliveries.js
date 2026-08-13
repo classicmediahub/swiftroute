@@ -216,9 +216,22 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
       preferred_vehicle, payment_method,
       institution_id, pickup_landmark_id, dropoff_landmark_id,
       dropoff_locker_id, pool_delivery, guaranteed, elite_requested, declared_value,
+      is_return, original_delivery_id, return_reason,
     } = req.body;
 
     const isCampusDelivery = institution_id && pickup_landmark_id && dropoff_landmark_id;
+
+    // A return can optionally link back to the original outbound order —
+    // validated here so a customer can't reference someone else's
+    // delivery. Not required: a return doesn't need a known original
+    // (e.g. a business handling a return for an order placed elsewhere).
+    if (original_delivery_id) {
+      const { rows: origRows } = await pool.query(
+        "SELECT id FROM deliveries WHERE id = $1 AND customer_id = $2",
+        [original_delivery_id, req.user.id]
+      );
+      if (!origRows[0]) return res.status(400).json({ error: "That original delivery wasn't found on your account" });
+    }
     const isLockerDelivery = Boolean(dropoff_locker_id) && !isCampusDelivery;
     const isPoolDelivery = Boolean(isCampusDelivery && pool_delivery); // pooling only applies within a campus — see pooling.js
 
@@ -346,6 +359,7 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
       isGuaranteed, isGuaranteed ? GUARANTEE_FEE : null,
       isEliteRequested, isEliteRequested ? ELITE_FEE : null,
       insuranceQuote.premium > 0 ? Number(declared_value) : null, insuranceQuote.premium > 0 ? insuranceQuote.premium : null,
+      Boolean(is_return), original_delivery_id || null, is_return ? (return_reason || null) : null,
     ];
 
     if (payment_method === "wallet") {
@@ -372,8 +386,9 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
             guaranteed, guarantee_fee,
             elite_requested, elite_fee,
             declared_value, insurance_premium,
+            is_return, original_delivery_id, return_reason,
             payment_status, payment_method
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,'paid','wallet')`,
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,'paid','wallet')`,
           commonFields
         );
 
@@ -421,8 +436,9 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
         guaranteed, guarantee_fee,
         elite_requested, elite_fee,
         declared_value, insurance_premium,
+        is_return, original_delivery_id, return_reason,
         payment_status, paystack_reference, payment_method
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,'unpaid',$34,'paystack')`,
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,'unpaid',$37,'paystack')`,
       [...commonFields, reference]
     );
 
