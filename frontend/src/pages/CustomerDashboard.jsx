@@ -25,6 +25,7 @@ const VEHICLES = [
 
 const emptyForm = {
   package_type: "Documents", package_note: "",
+  is_return: false, original_delivery_id: "", return_reason: "",
   pickup_address: "", pickup_city: "Lagos", pickup_landmark: "", pickup_coords: null,
   dropoff_address: "", dropoff_city: "Lagos", dropoff_landmark: "", dropoff_coords: null,
   recipient_name: "", recipient_phone: "",
@@ -34,6 +35,7 @@ const emptyForm = {
   pool_delivery: false,
   guaranteed: false,
   elite_requested: false,
+  declared_value: "",
 };
 
 export default function CustomerDashboard() {
@@ -65,6 +67,27 @@ export default function CustomerDashboard() {
   const [suggestStatus, setSuggestStatus] = useState("");
   const [suggestSubmitting, setSuggestSubmitting] = useState(false);
   const [confirmingId, setConfirmingId] = useState(null);
+  const [claimFormOpenId, setClaimFormOpenId] = useState(null);
+  const [claimReason, setClaimReason] = useState("");
+  const [claimAmount, setClaimAmount] = useState("");
+  const [claimSubmitting, setClaimSubmitting] = useState(false);
+  const [claimStatus, setClaimStatus] = useState({}); // deliveryId -> message shown inline
+
+  async function handleFileClaim(deliveryId) {
+    if (!claimReason.trim() || !claimAmount || Number(claimAmount) <= 0) return;
+    setClaimSubmitting(true);
+    try {
+      await api.fileClaim(token, deliveryId, { reason: claimReason.trim(), claim_amount: Number(claimAmount) });
+      setClaimStatus((s) => ({ ...s, [deliveryId]: "Claim submitted — our team will review it shortly." }));
+      setClaimFormOpenId(null);
+      setClaimReason("");
+      setClaimAmount("");
+    } catch (err) {
+      setClaimStatus((s) => ({ ...s, [deliveryId]: err.message }));
+    } finally {
+      setClaimSubmitting(false);
+    }
+  }
   const [confirmError, setConfirmError] = useState("");
 
   // Locker delivery — a separate, mutually-exclusive mode from campus
@@ -323,6 +346,48 @@ export default function CustomerDashboard() {
             <input className={inputClass} value={form.package_note} onChange={(e) => update("package_note", e.target.value)} placeholder="Fragile — handle with care" />
           </Field>
 
+          <label className="flex items-start gap-2.5 border border-slate-200 rounded-lg p-3.5 mb-4 bg-paper cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.is_return}
+              onChange={(e) => setForm((f) => ({ ...f, is_return: e.target.checked, original_delivery_id: "", return_reason: "" }))}
+              className="mt-0.5"
+            />
+            <span className="text-sm text-ink">
+              This is a return
+              <span className="block text-xs text-slate mt-0.5">
+                Picking something up to send back — set pickup to the customer's location and drop-off to yours below.
+              </span>
+            </span>
+          </label>
+
+          {form.is_return && (
+            <div className="border border-slate-200 rounded-lg p-3.5 mb-4 bg-paper space-y-2">
+              {deliveries.filter((d) => d.status === "delivered" && !d.is_return).length > 0 && (
+                <Field label="Which order is this a return for? (optional)">
+                  <select
+                    className={inputClass}
+                    value={form.original_delivery_id}
+                    onChange={(e) => update("original_delivery_id", e.target.value)}
+                  >
+                    <option value="">Not linked to a specific order</option>
+                    {deliveries.filter((d) => d.status === "delivered" && !d.is_return).map((d) => (
+                      <option key={d.id} value={d.id}>{d.tracking_code} · {d.pickup_city} → {d.dropoff_city}</option>
+                    ))}
+                  </select>
+                </Field>
+              )}
+              <Field label="Reason for return (optional)">
+                <input
+                  className={inputClass}
+                  value={form.return_reason}
+                  onChange={(e) => update("return_reason", e.target.value)}
+                  placeholder="e.g. Wrong size, item damaged"
+                />
+              </Field>
+            </div>
+          )}
+
           {institutions.length > 0 && (
             <button
               type="button"
@@ -396,6 +461,7 @@ export default function CustomerDashboard() {
                       ...f, pool_delivery: e.target.checked,
                       guaranteed: e.target.checked ? false : f.guaranteed,
                       elite_requested: e.target.checked ? false : f.elite_requested,
+                      declared_value: e.target.checked ? "" : f.declared_value,
                     }))}
                     className="mt-0.5"
                   />
@@ -659,7 +725,33 @@ export default function CustomerDashboard() {
             </span>
           </label>
 
-          <span className="block text-sm font-medium text-ink mb-1.5">Pay with</span>
+          <div className={`border rounded-lg p-3.5 mb-4 ${form.pool_delivery ? "border-slate-200 bg-slate-50 opacity-60" : "border-slate-200 bg-paper"}`}>
+            <label className="block text-sm text-ink mb-1">
+              Insure this package (optional)
+            </label>
+            <input
+              type="number"
+              min="0"
+              disabled={form.pool_delivery}
+              className={inputClass}
+              placeholder="Item value in ₦ (e.g. 15000)"
+              value={form.declared_value}
+              onChange={(e) => update("declared_value", e.target.value)}
+            />
+            <p className="text-xs text-slate mt-1.5">
+              {form.pool_delivery
+                ? "Not available when pooling — pick one or the other."
+                : form.declared_value && Number(form.declared_value) > 0
+                  ? (() => {
+                      const covered = Math.min(Number(form.declared_value), 50000);
+                      const premium = Math.max(Math.round(covered * 0.02), 100);
+                      return `Covers up to \u20a6${covered.toLocaleString()} \u00b7 premium: +\u20a6${premium.toLocaleString()}${Number(form.declared_value) > 50000 ? " (coverage capped at \u20a650,000)" : ""}`;
+                    })()
+                  : "Declare the item's value to add insurance coverage — 2% premium, capped at ₦50,000 coverage."}
+            </p>
+          </div>
+
+
           <div className="grid grid-cols-2 gap-2 mb-4">
             <button
               type="button"
@@ -722,7 +814,14 @@ export default function CustomerDashboard() {
               <div key={d.id} className="border border-slate-200 rounded-xl p-4 bg-white">
                 <div className="flex items-start justify-between mb-2">
                   <div>
-                    <div className="font-mono text-xs text-slate mb-1">{d.tracking_code}</div>
+                    <div className="font-mono text-xs text-slate mb-1 flex items-center gap-2">
+                      {d.tracking_code}
+                      {d.is_return && (
+                        <span className="text-[10px] font-semibold bg-route/10 text-route-dark rounded-full px-2 py-0.5">
+                          ↩ Return
+                        </span>
+                      )}
+                    </div>
                     <div className="font-semibold text-sm">
                       {d.package_type} · {d.pickup_city} → {d.dropoff_city}
                       {d.distance_km && <span className="text-slate font-normal"> · {d.distance_km} km</span>}
@@ -760,6 +859,57 @@ export default function CustomerDashboard() {
                       <p className="text-xs text-slate mt-1.5">
                         Agent location last updated {new Date(d.location_updated_at).toLocaleTimeString()}
                       </p>
+                    )}
+                  </div>
+                )}
+                {d.declared_value && ["delivered", "cancelled"].includes(d.status) && (
+                  <div className="border border-slate-200 rounded-lg p-3 mb-3 bg-paper">
+                    {claimStatus[d.id] ? (
+                      <p className="text-xs text-slate">{claimStatus[d.id]}</p>
+                    ) : claimFormOpenId === d.id ? (
+                      <div className="space-y-2">
+                        <textarea
+                          value={claimReason}
+                          onChange={(e) => setClaimReason(e.target.value)}
+                          placeholder="What happened? (e.g. item arrived damaged)"
+                          rows={2}
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs"
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          max={Math.min(d.declared_value, 50000)}
+                          value={claimAmount}
+                          onChange={(e) => setClaimAmount(e.target.value)}
+                          placeholder={`Amount to claim (up to \u20a6${Math.min(d.declared_value, 50000).toLocaleString()})`}
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            disabled={claimSubmitting}
+                            onClick={() => handleFileClaim(d.id)}
+                            className="text-xs font-semibold bg-ink text-paper rounded-lg px-3 py-1.5 disabled:opacity-60"
+                          >
+                            {claimSubmitting ? "Submitting…" : "Submit claim"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setClaimFormOpenId(null); setClaimReason(""); setClaimAmount(""); }}
+                            className="text-xs font-medium text-slate hover:text-ink"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setClaimFormOpenId(d.id)}
+                        className="text-xs font-semibold text-ink underline"
+                      >
+                        File an insurance claim
+                      </button>
                     )}
                   </div>
                 )}
