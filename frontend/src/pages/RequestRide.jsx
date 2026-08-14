@@ -51,6 +51,8 @@ export default function RequestRide() {
   const [estimating, setEstimating] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const [error, setError] = useState("");
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState("paystack");
 
   const [rides, setRides] = useState([]);
   const [loadingRides, setLoadingRides] = useState(true);
@@ -66,7 +68,10 @@ export default function RequestRide() {
     }
   }, [token]);
 
-  useEffect(() => { loadRides(); }, [loadRides]);
+  useEffect(() => {
+    loadRides();
+    api.getWallet(token).then((w) => setWalletBalance(w.wallet_balance)).catch(() => {});
+  }, [loadRides, token]);
 
   // While on "My rides" and at least one ride is actively underway, poll
   // for updates so the live map below actually shows the driver moving —
@@ -111,6 +116,7 @@ export default function RequestRide() {
         dropoff_address: dropoffAddress,
         pickup_coords: pickupCoords,
         dropoff_coords: dropoffCoords,
+        payment_method: paymentMethod,
       });
       if (data.authorization_url) {
         window.location.href = data.authorization_url; // off to Paystack checkout
@@ -230,12 +236,39 @@ export default function RequestRide() {
                   Recalculate
                 </button>
               </div>
+
+              <div className="flex gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("paystack")}
+                  className={`flex-1 text-xs font-semibold rounded-lg px-3 py-2.5 border transition-colors ${
+                    paymentMethod === "paystack" ? "border-ink bg-ink text-paper" : "border-slate-300 text-ink"
+                  }`}
+                >
+                  Card / Paystack
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("wallet")}
+                  className={`flex-1 text-xs font-semibold rounded-lg px-3 py-2.5 border transition-colors ${
+                    paymentMethod === "wallet" ? "border-ink bg-ink text-paper" : "border-slate-300 text-ink"
+                  }`}
+                >
+                  Wallet (₦{walletBalance.toLocaleString()})
+                </button>
+              </div>
+              {paymentMethod === "wallet" && walletBalance < quote.price && (
+                <p className="text-xs text-signal mb-3">
+                  Insufficient wallet balance for this fare — top up first or pay with card instead.
+                </p>
+              )}
+
               <button
-                disabled={requesting}
+                disabled={requesting || (paymentMethod === "wallet" && walletBalance < quote.price)}
                 onClick={handleRequestRide}
                 className="w-full bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-3 transition-colors disabled:opacity-60"
               >
-                {requesting ? "Starting checkout…" : `Request ride & pay ₦${quote.price.toLocaleString()}`}
+                {requesting ? "Starting checkout…" : paymentMethod === "wallet" ? `Pay ₦${quote.price.toLocaleString()} from wallet` : `Request ride & pay ₦${quote.price.toLocaleString()}`}
               </button>
             </div>
           )}

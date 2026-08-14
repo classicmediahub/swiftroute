@@ -122,6 +122,7 @@ export const api = {
   verifyRidePayment: (token, reference) => request(`/rides/verify/${reference}`, { token }),
   myRides: (token) => request("/rides/mine", { token }),
   cancelRide: (token, id) => request(`/rides/${id}/cancel`, { method: "PATCH", token }),
+  agentCancelRide: (token, id) => request(`/rides/${id}/agent-cancel`, { method: "PATCH", token }),
   submitRideReview: (token, id, payload) => request(`/rides/${id}/review`, { method: "POST", body: payload, token }),
 
   // Rides phase 2: agent (cab only) side
