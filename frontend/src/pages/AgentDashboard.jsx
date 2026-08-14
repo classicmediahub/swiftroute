@@ -187,6 +187,20 @@ export default function AgentDashboard() {
     }
   }
 
+  async function handleAgentCancelRide(id) {
+    if (!confirm("Cancel this ride? The rider will be refunded automatically if they already paid.")) return;
+    setBusyId(id);
+    try {
+      await api.agentCancelRide(token, id);
+      await loadRides();
+      await refresh();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   if (!agentProfile) {
     return <div className="max-w-4xl mx-auto px-5 py-10 text-slate">Loading profile…</div>;
   }
@@ -484,15 +498,26 @@ export default function AgentDashboard() {
                       )}
                       <div className="flex items-center justify-between">
                         <span className="font-mono text-sm font-semibold">₦{r.price.toLocaleString()}</span>
-                        {RIDE_NEXT_LABEL[r.status] && (
-                          <button
-                            disabled={busyId === r.id}
-                            onClick={() => handleAdvanceRide(r.id)}
-                            className="text-xs font-semibold bg-route hover:bg-route-dark text-ink rounded-lg px-3 py-2 transition-colors disabled:opacity-60"
-                          >
-                            {busyId === r.id ? "Updating…" : RIDE_NEXT_LABEL[r.status]}
-                          </button>
-                        )}
+                        <div className="flex gap-2">
+                          {r.status === "accepted" && (
+                            <button
+                              disabled={busyId === r.id}
+                              onClick={() => handleAgentCancelRide(r.id)}
+                              className="text-xs font-semibold text-red-600 hover:text-red-700 underline disabled:opacity-60"
+                            >
+                              Cancel
+                            </button>
+                          )}
+                          {RIDE_NEXT_LABEL[r.status] && (
+                            <button
+                              disabled={busyId === r.id}
+                              onClick={() => handleAdvanceRide(r.id)}
+                              className="text-xs font-semibold bg-route hover:bg-route-dark text-ink rounded-lg px-3 py-2 transition-colors disabled:opacity-60"
+                            >
+                              {busyId === r.id ? "Updating…" : RIDE_NEXT_LABEL[r.status]}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
