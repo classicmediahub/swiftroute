@@ -318,7 +318,7 @@ async function initSchema() {
   await pool.query(`ALTER TABLE wallet_transactions DROP CONSTRAINT IF EXISTS wallet_transactions_type_check;`);
   await pool.query(`
     ALTER TABLE wallet_transactions ADD CONSTRAINT wallet_transactions_type_check
-    CHECK (type IN ('topup','delivery_payment','refund','streak_reward','referral_reward','landmark_reward'));
+    CHECK (type IN ('topup','delivery_payment','ride_payment','refund','streak_reward','referral_reward','landmark_reward'));
   `);
 
   // --- Crowdsourced landmarks — extends the institution/landmark system
@@ -540,6 +540,18 @@ async function initSchema() {
   await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS is_return BOOLEAN NOT NULL DEFAULT false;`);
   await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS original_delivery_id TEXT REFERENCES deliveries(id);`);
   await pool.query(`ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS return_reason TEXT;`);
+
+  // --- Ride fixes: wallet payment parity with deliveries (rides were
+  // Paystack-only until now, despite sharing the same wallet_balance a
+  // customer might have real credit sitting in from a delivery refund),
+  // and letting a wallet-linked transaction reference a ride the same way
+  // one can already reference a delivery. cancelled_by records WHO
+  // cancelled — needed because an agent-initiated cancellation
+  // auto-refunds a paid ride (not the customer's fault), while a
+  // customer-initiated one doesn't (unchanged existing behavior). ---
+  await pool.query(`ALTER TABLE rides ADD COLUMN IF NOT EXISTS payment_method TEXT NOT NULL DEFAULT 'paystack';`);
+  await pool.query(`ALTER TABLE rides ADD COLUMN IF NOT EXISTS cancelled_by TEXT REFERENCES users(id);`);
+  await pool.query(`ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS ride_id TEXT REFERENCES rides(id);`);
 }
 
 module.exports = { pool, initSchema };

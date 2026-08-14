@@ -28,6 +28,21 @@ function callbackUrl() {
   return `${base.replace(/\/$/, "")}/ride/payment/callback`;
 }
 
+// Same formula as public.js's nearby-drivers endpoint — kept as its own
+// copy here rather than a shared import, since this file has no existing
+// dependency on public.js and one small function isn't worth wiring a
+// cross-route import for.
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+const MAX_RIDE_MATCH_RADIUS_KM = 15; // starting number, tune freely — same spirit as pricing.js's other constants
+
 // Recomputes an agent's single blended rating across BOTH delivery
 // reviews and ride reviews, and writes it back to agent_profiles. Called
 // after any new ride review — the delivery-side review endpoint (not
@@ -67,7 +82,7 @@ router.post("/estimate", requireAuth, async (req, res) => {
 // cab agents once payment is confirmed, same rule as paid deliveries. ----------
 router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
   try {
-    const { pickup_address, dropoff_address, pickup_coords, dropoff_coords } = req.body;
+    const { pickup_address, dropoff_address, pickup_coords, dropoff_coords, payment_method } = req.body;
     if (!pickup_address || !dropoff_address || !isValidCoords(pickup_coords) || !isValidCoords(dropoff_coords)) {
       return res.status(400).json({ error: "Confirmed pickup and drop-off locations are required" });
     }
@@ -78,14 +93,60 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
     }
 
     const id = uuidv4();
+
+    // Wallet path — pays instantly out of whatever balance the customer
+    // already has (which may include credit from delivery refunds,
+    // streak/referral rewards, etc.), no Paystack round-trip at all. This
+    // didn't exist before; rides were Paystack-only despite sharing the
+    // exact same wallet_balance column deliveries already spend from.
+    if (payment_method === "wallet") {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const { rows: userRows } = await client.query("SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE", [req.user.id]);
+        const balance = userRows[0]?.wallet_balance ?? 0;
+        if (balance < quote.price) {
+          await client.query("ROLLBACK");
+          return res.status(402).json({ error: `Insufficient wallet balance. You have ₦${balance.toLocaleString()}, this ride costs ₦${quote.price.toLocaleString()}.` });
+        }
+
+        await client.query(
+          `INSERT INTO rides (
+            id, customer_id, pickup_address, pickup_lat, pickup_lng,
+            dropoff_address, dropoff_lat, dropoff_lng, price, distance_km,
+            payment_status, payment_method
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'paid','wallet')`,
+          [id, req.user.id, pickup_address, pickup_coords.lat, pickup_coords.lng,
+           dropoff_address, dropoff_coords.lat, dropoff_coords.lng, quote.price, quote.distanceKm]
+        );
+        const newBalance = balance - quote.price;
+        await client.query("UPDATE users SET wallet_balance = $1 WHERE id = $2", [newBalance, req.user.id]);
+        await client.query(
+          `INSERT INTO wallet_transactions (id, user_id, type, amount, balance_after, status, ride_id, note)
+           VALUES ($1,$2,'ride_payment',$3,$4,'success',$5,$6)`,
+          [uuidv4(), req.user.id, -quote.price, newBalance, id, "Ride payment"]
+        );
+        await client.query("COMMIT");
+      } catch (err) {
+        await client.query("ROLLBACK").catch(() => {});
+        throw err;
+      } finally {
+        client.release();
+      }
+
+      const { rows } = await pool.query("SELECT * FROM rides WHERE id = $1", [id]);
+      return res.status(201).json({ ride: rows[0], authorization_url: null });
+    }
+
+    // Default: pay via Paystack checkout.
     const reference = paymentReference();
 
     await pool.query(
       `INSERT INTO rides (
         id, customer_id, pickup_address, pickup_lat, pickup_lng,
         dropoff_address, dropoff_lat, dropoff_lng, price, distance_km,
-        payment_status, paystack_reference
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'unpaid',$11)`,
+        payment_status, paystack_reference, payment_method
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'unpaid',$11,'paystack')`,
       [id, req.user.id, pickup_address, pickup_coords.lat, pickup_coords.lng,
        dropoff_address, dropoff_coords.lat, dropoff_coords.lng, quote.price, quote.distanceKm, reference]
     );
@@ -253,10 +314,14 @@ router.patch("/:id/cancel", requireAuth, requireRole("customer"), async (req, re
       return res.status(409).json({ error: "This ride can no longer be cancelled" });
     }
 
-    await pool.query("UPDATE rides SET status = 'cancelled', cancelled_at = now() WHERE id = $1", [ride.id]);
-    // No auto-refund here (rides are Paystack-only, no wallet payment
-    // option) — same manual-refund note as deliveries: a paid, cancelled
-    // ride needs a real Paystack refund done separately for now.
+    await pool.query("UPDATE rides SET status = 'cancelled', cancelled_at = now(), cancelled_by = $2 WHERE id = $1", [ride.id, req.user.id]);
+    // Still no auto-refund for a CUSTOMER-initiated cancellation — a
+    // deliberate choice, not an oversight: refund-on-buyer's-remorse is a
+    // business policy decision, not something to default to silently. A
+    // paid ride still needs a real Paystack refund (or a manual wallet
+    // credit) processed separately for now. Contrast with agent-initiated
+    // cancellation just below, which DOES auto-refund — that one is
+    // unambiguously not the customer's fault.
 
     const { rows: updated } = await pool.query("SELECT * FROM rides WHERE id = $1", [ride.id]);
     notifyRideCustomer(updated[0], "cancelled"); // fire-and-forget
@@ -264,6 +329,60 @@ router.patch("/:id/cancel", requireAuth, requireRole("customer"), async (req, re
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong cancelling this ride" });
+  }
+});
+
+// ---------- AGENT-INITIATED CANCEL — didn't exist before; an agent who
+// accepted a ride had no way to back out (breakdown, emergency, etc.)
+// other than just leaving the customer stranded indefinitely. Only
+// allowed from 'accepted' (before the trip is actually underway) — once
+// 'in_progress', backing out mid-trip is a different, messier situation
+// this endpoint doesn't try to handle. Auto-refunds the fare to the
+// customer's wallet if it was paid — regardless of whether they
+// originally paid by wallet or Paystack, crediting wallet instead of a
+// real Paystack reversal (same pattern already used for pool rebalancing
+// and guarantee-window penalties elsewhere in this codebase), since this
+// is unambiguously not the customer's fault. ----------
+router.patch("/:id/agent-cancel", requireAuth, requireRole("agent"), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { rows } = await client.query("SELECT * FROM rides WHERE id = $1 FOR UPDATE", [req.params.id]);
+    const ride = rows[0];
+    if (!ride) { await client.query("ROLLBACK"); return res.status(404).json({ error: "Ride not found" }); }
+    if (ride.agent_id !== req.user.id) { await client.query("ROLLBACK"); return res.status(403).json({ error: "Not your ride" }); }
+    if (ride.status !== "accepted") {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: "Can only cancel a ride that's accepted but not yet started" });
+    }
+
+    await client.query(
+      "UPDATE rides SET status = 'cancelled', cancelled_at = now(), cancelled_by = $2 WHERE id = $1",
+      [ride.id, req.user.id]
+    );
+
+    if (ride.payment_status === "paid") {
+      const { rows: walletRows } = await client.query(
+        "UPDATE users SET wallet_balance = wallet_balance + $1 WHERE id = $2 RETURNING wallet_balance",
+        [ride.price, ride.customer_id]
+      );
+      await client.query(
+        `INSERT INTO wallet_transactions (id, user_id, type, amount, balance_after, status, ride_id, note)
+         VALUES ($1,$2,'refund',$3,$4,'success',$5,$6)`,
+        [uuidv4(), ride.customer_id, ride.price, walletRows[0].wallet_balance, ride.id, "Ride cancelled by driver \u2014 full refund"]
+      );
+    }
+
+    await client.query("COMMIT");
+    const { rows: updated } = await pool.query("SELECT * FROM rides WHERE id = $1", [ride.id]);
+    notifyRideCustomer(updated[0], "cancelled"); // fire-and-forget
+    res.json(updated[0]);
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong cancelling this ride" });
+  } finally {
+    client.release();
   }
 });
 
@@ -288,7 +407,21 @@ router.get("/available", requireAuth, requireRole("agent"), async (req, res) => 
        WHERE r.status = 'pending' AND r.payment_status = 'paid'
        ORDER BY r.created_at ASC`
     );
-    res.json(rows);
+
+    // Proximity filter — previously every approved cab agent saw every
+    // pending ride nationwide, with no distance shown and no way to tell
+    // a Lagos ride from one in Kano apart from reading the address text.
+    // Falls back to showing everything unfiltered if this agent has never
+    // broadcast a location yet, rather than hiding all rides from someone
+    // brand new who just hasn't gone online yet.
+    if (profile.current_lat == null || profile.current_lng == null) {
+      return res.json(rows.map((r) => ({ ...r, distance_from_you_km: null })));
+    }
+    const withDistance = rows
+      .map((r) => ({ ...r, distance_from_you_km: Math.round(haversineKm(profile.current_lat, profile.current_lng, r.pickup_lat, r.pickup_lng) * 10) / 10 }))
+      .filter((r) => r.distance_from_you_km <= MAX_RIDE_MATCH_RADIUS_KM)
+      .sort((a, b) => a.distance_from_you_km - b.distance_from_you_km);
+    res.json(withDistance);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong loading available rides" });
@@ -320,6 +453,17 @@ router.post("/:id/accept", requireAuth, requireRole("agent"), async (req, res) =
     const profile = profileRows[0];
     if (!profile || profile.approval_status !== "approved" || profile.vehicle_type !== "cab") {
       return res.status(403).json({ error: "Only approved cab agents can accept rides" });
+    }
+
+    // A cab agent can't physically be doing two rides at once — this
+    // didn't exist before, so nothing stopped an agent from accepting a
+    // second ride before finishing their first.
+    const { rows: activeRows } = await client.query(
+      "SELECT id FROM rides WHERE agent_id = $1 AND status IN ('accepted','in_progress')",
+      [req.user.id]
+    );
+    if (activeRows.length > 0) {
+      return res.status(409).json({ error: "You already have an active ride — complete or cancel it before accepting another." });
     }
 
     await client.query("BEGIN");
