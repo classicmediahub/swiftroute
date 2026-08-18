@@ -5,37 +5,16 @@ import PinMap from "../components/PinMap";
 import DeliveryMap from "../components/DeliveryMap";
 import StarRating from "../components/StarRating";
 import RideMeter from "../components/RideMeter";
+import TripStatusStepper, { RIDE_STEPS } from "../components/TripStatusStepper";
 
 const CITIES = ["Lagos", "Ota", "Ogun", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City"];
 
 const ACTIVE_STATUSES = ["accepted", "in_progress"];
 const MAP_POLL_INTERVAL_MS = 8000; // matches useRideLocation's ping interval on the agent side
 
-// Small local status badge, not the shared StatusBadge component — ride
-// statuses (in_progress/completed) are a different set of strings than
-// delivery statuses (in_transit/delivered), and StatusBadge's internals
-// weren't available to confirm it handles arbitrary values gracefully.
-const STATUS_LABEL = {
-  pending: "Finding a driver",
-  accepted: "Driver on the way",
-  in_progress: "Trip in progress — meter running",
-  completed: "Trip complete",
-  cancelled: "Cancelled",
-};
-const STATUS_COLOR = {
-  pending: "bg-amber-100 text-amber-800",
-  accepted: "bg-blue-100 text-blue-800",
-  in_progress: "bg-blue-100 text-blue-800",
-  completed: "bg-emerald-100 text-emerald-800",
-  cancelled: "bg-slate-100 text-slate-600",
-};
-function RideStatusBadge({ status }) {
-  return (
-    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_COLOR[status] || "bg-slate-100 text-slate-600"}`}>
-      {STATUS_LABEL[status] || status}
-    </span>
-  );
-}
+// RideStatusBadge is gone — replaced by the shared TripStatusStepper,
+// which shows the same information (where this ride is in its lifecycle)
+// as a horizontal progress stepper instead of a flat colored badge.
 
 export default function RequestRide() {
   const { token } = useAuth();
@@ -269,13 +248,13 @@ export default function RequestRide() {
             const isActive = ACTIVE_STATUSES.includes(r.status);
             return (
               <div key={r.id} className="border border-slate-200 rounded-xl p-4 bg-white">
-                <div className="flex items-start justify-between mb-2">
+                <div className="flex items-start justify-between mb-3">
                   <div className="text-sm">
                     <div className="font-semibold mb-0.5">{r.pickup_address} → {r.dropoff_address}</div>
                     <div className="text-xs text-slate">{r.distance_km ? `${r.distance_km} km · ` : ""}₦{r.price.toLocaleString()}</div>
                   </div>
-                  <RideStatusBadge status={r.status} />
                 </div>
+                <TripStatusStepper steps={RIDE_STEPS} currentKey={r.status} className="mb-3" />
                 {r.agent_name && (
                   <div className="text-xs text-slate mb-2">Driver: {r.agent_name} · {r.agent_phone}</div>
                 )}
