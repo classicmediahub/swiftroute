@@ -56,6 +56,28 @@ function priceForRide({ distanceKm }) {
   return applyLaunchPromo(Math.max(price, RIDE_MIN_FARE));
 }
 
+// ---------- LIVE METER (Bolt-style) — the fare that actually gets charged.
+// priceForRide() above is only ever shown to the customer as an upfront
+// ESTIMATE before they request the ride; it is never charged directly.
+// The real fare accrues while the trip is 'in_progress' and is driven by
+// two things the backend tracks itself so it can't be spoofed from the
+// client: elapsed wall-clock time since started_at, and real distance
+// actually travelled (accumulated ride.distance_traveled_km, built up from
+// consecutive driver GPS pings in routes/rides.js's /:id/location handler
+// — NOT the straight-line pickup→dropoff distance used for the estimate).
+// Per-minute rate exists so waiting in traffic/at a stop still costs the
+// rider something, same as Bolt/Uber — a pure per-km meter would make a
+// gridlocked trip free for the driver's time. ----------
+const RIDE_PER_MIN_RATE = 35;
+
+function priceForRideMeter({ distanceKm, elapsedMinutes }) {
+  const km = Math.max(0, Number(distanceKm) || 0);
+  const mins = Math.max(0, Number(elapsedMinutes) || 0);
+  let price = RIDE_BASE_FARE + km * RIDE_PER_KM_RATE + mins * RIDE_PER_MIN_RATE;
+  price = Math.round(price / 50) * 50;
+  return applyLaunchPromo(Math.max(price, RIDE_MIN_FARE));
+}
+
 function trackingCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "PAE-";
@@ -117,6 +139,6 @@ function applyLaunchPromo(price) {
 }
 
 module.exports = {
-  estimatePrice, priceFromDistance, priceForRide, trackingCode,
+  estimatePrice, priceFromDistance, priceForRide, priceForRideMeter, trackingCode,
   isLaunchPromoActive, launchPromoInfo,
 };

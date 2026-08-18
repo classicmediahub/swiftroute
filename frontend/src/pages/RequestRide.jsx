@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import PinMap from "../components/PinMap";
 import DeliveryMap from "../components/DeliveryMap";
 import StarRating from "../components/StarRating";
+import RideMeter from "../components/RideMeter";
 
 const CITIES = ["Lagos", "Ota", "Ogun", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City"];
 
@@ -17,8 +18,8 @@ const MAP_POLL_INTERVAL_MS = 8000; // matches useRideLocation's ping interval on
 const STATUS_LABEL = {
   pending: "Finding a driver",
   accepted: "Driver on the way",
-  in_progress: "Trip in progress",
-  completed: "Completed",
+  in_progress: "Trip in progress — meter running",
+  completed: "Trip complete",
   cancelled: "Cancelled",
 };
 const STATUS_COLOR = {
@@ -52,7 +53,6 @@ export default function RequestRide() {
   const [requesting, setRequesting] = useState(false);
   const [error, setError] = useState("");
   const [walletBalance, setWalletBalance] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState("paystack");
 
   const [rides, setRides] = useState([]);
   const [loadingRides, setLoadingRides] = useState(true);
@@ -111,19 +111,16 @@ export default function RequestRide() {
     setError("");
     setRequesting(true);
     try {
-      const data = await api.requestRide(token, {
+      await api.requestRide(token, {
         pickup_address: pickupAddress,
         dropoff_address: dropoffAddress,
         pickup_coords: pickupCoords,
         dropoff_coords: dropoffCoords,
-        payment_method: paymentMethod,
       });
-      if (data.authorization_url) {
-        window.location.href = data.authorization_url; // off to Paystack checkout
-      } else {
-        setTab("mine");
-        loadRides();
-      }
+      // No payment here anymore — you pay after the trip, once the meter
+      // shows the real total. See handleChargeRide below.
+      setTab("mine");
+      loadRides();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -131,12 +128,20 @@ export default function RequestRide() {
     }
   }
 
-  async function handleRetryPayment(id) {
+  const [payingId, setPayingId] = useState(null);
+  async function handleChargeRide(id, method) {
+    setPayingId(id);
     try {
-      const data = await api.retryRidePayment(token, id);
-      window.location.href = data.authorization_url;
+      const data = await api.chargeRide(token, id, method);
+      if (data.authorization_url) {
+        window.location.href = data.authorization_url; // off to Paystack checkout
+      } else {
+        loadRides(); // wallet paid instantly — just refresh to show "Paid"
+      }
     } catch (err) {
       alert(err.message);
+    } finally {
+      setPayingId(null);
     }
   }
 
@@ -237,38 +242,17 @@ export default function RequestRide() {
                 </button>
               </div>
 
-              <div className="flex gap-2 mb-4">
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod("paystack")}
-                  className={`flex-1 text-xs font-semibold rounded-lg px-3 py-2.5 border transition-colors ${
-                    paymentMethod === "paystack" ? "border-ink bg-ink text-paper" : "border-slate-300 text-ink"
-                  }`}
-                >
-                  Card / Paystack
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod("wallet")}
-                  className={`flex-1 text-xs font-semibold rounded-lg px-3 py-2.5 border transition-colors ${
-                    paymentMethod === "wallet" ? "border-ink bg-ink text-paper" : "border-slate-300 text-ink"
-                  }`}
-                >
-                  Wallet (₦{walletBalance.toLocaleString()})
-                </button>
-              </div>
-              {paymentMethod === "wallet" && walletBalance < quote.price && (
-                <p className="text-xs text-signal mb-3">
-                  Insufficient wallet balance for this fare — top up first or pay with card instead.
-                </p>
-              )}
+              <p className="text-xs text-slate mb-4">
+                This is just a ballpark. Once your driver starts the trip, the meter runs on real
+                distance and time — you'll see the exact total live, and only pay once the trip ends.
+              </p>
 
               <button
-                disabled={requesting || (paymentMethod === "wallet" && walletBalance < quote.price)}
+                disabled={requesting}
                 onClick={handleRequestRide}
                 className="w-full bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-3 transition-colors disabled:opacity-60"
               >
-                {requesting ? "Starting checkout…" : paymentMethod === "wallet" ? `Pay ₦${quote.price.toLocaleString()} from wallet` : `Request ride & pay ₦${quote.price.toLocaleString()}`}
+                {requesting ? "Requesting…" : "Request ride"}
               </button>
             </div>
           )}
@@ -307,16 +291,21 @@ export default function RequestRide() {
                   </div>
                 )}
 
+                {(r.status === "in_progress" || r.status === "completed") && (
+                  <div className="my-3">
+                    <RideMeter token={token} rideId={r.id} status={r.status} />
+                  </div>
+                )}
+
+                {r.status === "completed" && r.payment_status !== "paid" && (
+                  <RidePayment ride={r} walletBalance={walletBalance} paying={payingId === r.id} onPay={(method) => handleChargeRide(r.id, method)} />
+                )}
+
                 {r.status === "completed" && (
                   <RideReview ride={r} token={token} onSubmitted={loadRides} />
                 )}
 
                 <div className="flex items-center gap-3">
-                  {r.payment_status !== "paid" && r.status !== "cancelled" && (
-                    <button onClick={() => handleRetryPayment(r.id)} className="text-xs font-semibold text-ink underline">
-                      Complete payment
-                    </button>
-                  )}
                   {["pending", "accepted"].includes(r.status) && (
                     <button onClick={() => handleCancel(r.id)} className="text-xs font-semibold text-red-600 underline">
                       Cancel
@@ -386,6 +375,37 @@ function RideReview({ ride, token, onSubmitted }) {
       >
         {submitting ? "Submitting…" : "Submit review"}
       </button>
+    </div>
+  );
+}
+
+function RidePayment({ ride, walletBalance, paying, onPay }) {
+  const insufficientWallet = walletBalance < ride.price;
+  return (
+    <div className="border-t border-slate-100 mt-3 pt-3">
+      <div className="text-xs font-medium text-ink mb-2">
+        Trip ended — pay ₦{ride.price.toLocaleString()} to close it out
+      </div>
+      <div className="flex gap-2">
+        <button
+          disabled={paying}
+          onClick={() => onPay("paystack")}
+          className="flex-1 text-xs font-semibold bg-ink hover:bg-ink-soft text-paper rounded-lg px-3 py-2.5 transition-colors disabled:opacity-60"
+        >
+          {paying ? "Starting checkout…" : "Pay with card"}
+        </button>
+        <button
+          disabled={paying || insufficientWallet}
+          onClick={() => onPay("wallet")}
+          title={insufficientWallet ? "Insufficient wallet balance" : undefined}
+          className="flex-1 text-xs font-semibold border border-ink text-ink rounded-lg px-3 py-2.5 transition-colors disabled:opacity-40"
+        >
+          {paying ? "Paying…" : `Wallet (₦${walletBalance.toLocaleString()})`}
+        </button>
+      </div>
+      {insufficientWallet && (
+        <p className="text-xs text-signal mt-1.5">Insufficient wallet balance for this trip — pay with card instead.</p>
+      )}
     </div>
   );
 }

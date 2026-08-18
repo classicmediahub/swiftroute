@@ -118,12 +118,16 @@ export const api = {
   // Rides phase 2: customer booking + payment
   rideEstimate: (token, payload) => request("/rides/estimate", { method: "POST", body: payload, token }),
   requestRide: (token, payload) => request("/rides", { method: "POST", body: payload, token }),
-  retryRidePayment: (token, id) => request(`/rides/${id}/retry-payment`, { method: "POST", token }),
-  verifyRidePayment: (token, reference) => request(`/rides/verify/${reference}`, { token }),
   myRides: (token) => request("/rides/mine", { token }),
   cancelRide: (token, id) => request(`/rides/${id}/cancel`, { method: "PATCH", token }),
   agentCancelRide: (token, id) => request(`/rides/${id}/agent-cancel`, { method: "PATCH", token }),
   submitRideReview: (token, id, payload) => request(`/rides/${id}/review`, { method: "POST", body: payload, token }),
+
+  // Rides phase 3: live meter + post-trip payment (Bolt-style — payment
+  // now happens after the trip ends, not at booking; see chargeRide).
+  rideMeter: (token, id) => request(`/rides/${id}/meter`, { token }),
+  chargeRide: (token, id, payment_method) => request(`/rides/${id}/charge`, { method: "POST", body: { payment_method }, token }),
+  verifyRidePayment: (token, reference) => request(`/rides/verify/${reference}`, { token }),
 
   // Rides phase 2: agent (cab only) side
   availableRides: (token) => request("/rides/available", { token }),

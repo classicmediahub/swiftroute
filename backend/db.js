@@ -552,6 +552,18 @@ async function initSchema() {
   await pool.query(`ALTER TABLE rides ADD COLUMN IF NOT EXISTS payment_method TEXT NOT NULL DEFAULT 'paystack';`);
   await pool.query(`ALTER TABLE rides ADD COLUMN IF NOT EXISTS cancelled_by TEXT REFERENCES users(id);`);
   await pool.query(`ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS ride_id TEXT REFERENCES rides(id);`);
+
+  // --- Live meter (Bolt-style pay-after-trip). `price` stays the upfront
+  // ESTIMATE shown before the rider requests the trip — it is no longer
+  // what gets charged. distance_traveled_km accumulates real GPS distance
+  // covered while status = 'in_progress' (see routes/rides.js's
+  // /:id/location handler), reset to 0 the moment the driver taps "Start
+  // trip". final_price is computed once, when the driver taps "Complete
+  // trip", from actual elapsed time + actual distance travelled, and is
+  // the amount the rider is asked to pay — payment now happens AFTER the
+  // trip ends instead of before it starts. ---
+  await pool.query(`ALTER TABLE rides ADD COLUMN IF NOT EXISTS distance_traveled_km REAL NOT NULL DEFAULT 0;`);
+  await pool.query(`ALTER TABLE rides ADD COLUMN IF NOT EXISTS final_price REAL;`);
 }
 
 module.exports = { pool, initSchema };

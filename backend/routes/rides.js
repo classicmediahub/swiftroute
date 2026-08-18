@@ -3,8 +3,10 @@ const { v4: uuidv4 } = require("uuid");
 const { pool } = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { getRideQuote } = require("../quote");
+const { priceForRideMeter } = require("../pricing");
 const { initializeTransaction, verifyTransaction } = require("../paystack");
 const { notifyRideCustomer } = require("../notify");
+const { priceForLiveRide, finalizeLiveFare } = require("../pricing");
 
 const router = express.Router();
 
@@ -43,6 +45,45 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 }
 const MAX_RIDE_MATCH_RADIUS_KM = 15; // starting number, tune freely — same spirit as pricing.js's other constants
 
+// Pays the driver their 80% cut once a ride is actually paid for — call
+// site moved from "trip completed" to "payment confirmed" now that those
+// two events can happen minutes apart (wallet payments) or after a
+// Paystack redirect round-trip (card payments). Takes a client so it can
+// run inside the same transaction as the payment write it's paired with.
+async function creditAgentForRide(client, ride) {
+  if (!ride.agent_id) return;
+  const amount = ride.final_price ?? ride.price;
+  await client.query(
+    `UPDATE agent_profiles SET wallet_balance = wallet_balance + $1, total_rides = total_rides + 1 WHERE user_id = $2`,
+    [amount * 0.8, ride.agent_id]
+  );
+}
+
+// The live fare for an in-progress or just-finished trip. Server-computed
+// from data the client can't fake: elapsed wall-clock time since
+// started_at, and distance_traveled_km, which only ever grows via
+// authenticated GPS pings from the assigned agent (see /:id/location
+// below) — never from anything the rider's or driver's client sends
+// directly as a number.
+function currentMeterFare(ride) {
+  if (ride.status === "completed" && ride.final_price != null) {
+    return {
+      price: ride.final_price,
+      distanceKm: ride.distance_traveled_km,
+      elapsedMinutes: ride.started_at && ride.completed_at
+        ? (new Date(ride.completed_at) - new Date(ride.started_at)) / 60000
+        : null,
+      final: true,
+    };
+  }
+  if (ride.status !== "in_progress" || !ride.started_at) {
+    return { price: null, distanceKm: ride.distance_traveled_km || 0, elapsedMinutes: 0, final: false };
+  }
+  const elapsedMinutes = (Date.now() - new Date(ride.started_at).getTime()) / 60000;
+  const price = priceForRideMeter({ distanceKm: ride.distance_traveled_km || 0, elapsedMinutes });
+  return { price, distanceKm: ride.distance_traveled_km || 0, elapsedMinutes, final: false };
+}
+
 // Recomputes an agent's single blended rating across BOTH delivery
 // reviews and ride reviews, and writes it back to agent_profiles. Called
 // after any new ride review — the delivery-side review endpoint (not
@@ -77,12 +118,17 @@ router.post("/estimate", requireAuth, async (req, res) => {
   res.json(quote);
 });
 
-// ---------- REQUEST A RIDE (customer) — creates the ride as unpaid, then
-// starts a Paystack transaction. The ride only becomes visible to nearby
-// cab agents once payment is confirmed, same rule as paid deliveries. ----------
+// ---------- REQUEST A RIDE (customer) — creates the ride unpaid, with NO
+// payment step at all. This is the Bolt-style change: nothing is charged
+// at booking. `price` is seeded to the pre-ride estimate just so the ride
+// has a sane number to show before the meter starts running; the moment
+// the driver taps "Start trip", price gets reset to the base fare and
+// begins climbing for real (see /:id/advance and /:id/location below).
+// `estimated_price` keeps the original quote around for reference even
+// after price starts changing. ----------
 router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
   try {
-    const { pickup_address, dropoff_address, pickup_coords, dropoff_coords, payment_method } = req.body;
+    const { pickup_address, dropoff_address, pickup_coords, dropoff_coords } = req.body;
     if (!pickup_address || !dropoff_address || !isValidCoords(pickup_coords) || !isValidCoords(dropoff_coords)) {
       return res.status(400).json({ error: "Confirmed pickup and drop-off locations are required" });
     }
@@ -93,39 +139,67 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
     }
 
     const id = uuidv4();
+    await pool.query(
+      `INSERT INTO rides (
+        id, customer_id, pickup_address, pickup_lat, pickup_lng,
+        dropoff_address, dropoff_lat, dropoff_lng, price, estimated_price, distance_km,
+        payment_status
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$9,$10,'unpaid')`,
+      [id, req.user.id, pickup_address, pickup_coords.lat, pickup_coords.lng,
+       dropoff_address, dropoff_coords.lat, dropoff_coords.lng, quote.price, quote.distanceKm]
+    );
 
-    // Wallet path — pays instantly out of whatever balance the customer
-    // already has (which may include credit from delivery refunds,
-    // streak/referral rewards, etc.), no Paystack round-trip at all. This
-    // didn't exist before; rides were Paystack-only despite sharing the
-    // exact same wallet_balance column deliveries already spend from.
+    const { rows } = await pool.query("SELECT * FROM rides WHERE id = $1", [id]);
+    res.status(201).json({ ride: rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong requesting the ride" });
+  }
+});
+
+// ---------- PAY FOR A COMPLETED RIDE (customer) — this replaces the old
+// pay-at-booking flow. Only callable once the trip has actually ended, and
+// charges ride.price, which by then is the FINAL metered fare (frozen by
+// /:id/advance when the driver ended the trip) — never the earlier
+// estimate. Wallet pays instantly and credits the driver in the same
+// transaction; Paystack hands back a checkout link and the driver is
+// credited later, when /verify/:reference confirms success — exactly the
+// same wallet/Paystack split the old booking-time payment used to do. ----------
+router.post("/:id/charge", requireAuth, requireRole("customer"), async (req, res) => {
+  try {
+    const { payment_method } = req.body;
+    const { rows } = await pool.query("SELECT * FROM rides WHERE id = $1", [req.params.id]);
+    const ride = rows[0];
+    if (!ride) return res.status(404).json({ error: "Ride not found" });
+    if (ride.customer_id !== req.user.id) return res.status(403).json({ error: "Not your ride" });
+    if (ride.status !== "completed") return res.status(409).json({ error: "This ride hasn't ended yet" });
+    if (ride.payment_status === "paid") return res.status(409).json({ error: "This ride is already paid for" });
+
     if (payment_method === "wallet") {
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
         const { rows: userRows } = await client.query("SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE", [req.user.id]);
         const balance = userRows[0]?.wallet_balance ?? 0;
-        if (balance < quote.price) {
+        if (balance < ride.price) {
           await client.query("ROLLBACK");
-          return res.status(402).json({ error: `Insufficient wallet balance. You have ₦${balance.toLocaleString()}, this ride costs ₦${quote.price.toLocaleString()}.` });
+          return res.status(402).json({ error: `Insufficient wallet balance. You have ₦${balance.toLocaleString()}, this trip costs ₦${ride.price.toLocaleString()}.` });
         }
 
-        await client.query(
-          `INSERT INTO rides (
-            id, customer_id, pickup_address, pickup_lat, pickup_lng,
-            dropoff_address, dropoff_lat, dropoff_lng, price, distance_km,
-            payment_status, payment_method
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'paid','wallet')`,
-          [id, req.user.id, pickup_address, pickup_coords.lat, pickup_coords.lng,
-           dropoff_address, dropoff_coords.lat, dropoff_coords.lng, quote.price, quote.distanceKm]
-        );
-        const newBalance = balance - quote.price;
+        const newBalance = balance - ride.price;
         await client.query("UPDATE users SET wallet_balance = $1 WHERE id = $2", [newBalance, req.user.id]);
         await client.query(
           `INSERT INTO wallet_transactions (id, user_id, type, amount, balance_after, status, ride_id, note)
            VALUES ($1,$2,'ride_payment',$3,$4,'success',$5,$6)`,
-          [uuidv4(), req.user.id, -quote.price, newBalance, id, "Ride payment"]
+          [uuidv4(), req.user.id, -ride.price, newBalance, ride.id, "Ride payment"]
         );
+        await client.query("UPDATE rides SET payment_status = 'paid', payment_method = 'wallet' WHERE id = $1", [ride.id]);
+        if (ride.agent_id) {
+          await client.query(
+            `UPDATE agent_profiles SET wallet_balance = wallet_balance + $1, total_rides = total_rides + 1 WHERE user_id = $2`,
+            [ride.price * 0.8, ride.agent_id]
+          );
+        }
         await client.query("COMMIT");
       } catch (err) {
         await client.query("ROLLBACK").catch(() => {});
@@ -134,81 +208,40 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
         client.release();
       }
 
-      const { rows } = await pool.query("SELECT * FROM rides WHERE id = $1", [id]);
-      return res.status(201).json({ ride: rows[0], authorization_url: null });
+      const { rows: updated } = await pool.query("SELECT * FROM rides WHERE id = $1", [ride.id]);
+      return res.json({ ride: updated[0], authorization_url: null });
     }
 
-    // Default: pay via Paystack checkout.
+    // Default: pay via Paystack checkout for the final metered amount.
     const reference = paymentReference();
-
-    await pool.query(
-      `INSERT INTO rides (
-        id, customer_id, pickup_address, pickup_lat, pickup_lng,
-        dropoff_address, dropoff_lat, dropoff_lng, price, distance_km,
-        payment_status, paystack_reference, payment_method
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'unpaid',$11,'paystack')`,
-      [id, req.user.id, pickup_address, pickup_coords.lat, pickup_coords.lng,
-       dropoff_address, dropoff_coords.lat, dropoff_coords.lng, quote.price, quote.distanceKm, reference]
-    );
+    await pool.query("UPDATE rides SET paystack_reference = $1, payment_method = 'paystack' WHERE id = $2", [reference, ride.id]);
 
     let authorization_url;
     try {
       const paystackData = await initializeTransaction({
         email: req.user.email,
-        amountNaira: quote.price,
+        amountNaira: ride.price,
         reference,
         callback_url: callbackUrl(),
-        metadata: { ride_id: id },
+        metadata: { ride_id: ride.id },
       });
       authorization_url = paystackData.authorization_url;
     } catch (err) {
       console.error("Paystack initialize failed for ride:", err.message);
-      const { rows } = await pool.query("SELECT * FROM rides WHERE id = $1", [id]);
-      // Ride row exists but unpaid — customer can retry from "My rides"
-      // via /retry-payment below, same recovery path as deliveries.
-      return res.status(502).json({
-        error: "We couldn't start payment right now. Your ride request was saved — try paying again from My rides.",
-        ride: rows[0],
-      });
+      return res.status(502).json({ error: "We couldn't start payment right now. Try again from My rides." });
     }
 
-    const { rows } = await pool.query("SELECT * FROM rides WHERE id = $1", [id]);
-    res.status(201).json({ ride: rows[0], authorization_url });
+    res.json({ authorization_url });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Something went wrong requesting the ride" });
-  }
-});
-
-// ---------- RETRY PAYMENT (customer) ----------
-router.post("/:id/retry-payment", requireAuth, requireRole("customer"), async (req, res) => {
-  try {
-    const { rows } = await pool.query("SELECT * FROM rides WHERE id = $1", [req.params.id]);
-    const ride = rows[0];
-    if (!ride) return res.status(404).json({ error: "Ride not found" });
-    if (ride.customer_id !== req.user.id) return res.status(403).json({ error: "Not your ride" });
-    if (ride.payment_status === "paid") return res.status(409).json({ error: "This ride is already paid for" });
-
-    const reference = paymentReference();
-    await pool.query("UPDATE rides SET paystack_reference = $1, payment_status = 'unpaid' WHERE id = $2", [reference, ride.id]);
-
-    const paystackData = await initializeTransaction({
-      email: req.user.email,
-      amountNaira: ride.price,
-      reference,
-      callback_url: callbackUrl(),
-      metadata: { ride_id: ride.id },
-    });
-
-    res.json({ authorization_url: paystackData.authorization_url });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Could not restart payment. Please try again." });
+    res.status(500).json({ error: "Something went wrong starting payment" });
   }
 });
 
 // ---------- VERIFY PAYMENT (customer) — called by the frontend when
-// Paystack redirects back after checkout. ----------
+// Paystack redirects back after checkout. Now also credits the driver on
+// success, since that used to happen when the trip ended but now can only
+// happen once the customer has actually paid. ----------
 router.get("/verify/:reference", requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query("SELECT * FROM rides WHERE paystack_reference = $1", [req.params.reference]);
@@ -223,6 +256,15 @@ router.get("/verify/:reference", requireAuth, async (req, res) => {
     const txn = await verifyTransaction(req.params.reference);
     if (txn.status === "success") {
       await pool.query("UPDATE rides SET payment_status = 'paid' WHERE id = $1", [ride.id]);
+      if (ride.agent_id) {
+        // Same 80% cut agents get everywhere else in this codebase — only
+        // applied here, once, since payment_status was 'unpaid' a moment
+        // ago and is only flipping to 'paid' right now in this request.
+        await pool.query(
+          `UPDATE agent_profiles SET wallet_balance = wallet_balance + $1, total_rides = total_rides + 1 WHERE user_id = $2`,
+          [ride.price * 0.8, ride.agent_id]
+        );
+      }
     } else {
       await pool.query("UPDATE rides SET payment_status = 'failed' WHERE id = $1", [ride.id]);
     }
@@ -361,6 +403,11 @@ router.patch("/:id/agent-cancel", requireAuth, requireRole("agent"), async (req,
       [ride.id, req.user.id]
     );
 
+    // Note: under the new post-trip payment model, payment_status is
+    // always 'unpaid' at this point — cancellation is only allowed while
+    // 'accepted' (before the trip starts), and nothing is ever charged
+    // before then. This branch is kept as a defensive no-op rather than
+    // removed, in case that invariant ever changes.
     if (ride.payment_status === "paid") {
       const { rows: walletRows } = await client.query(
         "UPDATE users SET wallet_balance = wallet_balance + $1 WHERE id = $2 RETURNING wallet_balance",
@@ -401,10 +448,12 @@ router.get("/available", requireAuth, requireRole("agent"), async (req, res) => 
       return res.json([]); // rides are cab-only in phase 1 — not an error, just nothing to show
     }
 
+    // No payment_status filter anymore — rides are unpaid at this stage by
+    // design now, payment happens after the trip ends (see /:id/charge).
     const { rows } = await pool.query(
       `SELECT r.*, u.full_name AS customer_name, u.phone AS customer_phone
        FROM rides r JOIN users u ON u.id = r.customer_id
-       WHERE r.status = 'pending' AND r.payment_status = 'paid'
+       WHERE r.status = 'pending'
        ORDER BY r.created_at ASC`
     );
 
@@ -473,10 +522,9 @@ router.post("/:id/accept", requireAuth, requireRole("agent"), async (req, res) =
       await client.query("ROLLBACK");
       return res.status(404).json({ error: "Ride not found" });
     }
-    if (ride.payment_status !== "paid") {
-      await client.query("ROLLBACK");
-      return res.status(402).json({ error: "This ride hasn't been paid for yet" });
-    }
+    // No payment gate here anymore — rides are unpaid all the way through
+    // the trip now, and only get paid for once they're done (see
+    // /:id/charge). Accepting an unpaid ride is expected, not an error.
     if (ride.status !== "pending") {
       await client.query("ROLLBACK");
       return res.status(409).json({ error: "This ride has already been accepted by another agent" });
@@ -516,22 +564,39 @@ router.patch("/:id/advance", requireAuth, requireRole("agent"), async (req, res)
     const next = NEXT_STATUS[ride.status];
     if (!next) return res.status(409).json({ error: `Cannot advance a ride from status '${ride.status}'` });
 
-    const timestampCol = next === "in_progress" ? "started_at" : next === "completed" ? "completed_at" : null;
-    if (timestampCol) {
-      await pool.query(`UPDATE rides SET status = $1, ${timestampCol} = now() WHERE id = $2`, [next, ride.id]);
+    if (next === "in_progress") {
+      // Starting the meter: reset price to the flag-fall base fare and
+      // zero the distance counter, and seed meter_last_lat/lng from the
+      // pickup point so the very first GPS ping (see /:id/location) has
+      // something to measure a segment against instead of comparing to
+      // null. This is the moment "the money starts reading."
+      await pool.query(
+        `UPDATE rides
+         SET status = 'in_progress', started_at = now(), meter_distance_km = 0,
+             meter_last_lat = pickup_lat, meter_last_lng = pickup_lng
+         WHERE id = $1`,
+        [ride.id]
+      );
+    } else if (next === "completed") {
+      // Ending the meter: one last recompute using the FULL elapsed time
+      // (from started_at to right now) and the FULL accumulated distance,
+      // then freeze that as the final price agent + customer both see.
+      // This is deliberately independent of whatever the last GPS ping
+      // happened to compute — a ping might be up to ~8s stale, but
+      // completed_at is exact, so the final number reflects the true
+      // trip duration down to the second rather than the last poll.
+      const elapsedMin = ride.started_at ? (Date.now() - new Date(ride.started_at).getTime()) / 60000 : 0;
+      const rawFare = priceForLiveRide({ distanceKm: ride.meter_distance_km || 0, durationMin: elapsedMin });
+      const finalPrice = finalizeLiveFare(rawFare);
+      await pool.query(
+        `UPDATE rides SET status = 'completed', completed_at = now(), price = $1 WHERE id = $2`,
+        [finalPrice, ride.id]
+      );
+      // Driver is NOT credited here anymore — that only happens once the
+      // customer actually pays (see /:id/charge and /verify/:reference),
+      // since a completed trip's fare is now owed, not already collected.
     } else {
       await pool.query(`UPDATE rides SET status = $1 WHERE id = $2`, [next, ride.id]);
-    }
-
-    if (next === "completed") {
-      // Same 80% cut agents get on delivered parcels — kept consistent
-      // rather than inventing a different split for rides. total_rides is
-      // its own counter, separate from total_deliveries, since a ride
-      // isn't a delivery even though the same agent can do both.
-      await pool.query(
-        `UPDATE agent_profiles SET wallet_balance = wallet_balance + $1, total_rides = total_rides + 1 WHERE user_id = $2`,
-        [ride.price * 0.8, req.user.id]
-      );
     }
 
     const { rows: updated } = await pool.query("SELECT * FROM rides WHERE id = $1", [ride.id]);
@@ -562,14 +627,91 @@ router.patch("/:id/location", requireAuth, requireRole("agent"), async (req, res
       return res.status(409).json({ error: "Location can only be shared on an active ride" });
     }
 
-    await pool.query(
-      "UPDATE rides SET current_lat = $1, current_lng = $2, location_updated_at = now() WHERE id = $3",
-      [lat, lng, ride.id]
-    );
-    res.json({ success: true });
+    // While heading to pickup ('accepted'), just track position — the
+    // meter isn't running yet, only starts once the trip is in_progress
+    // (see /:id/advance). Once it is, add the distance from the last known
+    // point to this one onto the running total.
+    let meterDistanceKm = ride.meter_distance_km || 0;
+    let livePrice = ride.price;
+    let elapsedMin = 0;
+
+    if (ride.status === "in_progress") {
+      if (ride.meter_last_lat != null && ride.meter_last_lng != null) {
+        const segmentKm = haversineKm(ride.meter_last_lat, ride.meter_last_lng, lat, lng);
+        // Guard against GPS noise/jumps: a phone briefly losing signal and
+        // reacquiring can report a multi-km "jump" that never actually
+        // happened. Pings arrive every ~8s (see useRideLocation.js), so
+        // anything over 1km in one hop is almost certainly bad data, not a
+        // real 450+ km/h trip — skip adding it rather than overcharging.
+        if (Number.isFinite(segmentKm) && segmentKm > 0 && segmentKm < 1) {
+          meterDistanceKm += segmentKm;
+        }
+      }
+      elapsedMin = ride.started_at ? (Date.now() - new Date(ride.started_at).getTime()) / 60000 : 0;
+      livePrice = priceForLiveRide({ distanceKm: meterDistanceKm, durationMin: elapsedMin });
+
+      await pool.query(
+        `UPDATE rides
+         SET current_lat = $1, current_lng = $2, location_updated_at = now(),
+             meter_last_lat = $1, meter_last_lng = $2, meter_distance_km = $3, price = $4
+         WHERE id = $5`,
+        [lat, lng, meterDistanceKm, livePrice, ride.id]
+      );
+    } else {
+      await pool.query(
+        "UPDATE rides SET current_lat = $1, current_lng = $2, location_updated_at = now() WHERE id = $3",
+        [lat, lng, ride.id]
+      );
+    }
+
+    res.json({ success: true, price: livePrice, distanceKm: Math.round(meterDistanceKm * 10) / 10, elapsedMinutes: Math.round(elapsedMin * 10) / 10 });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong updating location" });
+  }
+});
+
+// ---------- LIVE METER (customer or agent, own ride only) — polled by the
+// frontend (RideMeter.jsx) roughly every few seconds while a trip is
+// in_progress, and once more after completion to show the frozen final
+// number. Kept as its own lightweight endpoint rather than making the
+// rider poll the full /mine list, so the ticking number doesn't depend on
+// re-fetching every other ride too. ----------
+router.get("/:id/meter", requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query("SELECT * FROM rides WHERE id = $1", [req.params.id]);
+    const ride = rows[0];
+    if (!ride) return res.status(404).json({ error: "Ride not found" });
+    if (ride.customer_id !== req.user.id && ride.agent_id !== req.user.id) {
+      return res.status(403).json({ error: "Not your ride" });
+    }
+
+    if (ride.status === "completed") {
+      const elapsedMin = ride.started_at && ride.completed_at
+        ? (new Date(ride.completed_at).getTime() - new Date(ride.started_at).getTime()) / 60000
+        : 0;
+      return res.json({
+        price: ride.price,
+        distanceKm: Math.round((ride.meter_distance_km || 0) * 10) / 10,
+        elapsedMinutes: Math.round(elapsedMin * 10) / 10,
+        final: true,
+      });
+    }
+
+    if (ride.status !== "in_progress") {
+      return res.json({ price: null, distanceKm: null, elapsedMinutes: null, final: false });
+    }
+
+    const elapsedMin = ride.started_at ? (Date.now() - new Date(ride.started_at).getTime()) / 60000 : 0;
+    res.json({
+      price: ride.price,
+      distanceKm: Math.round((ride.meter_distance_km || 0) * 10) / 10,
+      elapsedMinutes: Math.round(elapsedMin * 10) / 10,
+      final: false,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong reading the meter" });
   }
 });
 

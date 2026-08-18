@@ -3,6 +3,7 @@ import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { useLiveLocation } from "../hooks/useLiveLocation";
 import { useRideLocation } from "../hooks/useRideLocation";
+import RideMeter from "../components/RideMeter";
 import StatusBadge from "../components/StatusBadge";
 import StarRating from "../components/StarRating";
 import ShareLocationToggle from "../components/ShareLocationToggle";
@@ -21,7 +22,7 @@ function nextLabelFor(d) {
 
 const RIDE_NEXT_LABEL = {
   accepted: "Start trip",
-  in_progress: "Complete trip",
+  in_progress: "End trip",
 };
 const RIDE_STATUS_LABEL = {
   pending: "Finding a driver",
@@ -494,6 +495,11 @@ export default function AgentDashboard() {
                             <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-delivered" />
                           </span>
                           Sharing your live location with the rider
+                        </div>
+                      )}
+                      {r.status === "in_progress" && (
+                        <div className="mb-3">
+                          <RideMeter token={token} rideId={r.id} status={r.status} />
                         </div>
                       )}
                       <div className="flex items-center justify-between">
