@@ -51,13 +51,13 @@ export default function DeliveryMap({ pickup, dropoff, current, height = 320 }) 
     map.on("load", () => {
       const bounds = new mapboxgl.LngLatBounds();
 
-      markersRef.current.pickup = new mapboxgl.Marker({ color: "#FF6B35" })
+      markersRef.current.pickup = new mapboxgl.Marker({ color: "#C1121F" })
         .setLngLat([pickup.lng, pickup.lat])
         .setPopup(new mapboxgl.Popup({ offset: 20 }).setText("Pickup"))
         .addTo(map);
       bounds.extend([pickup.lng, pickup.lat]);
 
-      markersRef.current.dropoff = new mapboxgl.Marker({ color: "#1FAE6B" })
+      markersRef.current.dropoff = new mapboxgl.Marker({ color: "#2A9D8F" })
         .setLngLat([dropoff.lng, dropoff.lat])
         .setPopup(new mapboxgl.Popup({ offset: 20 }).setText("Drop-off"))
         .addTo(map);
@@ -82,8 +82,8 @@ export default function DeliveryMap({ pickup, dropoff, current, height = 320 }) 
           "line-width": 3,
           "line-gradient": [
             "interpolate", ["linear"], ["line-progress"],
-            0, "rgba(255,198,61,0)",
-            1, "rgba(255,198,61,0.85)",
+            0, "rgba(102,155,188,0)",
+            1, "rgba(102,155,188,0.85)",
           ],
         },
       });
@@ -93,7 +93,7 @@ export default function DeliveryMap({ pickup, dropoff, current, height = 320 }) 
         trailRef.current = [[current.lng, current.lat]];
         const el = document.createElement("div");
         el.style.cssText =
-          "width:18px;height:18px;border-radius:50%;background:#FFC63D;border:3px solid #0B1220;box-shadow:0 0 0 4px rgba(255,198,61,0.35)";
+          "width:18px;height:18px;border-radius:50%;background:#669BBC;border:3px solid #003049;box-shadow:0 0 0 4px rgba(102,155,188,0.35)";
         markersRef.current.current = new mapboxgl.Marker({ element: el })
           .setLngLat([current.lng, current.lat])
           .setPopup(new mapboxgl.Popup({ offset: 20 }).setText("Agent's last known position"))
@@ -128,7 +128,7 @@ export default function DeliveryMap({ pickup, dropoff, current, height = 320 }) 
       trailRef.current = [[current.lng, current.lat]];
       const el = document.createElement("div");
       el.style.cssText =
-        "width:18px;height:18px;border-radius:50%;background:#FFC63D;border:3px solid #0B1220;box-shadow:0 0 0 4px rgba(255,198,61,0.35)";
+        "width:18px;height:18px;border-radius:50%;background:#669BBC;border:3px solid #003049;box-shadow:0 0 0 4px rgba(102,155,188,0.35)";
       markersRef.current.current = new mapboxgl.Marker({ element: el })
         .setLngLat([current.lng, current.lat])
         .setPopup(new mapboxgl.Popup({ offset: 20 }).setText("Agent's last known position"))

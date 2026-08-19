@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 
-const CONFETTI_COLORS = ["#FFC63D", "#FF6B35", "#1FAE6B", "#4C8DFF", "#F7F7F5"];
+const CONFETTI_COLORS = ["#C1121F", "#669BBC", "#FDF0D5", "#2A9D8F", "#FFFFFF"]; // on-brand: red, light blue, cream, teal-green, white
 const CONFETTI_COUNT = 70;
 
 function ConfettiPiece({ color, left, delay, duration, rotate, drift }) {
@@ -98,13 +98,13 @@ export default function TripCompleteCelebration({ trip, onClose }) {
         className="pae-celebrate-card relative bg-paper rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center"
         style={{ animation: "pae-celebrate-pop 0.45s cubic-bezier(0.2,0.8,0.2,1)" }}
       >
-        <div className="mx-auto mb-4 w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1FAE6B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <div className="mx-auto mb-4 w-14 h-14 rounded-full bg-delivered/15 flex items-center justify-center">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20 6 9 17l-5-5" style={{ strokeDasharray: 24, strokeDashoffset: 0, animation: "pae-check-draw 0.5s 0.25s ease-out backwards" }} />
           </svg>
         </div>
 
-        <div className="text-xs font-semibold text-emerald-700 mb-1">{trip.badge || "Completed"}</div>
+        <div className="text-xs font-semibold text-delivered mb-1">{trip.badge || "Completed"}</div>
         <h2 className="text-xl font-bold text-ink mb-1">{trip.title}</h2>
         {trip.subtitle && <p className="text-sm text-slate mb-5">{trip.subtitle}</p>}
 

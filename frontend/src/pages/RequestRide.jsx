@@ -230,7 +230,7 @@ export default function RequestRide() {
             />
           </div>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-signal">{error}</p>}
 
           {!quote ? (
             <button
@@ -318,7 +318,7 @@ export default function RequestRide() {
 
                 <div className="flex items-center gap-3">
                   {["pending", "accepted"].includes(r.status) && (
-                    <button onClick={() => handleCancel(r.id)} className="text-xs font-semibold text-red-600 underline">
+                    <button onClick={() => handleCancel(r.id)} className="text-xs font-semibold text-signal hover:text-brand-dark underline">
                       Cancel
                     </button>
                   )}
@@ -378,7 +378,7 @@ function RideReview({ ride, token, onSubmitted }) {
         rows={2}
         className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-2"
       />
-      {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+      {error && <p className="text-xs text-signal mt-1">{error}</p>}
       <button
         disabled={!rating || submitting}
         onClick={handleSubmit}

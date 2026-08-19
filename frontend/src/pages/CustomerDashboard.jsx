@@ -815,7 +815,7 @@ export default function CustomerDashboard() {
             </div>
           )}
 
-          {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+          {error && <p className="text-sm text-signal mb-4">{error}</p>}
 
           <button
             disabled={submitting || (campusMode && (!form.institution_id || !form.pickup_landmark_id || !form.dropoff_landmark_id || form.pickup_landmark_id === form.dropoff_landmark_id)) || (lockerMode && !form.dropoff_locker_id)}
@@ -948,7 +948,7 @@ export default function CustomerDashboard() {
                       </button>
                     )}
                     {["pending", "accepted"].includes(d.status) && (
-                      <button onClick={() => handleCancel(d.id)} className="text-xs text-red-600 font-medium hover:underline">
+                      <button onClick={() => handleCancel(d.id)} className="text-xs text-signal hover:text-brand-dark font-medium hover:underline">
                         Cancel
                       </button>
                     )}

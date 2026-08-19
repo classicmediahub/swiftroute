@@ -5,19 +5,24 @@
   --font-body: "Inter", sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
 
-  --color-ink: #1a0d13;
-  --color-ink-soft: #2a1420;
-  --color-brand: #5c1327;
-  --color-brand-dark: #43091b;
-  --color-brand-blue: #2b3a8f;
-  --color-route: #f0b400;
-  --color-route-dark: #c79000;
-  --color-signal: #d93a2b;
-  --color-paper: #f8f5ef;
-  --color-slate: #5b6472;
-  --color-slate-light: #9aa3b2;
-  --color-delivered: #12946b;
-  --color-line: #3a1f2a;
+  /* Rebrand — navy / cream / dusty-blue / red, per brand spec. Token
+     NAMES are unchanged on purpose (ink, route, delivered, etc.) so every
+     component already written against bg-ink / bg-route / text-paper /
+     etc. picks up the new palette automatically with zero other edits —
+     only the hex values underneath change. */
+  --color-ink: #003049;        /* was #1a0d13 (near-black maroon) — now navy: trust & security */
+  --color-ink-soft: #0A3D5C;   /* a step lighter than ink, for panels that need to read as "raised" on a navy bg */
+  --color-brand: #780000;      /* premium accent — used sparingly per spec (~5% of the palette) */
+  --color-brand-dark: #5C0000;
+  --color-brand-blue: #669BBC; /* technology & logistics accent */
+  --color-route: #C1121F;      /* was gold #f0b400 — now red: PRIMARY action color everywhere (buttons, live indicators, focus ring, selection) */
+  --color-route-dark: #780000; /* hover state for primary buttons, exactly matching the spec's "Primary Action hover" */
+  --color-signal: #D9731A;     /* was red-orange #d93a2b — shifted to orange so it stays visually distinct from the new red route/CTA color; used for warnings/pending states */
+  --color-paper: #FDF0D5;      /* was #f8f5ef — now cream, per spec */
+  --color-slate: #4A5568;      /* body text gray, nudged toward navy's hue family instead of the old maroon-tinted gray */
+  --color-slate-light: #94A3B8;
+  --color-delivered: #2A9D8F;  /* was #12946b — shifted to a muted teal-green that sits comfortably next to navy/dusty-blue instead of clashing as a bright pure green */
+  --color-line: #164863;       /* borders on dark surfaces — a lightened step off the new navy */
 }
 
 html {
@@ -129,7 +134,7 @@ body {
 }
 @media (hover: hover) and (pointer: fine) {
   .btn-tactile:hover {
-    box-shadow: 0 8px 24px -8px rgba(240, 180, 0, 0.45);
+    box-shadow: 0 8px 24px -8px rgba(193, 18, 31, 0.4); /* matches new route red instead of the old gold */
   }
 }
 .btn-tactile:active {

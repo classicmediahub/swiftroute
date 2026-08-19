@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { useLiveLocation } from "../hooks/useLiveLocation";
 import { useRideLocation } from "../hooks/useRideLocation";
 import RideMeter from "../components/RideMeter";
+import TripStatusStepper, { RIDE_STEPS, DELIVERY_STEPS } from "../components/TripStatusStepper";
 import StatusBadge from "../components/StatusBadge";
 import StarRating from "../components/StarRating";
 import ShareLocationToggle from "../components/ShareLocationToggle";
@@ -24,13 +25,8 @@ const RIDE_NEXT_LABEL = {
   accepted: "Start trip",
   in_progress: "End trip",
 };
-const RIDE_STATUS_LABEL = {
-  pending: "Finding a driver",
-  accepted: "Heading to pickup",
-  in_progress: "Trip in progress",
-  completed: "Completed",
-  cancelled: "Cancelled",
-};
+// RIDE_STATUS_LABEL removed — TripStatusStepper (imported above) now
+// renders ride progress instead of a flat status badge.
 const RIDE_ACTIVE_STATUSES = ["accepted", "in_progress"];
 
 export default function AgentDashboard() {
@@ -247,8 +243,8 @@ export default function AgentDashboard() {
       </div>
 
       {!isApproved ? (
-        <div className="border border-amber-300 bg-amber-50 rounded-2xl p-6 text-amber-900">
-          <h2 className="font-display font-semibold mb-1">Your application is under review</h2>
+        <div className="border border-signal/40 bg-signal/10 rounded-2xl p-6 text-ink">
+          <h2 className="font-display font-semibold mb-1 text-signal">Your application is under review</h2>
           <p className="text-sm">
             An admin needs to approve your agent profile before you can see and accept deliveries. This usually
             takes a short while — check back soon.
@@ -279,7 +275,7 @@ export default function AgentDashboard() {
                 </TabButton>
               </div>
 
-              {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+              {error && <p className="text-sm text-signal mb-4">{error}</p>}
               {!loading && tab === "available" && pools.length > 0 && (
                 <div className="space-y-3 mb-4">
                   {pools.map((p) => (
@@ -353,8 +349,8 @@ export default function AgentDashboard() {
                           {d.distance_km && <span className="text-slate font-normal"> · {d.distance_km} km</span>}
                         </div>
                         </div>
-                        <StatusBadge status={d.status} />
                       </div>
+                      <TripStatusStepper steps={DELIVERY_STEPS} currentKey={d.status} className="mb-3" />
                       <div className="text-xs text-slate space-y-0.5 mb-3">
                         <div>Pickup: {d.pickup_address}{d.pickup_landmark && ` (${d.pickup_landmark})`}</div>
                         <div>Drop-off: {d.dropoff_address}{d.dropoff_landmark && ` (${d.dropoff_landmark})`} · to {d.recipient_name} ({d.recipient_phone})</div>
@@ -441,7 +437,7 @@ export default function AgentDashboard() {
                 </TabButton>
               </div>
 
-              {rideError && <p className="text-sm text-red-600 mb-4">{rideError}</p>}
+              {rideError && <p className="text-sm text-signal mb-4">{rideError}</p>}
               {loadingRides ? (
                 <p className="text-sm text-slate">Loading…</p>
               ) : rideTab === "available" ? (
@@ -478,18 +474,14 @@ export default function AgentDashboard() {
                 <div className="space-y-3">
                   {assignedRides.map((r) => (
                     <div key={r.id} className="border border-slate-200 rounded-xl p-4 bg-white">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="font-semibold text-sm">
-                          {r.pickup_address} → {r.dropoff_address}
-                          {r.distance_km && <span className="text-slate font-normal"> · {r.distance_km} km</span>}
-                        </div>
-                        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-100 text-blue-800">
-                          {RIDE_STATUS_LABEL[r.status] || r.status}
-                        </span>
+                      <div className="font-semibold text-sm mb-2">
+                        {r.pickup_address} → {r.dropoff_address}
+                        {r.distance_km && <span className="text-slate font-normal"> · {r.distance_km} km</span>}
                       </div>
+                      <TripStatusStepper steps={RIDE_STEPS} currentKey={r.status} className="mb-3" />
                       <div className="text-xs text-slate mb-3">Rider: {r.customer_name} · {r.customer_phone}</div>
                       {RIDE_ACTIVE_STATUSES.includes(r.status) && r.id === activeRide?.id && (
-                        <div className="text-xs text-emerald-700 mb-3 flex items-center gap-1.5">
+                        <div className="text-xs text-delivered mb-3 flex items-center gap-1.5">
                           <span className="relative flex h-1.5 w-1.5">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-delivered opacity-75" />
                             <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-delivered" />
@@ -509,7 +501,7 @@ export default function AgentDashboard() {
                             <button
                               disabled={busyId === r.id}
                               onClick={() => handleAgentCancelRide(r.id)}
-                              className="text-xs font-semibold text-red-600 hover:text-red-700 underline disabled:opacity-60"
+                              className="text-xs font-semibold text-signal hover:text-brand-dark underline disabled:opacity-60"
                             >
                               Cancel
                             </button>

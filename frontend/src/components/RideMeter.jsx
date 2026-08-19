@@ -119,11 +119,11 @@ export default function RideMeter({ token, rideId, status, className = "" }) {
   return (
     <div
       className={`rounded-xl p-4 transition-shadow duration-300 ${
-        isFinal ? "bg-emerald-50 border border-emerald-200" : "bg-ink text-paper"
+        isFinal ? "bg-delivered/10 border border-delivered/30" : "bg-ink text-paper"
       } ${pulsing && !isFinal ? "shadow-[0_0_0_3px_rgba(250,204,21,0.25)]" : ""} ${className}`}
     >
       <div className="flex items-center justify-between mb-1">
-        <span className={`text-xs font-medium ${isFinal ? "text-emerald-800" : "text-slate-light"}`}>
+        <span className={`text-xs font-medium ${isFinal ? "text-delivered" : "text-slate-light"}`}>
           {isFinal ? "Trip total" : "Meter running"}
         </span>
         {!isFinal && (
@@ -138,13 +138,13 @@ export default function RideMeter({ token, rideId, status, className = "" }) {
       </div>
       <div
         className={`font-mono text-3xl font-semibold tabular-nums transition-transform duration-200 ${
-          isFinal ? "text-emerald-900" : "text-paper"
+          isFinal ? "text-delivered" : "text-paper"
         } ${pulsing && !isFinal ? "scale-[1.03]" : "scale-100"}`}
         style={{ transformOrigin: "left center" }}
       >
         ₦{Math.round(displayPrice).toLocaleString()}
       </div>
-      <div className={`text-xs mt-1 tabular-nums ${isFinal ? "text-emerald-700" : "text-slate-light"}`}>
+      <div className={`text-xs mt-1 tabular-nums ${isFinal ? "text-delivered" : "text-slate-light"}`}>
         {meter.distanceKm != null ? `${meter.distanceKm.toFixed(1)} km` : "0.0 km"}
         {" · "}
         {mins}m {secs.toString().padStart(2, "0")}s

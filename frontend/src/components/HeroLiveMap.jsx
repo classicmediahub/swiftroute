@@ -21,29 +21,29 @@ function BikeArt() {
       <ellipse cx="16" cy="17" rx="12" ry="3.2" fill="#000" opacity="0.22" />
       {/* faint speed lines trailing the rear wheel — static relative to
           the bike itself, just a cheap "it's moving fast" cue */}
-      <g opacity="0.35" stroke="#9AA3B2" strokeWidth="1.2" strokeLinecap="round">
+      <g opacity="0.35" stroke="#94A3B8" strokeWidth="1.2" strokeLinecap="round">
         <path d="M-6 14 h-6" />
         <path d="M-8 17 h-5" opacity="0.6" />
       </g>
       <g transform="translate(0,-13)">
         <g className="pae-bob-el">
-          <rect x="-1" y="7" width="9" height="7" rx="1.6" fill="#1FAE6B" stroke="#0B1220" strokeWidth="0.8" />
-          <path d="M1 10.5 c0.8 -1.8 3 -1.8 3.8 0" stroke="#0B1220" strokeWidth="1" fill="none" strokeLinecap="round" />
+          <rect x="-1" y="7" width="9" height="7" rx="1.6" fill="#2A9D8F" stroke="#003049" strokeWidth="0.8" />
+          <path d="M1 10.5 c0.8 -1.8 3 -1.8 3.8 0" stroke="#003049" strokeWidth="1" fill="none" strokeLinecap="round" />
 
-          <circle className="pae-wheel" cx="7" cy="19" r="6" fill="#0B1220" stroke="#F7F7F5" strokeWidth="1.8" />
-          <circle className="pae-wheel" cx="25" cy="19" r="6" fill="#0B1220" stroke="#F7F7F5" strokeWidth="1.8" />
-          <circle cx="7" cy="19" r="1.4" fill="#F7F7F5" />
-          <circle cx="25" cy="19" r="1.4" fill="#F7F7F5" />
+          <circle className="pae-wheel" cx="7" cy="19" r="6" fill="#003049" stroke="#FDF0D5" strokeWidth="1.8" />
+          <circle className="pae-wheel" cx="25" cy="19" r="6" fill="#003049" stroke="#FDF0D5" strokeWidth="1.8" />
+          <circle cx="7" cy="19" r="1.4" fill="#FDF0D5" />
+          <circle cx="25" cy="19" r="1.4" fill="#FDF0D5" />
 
-          <path d="M7 19 L13 7 L21 7 L25 19" stroke="#FFC63D" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M13 7 L13 4 L15 1" stroke="#F7F7F5" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M21 7 L22.5 3" stroke="#FFC63D" strokeWidth="2.2" fill="none" strokeLinecap="round" />
-          <path d="M15 1 L22.5 3" stroke="#F7F7F5" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+          <path d="M7 19 L13 7 L21 7 L25 19" stroke="#C1121F" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M13 7 L13 4 L15 1" stroke="#FDF0D5" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M21 7 L22.5 3" stroke="#C1121F" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+          <path d="M15 1 L22.5 3" stroke="#FDF0D5" strokeWidth="2.2" fill="none" strokeLinecap="round" />
 
-          <circle cx="15.3" cy="-1.5" r="3.4" fill="#F7F7F5" />
-          <path d="M12 -3 a3.6 3.6 0 0 1 7 0 Z" fill="#0B1220" />
-          <circle cx="16.6" cy="-1.6" r="0.6" fill="#0B1220" />
-          <path d="M14.6 -0.2 q1 1 2 0" stroke="#0B1220" strokeWidth="0.6" fill="none" strokeLinecap="round" />
+          <circle cx="15.3" cy="-1.5" r="3.4" fill="#FDF0D5" />
+          <path d="M12 -3 a3.6 3.6 0 0 1 7 0 Z" fill="#003049" />
+          <circle cx="16.6" cy="-1.6" r="0.6" fill="#003049" />
+          <path d="M14.6 -0.2 q1 1 2 0" stroke="#003049" strokeWidth="0.6" fill="none" strokeLinecap="round" />
         </g>
       </g>
     </>
@@ -54,15 +54,15 @@ function CabArt() {
   return (
     <>
       <ellipse cx="17" cy="18" rx="19" ry="3.4" fill="#000" opacity="0.22" />
-      <path d="M-2 12 Q0 0 12 -1 H24 Q32 0 34 12 Z" fill="#F7F7F5" />
-      <path d="M6 11 Q8 2 14 1 H22 Q27 2 28 11 Z" fill="#4C8DFF" opacity="0.55" />
+      <path d="M-2 12 Q0 0 12 -1 H24 Q32 0 34 12 Z" fill="#FDF0D5" />
+      <path d="M6 11 Q8 2 14 1 H22 Q27 2 28 11 Z" fill="#669BBC" opacity="0.55" />
       {/* subtle top highlight for a bit of gloss instead of flat fill */}
       <path d="M-1 11 Q1 1 12 0 H20" stroke="#FFFFFF" strokeWidth="1" opacity="0.25" fill="none" strokeLinecap="round" />
-      <rect x="-2" y="10" width="36" height="7" rx="2.5" fill="#0B1220" />
-      <rect x="12" y="-6" width="10" height="6" rx="1.5" fill="#FFC63D" />
-      <circle cx="-1" cy="13" r="1.1" fill="#FFE9A8" />
-      <circle className="pae-wheel" cx="6" cy="18" r="4.6" fill="#0B1220" stroke="#F7F7F5" strokeWidth="1.4" />
-      <circle className="pae-wheel" cx="28" cy="18" r="4.6" fill="#0B1220" stroke="#F7F7F5" strokeWidth="1.4" />
+      <rect x="-2" y="10" width="36" height="7" rx="2.5" fill="#003049" />
+      <rect x="12" y="-6" width="10" height="6" rx="1.5" fill="#C1121F" />
+      <circle cx="-1" cy="13" r="1.1" fill="#F5D98C" />
+      <circle className="pae-wheel" cx="6" cy="18" r="4.6" fill="#003049" stroke="#FDF0D5" strokeWidth="1.4" />
+      <circle className="pae-wheel" cx="28" cy="18" r="4.6" fill="#003049" stroke="#FDF0D5" strokeWidth="1.4" />
     </>
   );
 }
@@ -71,15 +71,15 @@ function VanArt() {
   return (
     <>
       <ellipse cx="20" cy="26" rx="24" ry="4" fill="#000" opacity="0.22" />
-      <rect x="-2" y="-2" width="44" height="22" rx="3" fill="#FFC63D" />
+      <rect x="-2" y="-2" width="44" height="22" rx="3" fill="#C1121F" />
       <path d="M-1 -1 H41" stroke="#FFFFFF" strokeWidth="1" opacity="0.3" strokeLinecap="round" />
-      <rect x="26" y="4" width="16" height="14" rx="2" fill="#0B1220" />
-      <rect x="29" y="7" width="8" height="6" rx="1" fill="#9AA3B2" />
-      <rect x="2" y="2" width="20" height="14" rx="1.5" fill="#0B1220" opacity="0.14" />
-      <path d="M8 8 h8 M12 4 v8" stroke="#0B1220" strokeWidth="1.6" strokeLinecap="round" />
-      <circle cx="-1" cy="15" r="1.1" fill="#FFE9A8" />
-      <circle className="pae-wheel" cx="8" cy="20" r="5" fill="#0B1220" stroke="#F7F7F5" strokeWidth="1.6" />
-      <circle className="pae-wheel" cx="32" cy="20" r="5" fill="#0B1220" stroke="#F7F7F5" strokeWidth="1.6" />
+      <rect x="26" y="4" width="16" height="14" rx="2" fill="#003049" />
+      <rect x="29" y="7" width="8" height="6" rx="1" fill="#94A3B8" />
+      <rect x="2" y="2" width="20" height="14" rx="1.5" fill="#003049" opacity="0.14" />
+      <path d="M8 8 h8 M12 4 v8" stroke="#003049" strokeWidth="1.6" strokeLinecap="round" />
+      <circle cx="-1" cy="15" r="1.1" fill="#F5D98C" />
+      <circle className="pae-wheel" cx="8" cy="20" r="5" fill="#003049" stroke="#FDF0D5" strokeWidth="1.6" />
+      <circle className="pae-wheel" cx="32" cy="20" r="5" fill="#003049" stroke="#FDF0D5" strokeWidth="1.6" />
     </>
   );
 }
@@ -149,17 +149,17 @@ export default function HeroLiveMap({ className = "" }) {
       <svg viewBox="0 0 960 240" className="w-full h-auto" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="pae-sky" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#0B1220" />
-            <stop offset="70%" stopColor="#101B30" />
-            <stop offset="100%" stopColor="#162238" />
+            <stop offset="0%" stopColor="#003049" />
+            <stop offset="70%" stopColor="#0A3D5C" />
+            <stop offset="100%" stopColor="#12495F" />
           </linearGradient>
           <radialGradient id="pae-horizon-glow" cx="50%" cy="100%" r="80%">
-            <stop offset="0%" stopColor="#2A3B5C" stopOpacity="0.55" />
-            <stop offset="100%" stopColor="#2A3B5C" stopOpacity="0" />
+            <stop offset="0%" stopColor="#2E5871" stopOpacity="0.55" />
+            <stop offset="100%" stopColor="#2E5871" stopOpacity="0" />
           </radialGradient>
           <linearGradient id="pae-road" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#16223A" />
-            <stop offset="100%" stopColor="#0E1728" />
+            <stop offset="0%" stopColor="#0C4160" />
+            <stop offset="100%" stopColor="#002638" />
           </linearGradient>
         </defs>
 
@@ -168,7 +168,7 @@ export default function HeroLiveMap({ className = "" }) {
         <rect x="0" y="90" width="960" height="110" fill="url(#pae-horizon-glow)" />
 
         {/* soft drifting clouds */}
-        <g opacity="0.4" fill="#1B2436">
+        <g opacity="0.4" fill="#072A3E">
           <ellipse className="pae-cloud" cx="140" cy="24" rx="30" ry="9" />
           <ellipse className="pae-cloud" cx="640" cy="16" rx="22" ry="7" style={{ animationDelay: "1.5s" }} />
           <ellipse className="pae-cloud" cx="860" cy="30" rx="18" ry="6" style={{ animationDelay: "3s" }} />
@@ -177,7 +177,7 @@ export default function HeroLiveMap({ className = "" }) {
         {/* richer neutral skyline — varied heights, a water tank and a
             rooftop antenna for texture, more scattered lit windows. Still
             plain block silhouettes with no identifiable real landmark. */}
-        <g fill="#1B2436" opacity="0.6">
+        <g fill="#072A3E" opacity="0.6">
           <rect x="0" y="126" width="40" height="64" rx="2" />
           <rect x="46" y="104" width="30" height="86" rx="2" />
           <rect x="82" y="140" width="36" height="50" rx="2" />
@@ -191,13 +191,13 @@ export default function HeroLiveMap({ className = "" }) {
           <rect x="918" y="150" width="30" height="40" rx="2" />
         </g>
         {/* rooftop details: antenna + a small water tank, cheap texture */}
-        <g stroke="#1B2436" strokeWidth="2" opacity="0.6" fill="#1B2436">
+        <g stroke="#072A3E" strokeWidth="2" opacity="0.6" fill="#072A3E">
           <path d="M61 104 V92" strokeLinecap="round" />
           <circle cx="61" cy="90" r="1.6" />
           <rect x="855" y="88" width="12" height="10" rx="1.5" />
           <path d="M861 88 V80" strokeLinecap="round" />
         </g>
-        <g fill="#FFC63D" opacity="0.45">
+        <g fill="#C1121F" opacity="0.45">
           <rect x="8" y="138" width="4" height="4" />
           <rect x="18" y="138" width="4" height="4" />
           <rect x="8" y="150" width="4" height="4" />
@@ -218,48 +218,48 @@ export default function HeroLiveMap({ className = "" }) {
         {/* generic elevated overpass on pillars — deliberately not shaped
             like any specific real bridge, just a bit of mid-ground depth */}
         <g>
-          <rect x="330" y="86" width="300" height="14" rx="4" fill="#223049" />
-          <rect x="360" y="100" width="10" height="46" fill="#223049" />
-          <rect x="470" y="100" width="10" height="46" fill="#223049" />
-          <rect x="580" y="100" width="10" height="46" fill="#223049" />
-          <path className="pae-dashline" d="M340 93 H620" stroke="#FFC63D" strokeWidth="2" strokeLinecap="round" opacity="0.7" />
+          <rect x="330" y="86" width="300" height="14" rx="4" fill="#0F425E" />
+          <rect x="360" y="100" width="10" height="46" fill="#0F425E" />
+          <rect x="470" y="100" width="10" height="46" fill="#0F425E" />
+          <rect x="580" y="100" width="10" height="46" fill="#0F425E" />
+          <path className="pae-dashline" d="M340 93 H620" stroke="#C1121F" strokeWidth="2" strokeLinecap="round" opacity="0.7" />
           {/* two small distant cars crossing, staggered, so the overpass
               lane also reads as continuously busy rather than empty */}
           <g className="pae-far-a">
-            <rect x="0" y="83" width="16" height="8" rx="2.5" fill="#FF6B35" />
-            <circle cx="4" cy="91" r="2" fill="#0B1220" />
-            <circle cx="12" cy="91" r="2" fill="#0B1220" />
+            <rect x="0" y="83" width="16" height="8" rx="2.5" fill="#D9731A" />
+            <circle cx="4" cy="91" r="2" fill="#003049" />
+            <circle cx="12" cy="91" r="2" fill="#003049" />
           </g>
           <g className="pae-far-b">
-            <rect x="0" y="83" width="16" height="8" rx="2.5" fill="#4C8DFF" />
-            <circle cx="4" cy="91" r="2" fill="#0B1220" />
-            <circle cx="12" cy="91" r="2" fill="#0B1220" />
+            <rect x="0" y="83" width="16" height="8" rx="2.5" fill="#669BBC" />
+            <circle cx="4" cy="91" r="2" fill="#003049" />
+            <circle cx="12" cy="91" r="2" fill="#003049" />
           </g>
         </g>
 
         {/* street lamps — static, gently pulsing glow, purely atmospheric */}
         {[110, 500, 900].map((x) => (
           <g key={x} transform={`translate(${x},150)`}>
-            <rect x="-1.5" y="0" width="3" height="40" fill="#223049" />
-            <path d="M0 0 Q10 -4 16 2" stroke="#223049" strokeWidth="3" fill="none" strokeLinecap="round" />
-            <circle className="pae-lamp" cx="16" cy="2" r="7" fill="#FFC63D" opacity="0.15" />
-            <circle cx="16" cy="2" r="2.6" fill="#FFE9A8" />
+            <rect x="-1.5" y="0" width="3" height="40" fill="#0F425E" />
+            <path d="M0 0 Q10 -4 16 2" stroke="#0F425E" strokeWidth="3" fill="none" strokeLinecap="round" />
+            <circle className="pae-lamp" cx="16" cy="2" r="7" fill="#C1121F" opacity="0.15" />
+            <circle cx="16" cy="2" r="2.6" fill="#F5D98C" />
           </g>
         ))}
 
         {/* traffic light, cycling red/yellow/green on a loop */}
         <g transform="translate(700,150)">
-          <rect x="-2" y="0" width="4" height="34" fill="#223049" />
-          <rect x="-7" y="-30" width="14" height="32" rx="3" fill="#0B1220" />
-          <circle className="pae-light-red" cx="0" cy="-23" r="3.4" fill="#FF6B35" />
-          <circle className="pae-light-yellow" cx="0" cy="-14" r="3.4" fill="#FFC63D" />
-          <circle className="pae-light-green" cx="0" cy="-5" r="3.4" fill="#1FAE6B" />
+          <rect x="-2" y="0" width="4" height="34" fill="#0F425E" />
+          <rect x="-7" y="-30" width="14" height="32" rx="3" fill="#003049" />
+          <circle className="pae-light-red" cx="0" cy="-23" r="3.4" fill="#D9731A" />
+          <circle className="pae-light-yellow" cx="0" cy="-14" r="3.4" fill="#C1121F" />
+          <circle className="pae-light-green" cx="0" cy="-5" r="3.4" fill="#2A9D8F" />
         </g>
 
         {/* main road, with a subtle gradient instead of a flat fill */}
         <rect x="0" y="190" width="960" height="30" fill="url(#pae-road)" />
-        <path d="M0 191.5 H960" stroke="#2A3B5C" strokeWidth="1" opacity="0.6" />
-        <path className="pae-dashline" d="M0 205 H960" stroke="#FFC63D" strokeWidth="2.5" strokeLinecap="round" />
+        <path d="M0 191.5 H960" stroke="#2E5871" strokeWidth="1" opacity="0.6" />
+        <path className="pae-dashline" d="M0 205 H960" stroke="#C1121F" strokeWidth="2.5" strokeLinecap="round" />
 
         {/* delivery van — largest, slowest lane. Two staggered instances
             (see .pae-van-a/.pae-van-b) keep this lane close to always

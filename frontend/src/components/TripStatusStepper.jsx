@@ -54,7 +54,7 @@ export default function TripStatusStepper({ steps, currentKey, cancelledLabel = 
               <div
                 className={`relative flex items-center justify-center w-6 h-6 rounded-full shrink-0 transition-colors duration-300 ${
                   isDone
-                    ? "bg-emerald-500 text-white"
+                    ? "bg-delivered text-white"
                     : isCurrent
                     ? "bg-route text-ink"
                     : "bg-slate-200 text-slate-400"
@@ -71,7 +71,7 @@ export default function TripStatusStepper({ steps, currentKey, cancelledLabel = 
               </div>
               <span
                 className={`mt-1.5 text-[11px] text-center leading-tight max-w-[72px] ${
-                  isCurrent ? "font-semibold text-ink" : isDone ? "text-emerald-700" : "text-slate-400"
+                  isCurrent ? "font-semibold text-ink" : isDone ? "text-delivered" : "text-slate-400"
                 }`}
               >
                 {step.label}
@@ -80,7 +80,7 @@ export default function TripStatusStepper({ steps, currentKey, cancelledLabel = 
             {!isLast && (
               <div
                 className={`flex-1 h-0.5 mx-1.5 mb-5 transition-colors duration-300 ${
-                  isDone ? "bg-emerald-500" : "bg-slate-200"
+                  isDone ? "bg-delivered" : "bg-slate-200"
                 }`}
               />
             )}
