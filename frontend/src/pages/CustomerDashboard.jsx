@@ -10,6 +10,8 @@ import BulkUpload from "../components/BulkUpload";
 import Invoices from "../components/Invoices";
 import Reports from "../components/Reports";
 import ApiSettings from "../components/ApiSettings";
+import TripCompleteCelebration from "../components/TripCompleteCelebration";
+import { useCelebrateOnComplete } from "../hooks/useCelebrateOnComplete";
 import { lazy, Suspense } from "react";
 const DeliveryMap = lazy(() => import("../components/DeliveryMap"));
 const PinMap = lazy(() => import("../components/PinMap"));
@@ -211,6 +213,30 @@ export default function CustomerDashboard() {
   }, [token]);
 
   useEffect(() => { loadDeliveries(); }, [loadDeliveries]);
+
+  // Fires the confetti overlay exactly once, the first time a delivery is
+  // observed as 'delivered' — not on every subsequent poll of an already-
+  // delivered parcel. Returns (is_return) deliveries are excluded from the
+  // celebration on purpose: a return trip completing isn't the "your
+  // parcel arrived!" moment this screen is meant to mark.
+  const { celebrating, dismiss: dismissCelebration } = useCelebrateOnComplete(deliveries, {
+    getId: (d) => d.id,
+    getStatus: (d) => (d.is_return ? "return" : d.status),
+    completedStatuses: ["delivered"],
+    toCelebration: (d) => ({
+      id: d.id,
+      badge: "Delivered",
+      title: "Parcel delivered!",
+      subtitle: `${d.pickup_address} → ${d.dropoff_address}`,
+      stats: [
+        { label: "Tracking code", value: d.tracking_code },
+        { label: "Distance", value: d.distance_km ? `${d.distance_km} km` : "—" },
+      ],
+      price: d.price,
+      priceLabel: "Delivery cost",
+      closeLabel: "Great!",
+    }),
+  });
 
   // Poll for updates while at least one delivery is actively moving, so the
   // agent's live position and status stay reasonably fresh without the
@@ -949,6 +975,7 @@ export default function CustomerDashboard() {
 
   return (
     <div className="max-w-6xl mx-auto px-5 py-10">
+      <TripCompleteCelebration trip={celebrating} onClose={dismissCelebration} />
       <div className="font-mono text-xs text-slate mb-2">
         {isBusiness ? `BUSINESS DASHBOARD · ${user.company_name}` : "CUSTOMER DASHBOARD"}
       </div>
