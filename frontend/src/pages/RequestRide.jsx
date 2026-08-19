@@ -6,6 +6,8 @@ import DeliveryMap from "../components/DeliveryMap";
 import StarRating from "../components/StarRating";
 import RideMeter from "../components/RideMeter";
 import TripStatusStepper, { RIDE_STEPS } from "../components/TripStatusStepper";
+import TripCompleteCelebration from "../components/TripCompleteCelebration";
+import { useCelebrateOnComplete } from "../hooks/useCelebrateOnComplete";
 
 const CITIES = ["Lagos", "Ota", "Ogun", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City"];
 
@@ -66,6 +68,35 @@ export default function RequestRide() {
   }, [tab, hasActiveRide, loadRides]);
 
   const canEstimate = pickupCoords && dropoffCoords && pickupAddress && dropoffAddress;
+
+  // Fires the confetti overlay exactly once, the first time a ride is
+  // observed as 'completed' — not on every subsequent poll of the same
+  // already-completed ride. See useCelebrateOnComplete.js for why that
+  // distinction needs its own hook rather than a plain useEffect.
+  const { celebrating, dismiss: dismissCelebration } = useCelebrateOnComplete(rides, {
+    getId: (r) => r.id,
+    getStatus: (r) => r.status,
+    completedStatuses: ["completed"],
+    toCelebration: (r) => ({
+      id: r.id,
+      badge: "Trip complete",
+      title: "You've arrived!",
+      subtitle: `${r.pickup_address} → ${r.dropoff_address}`,
+      stats: [
+        { label: "Distance", value: r.distance_km ? `${r.distance_km} km` : "—" },
+        {
+          label: "Duration",
+          value:
+            r.started_at && r.completed_at
+              ? `${Math.round((new Date(r.completed_at) - new Date(r.started_at)) / 60000)} min`
+              : "—",
+        },
+      ],
+      price: r.price,
+      priceLabel: "Trip total",
+      closeLabel: "Nice ride!",
+    }),
+  });
 
   async function handleEstimate() {
     setError("");
@@ -136,6 +167,7 @@ export default function RequestRide() {
 
   return (
     <div className="max-w-3xl mx-auto px-5 py-10">
+      <TripCompleteCelebration trip={celebrating} onClose={dismissCelebration} />
       <div className="font-mono text-xs text-slate mb-2">RIDES</div>
       <h1 className="font-display text-3xl font-semibold mb-6">Get a ride</h1>
 
