@@ -1,6 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import ThemeToggle from "./ThemeToggle";
 import logo from "../assets/pne-logo.png";
 
 export default function Navbar() {
@@ -69,10 +68,6 @@ export default function Navbar() {
               </Link>
             </>
           )}
-          {/* alwaysLight: this navbar stays bg-ink regardless of site
-              theme, so the toggle icon needs to stay light-colored too
-              rather than following the default light/dark text swap. */}
-          <ThemeToggle alwaysLight className="ml-1" />
         </nav>
       </div>
     </header>
