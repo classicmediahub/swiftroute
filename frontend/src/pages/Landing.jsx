@@ -231,20 +231,26 @@ export default function Landing() {
         <ReviewsSection />
       </Reveal>
 
-      {/* FOOTER CTA — same glow+grain treatment as the hero, tying the
-          opening and closing moments of the page together visually. */}
-      <section className="bg-ink text-paper relative overflow-hidden">
+      {/* FOOTER CTA — bookends the hero, so it gets the exact same
+          cream/light treatment now that the hero itself flipped from
+          navy to cream. (Left the "Vehicle Fleet" cards above as dark
+          navy on purpose — ink is already the new navy post-rebrand, so
+          they're already on-brand, and keeping a navy band in the middle
+          of an otherwise light page gives the page some rhythm instead of
+          being uniformly cream top to bottom. Happy to flip those too if
+          you'd rather have it fully light.) */}
+      <section className="bg-paper text-ink relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
           <div
-            className="hero-glow-a absolute top-0 left-1/3 w-[400px] h-[400px] rounded-full blur-[100px] opacity-25"
+            className="hero-glow-a absolute top-0 left-1/3 w-[400px] h-[400px] rounded-full blur-[100px] opacity-10"
             style={{ background: "radial-gradient(circle, var(--color-route) 0%, transparent 70%)" }}
           />
           <div className="absolute inset-0 grain-overlay" />
         </div>
         <Reveal className="max-w-6xl mx-auto px-5 py-16 text-center relative">
-          <h2 className="font-display text-3xl font-semibold mb-4">Ready to move something?</h2>
-          <p className="text-slate-light mb-8">Get a quote above, or sign up in under a minute.</p>
-          <Link to="/signup" className="btn-tactile bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-7 py-3 transition-colors inline-block">
+          <h2 className="font-display text-3xl font-semibold mb-4 text-ink">Ready to move something?</h2>
+          <p className="text-slate mb-8">Get a quote above, or sign up in under a minute.</p>
+          <Link to="/signup" className="btn-tactile bg-route hover:bg-route-dark text-paper font-semibold rounded-lg px-7 py-3 transition-colors inline-block">
             Create your account
           </Link>
         </Reveal>

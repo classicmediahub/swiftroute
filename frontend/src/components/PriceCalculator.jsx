@@ -71,7 +71,7 @@ export default function PriceCalculator() {
         </div>
         <Link
           to="/signup/customer"
-          className="w-full sm:w-auto text-center bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-6 py-3 transition-colors"
+          className="w-full sm:w-auto text-center bg-route hover:bg-route-dark text-paper font-semibold rounded-lg px-6 py-3 transition-colors"
         >
           Book this delivery
         </Link>

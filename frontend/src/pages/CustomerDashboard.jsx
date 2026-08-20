@@ -563,7 +563,7 @@ export default function CustomerDashboard() {
                               type="button"
                               onClick={() => handleConfirmLandmark(p.id)}
                               disabled={confirmingId === p.id}
-                              className="shrink-0 text-xs font-semibold bg-route hover:bg-route-dark text-ink rounded-lg px-2.5 py-1.5 disabled:opacity-60"
+                              className="shrink-0 text-xs font-semibold bg-route hover:bg-route-dark text-paper rounded-lg px-2.5 py-1.5 disabled:opacity-60"
                             >
                               {confirmingId === p.id ? "…" : "Confirm"}
                             </button>
@@ -819,7 +819,7 @@ export default function CustomerDashboard() {
 
           <button
             disabled={submitting || (campusMode && (!form.institution_id || !form.pickup_landmark_id || !form.dropoff_landmark_id || form.pickup_landmark_id === form.dropoff_landmark_id)) || (lockerMode && !form.dropoff_locker_id)}
-            className="w-full bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-2.5 transition-colors disabled:opacity-60"
+            className="w-full bg-route hover:bg-route-dark text-paper font-semibold rounded-lg px-4 py-2.5 transition-colors disabled:opacity-60"
           >
             {submitting ? "Redirecting to payment…" : form.payment_method === "wallet" ? "Pay from wallet" : "Continue to payment"}
           </button>
@@ -943,7 +943,7 @@ export default function CustomerDashboard() {
                   <span className="font-mono text-sm font-semibold">₦{d.price.toLocaleString()}</span>
                   <div className="flex items-center gap-3">
                     {["unpaid", "failed"].includes(d.payment_status) && d.status !== "cancelled" && (
-                      <button onClick={() => handleRetryPayment(d.id)} className="text-xs bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-3 py-1.5 transition-colors">
+                      <button onClick={() => handleRetryPayment(d.id)} className="text-xs bg-route hover:bg-route-dark text-paper font-semibold rounded-lg px-3 py-1.5 transition-colors">
                         Complete payment
                       </button>
                     )}

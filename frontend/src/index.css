@@ -71,7 +71,7 @@ body {
 
 ::selection {
   background: var(--color-route);
-  color: var(--color-ink);
+  color: var(--color-paper); /* was --color-ink — navy-on-red was illegible now that route is a dark red instead of the old gold */
 }
 
 :focus-visible {
