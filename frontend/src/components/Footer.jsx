@@ -20,22 +20,22 @@ export default function Footer() {
         <div>
           <div className="font-mono text-xs text-route mb-3">SEND & TRACK</div>
           <ul className="space-y-2 text-sm">
-            <li><Link to="/track" className="hover:text-paper transition-colors">Track a package</Link></li>
-            <li><Link to="/signup/customer" className="hover:text-paper transition-colors">Send a delivery</Link></li>
-            <li><Link to="/signup/customer?business=1" className="hover:text-paper transition-colors">Business accounts</Link></li>
-            <li><Link to="/login" className="hover:text-paper transition-colors">Log in</Link></li>
+            <li><Link to="/track" className="text-brand-blue hover:text-paper transition-colors">Track a package</Link></li>
+            <li><Link to="/signup/customer" className="text-brand-blue hover:text-paper transition-colors">Send a delivery</Link></li>
+            <li><Link to="/signup/customer?business=1" className="text-brand-blue hover:text-paper transition-colors">Business accounts</Link></li>
+            <li><Link to="/login" className="text-brand-blue hover:text-paper transition-colors">Log in</Link></li>
           </ul>
         </div>
 
         <div>
           <div className="font-mono text-xs text-route mb-3">DELIVER & EARN</div>
           <ul className="space-y-2 text-sm">
-            <li><Link to="/signup/agent" className="hover:text-paper transition-colors">Become an agent</Link></li>
+            <li><Link to="/signup/agent" className="text-brand-blue hover:text-paper transition-colors">Become an agent</Link></li>
           </ul>
           <div className="font-mono text-xs text-route mb-3 mt-6">COMPANY</div>
           <ul className="space-y-2 text-sm">
-            <li><Link to="/about" className="hover:text-paper transition-colors">About us</Link></li>
-            <li><Link to="/contact" className="hover:text-paper transition-colors">Contact</Link></li>
+            <li><Link to="/about" className="text-brand-blue hover:text-paper transition-colors">About us</Link></li>
+            <li><Link to="/contact" className="text-brand-blue hover:text-paper transition-colors">Contact</Link></li>
           </ul>
         </div>
 
@@ -43,20 +43,20 @@ export default function Footer() {
           <div className="font-mono text-xs text-route mb-3">GET IN TOUCH</div>
           <ul className="space-y-2 text-sm">
             <li>
-              <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noopener noreferrer" className="hover:text-paper transition-colors">
+              <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noopener noreferrer" className="text-brand-blue hover:text-paper transition-colors">
                 WhatsApp us
               </a>
             </li>
             <li>
-              <a href={`mailto:${SUPPORT_EMAIL}`} className="hover:text-paper transition-colors">
+              <a href={`mailto:${SUPPORT_EMAIL}`} className="text-brand-blue hover:text-paper transition-colors">
                 {SUPPORT_EMAIL}
               </a>
             </li>
           </ul>
           <div className="font-mono text-xs text-route mb-3 mt-6">LEGAL</div>
           <ul className="space-y-2 text-sm">
-            <li><Link to="/privacy" className="hover:text-paper transition-colors">Privacy policy</Link></li>
-            <li><Link to="/terms" className="hover:text-paper transition-colors">Terms of service</Link></li>
+            <li><Link to="/privacy" className="text-brand-blue hover:text-paper transition-colors">Privacy policy</Link></li>
+            <li><Link to="/terms" className="text-brand-blue hover:text-paper transition-colors">Terms of service</Link></li>
           </ul>
         </div>
       </div>
