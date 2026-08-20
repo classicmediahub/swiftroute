@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Class-based dark mode (Tailwind v4 syntax — there's no tailwind.config.js
+   darkMode option anymore, this @custom-variant is what makes `dark:*`
+   utility classes respond to a `.dark` class on <html> instead of only
+   the OS-level prefers-color-scheme). See ThemeContext.jsx, which is what
+   actually adds/removes that class based on the toggle + saved preference. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-display: "Space Grotesk", "Inter", sans-serif;
   --font-body: "Inter", sans-serif;
@@ -28,6 +35,18 @@ body {
   font-family: var(--font-body);
   background: var(--color-paper);
   color: var(--color-ink);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* ink is already a near-black wine, so it doubles as a clean dark-mode
+   page background with no new color needed — and it's the exact same
+   color every existing "bg-ink text-paper" dark-accent section (hero,
+   footer CTA, vehicle cards) already uses, so those sections blend into
+   the dark-mode page instead of looking like a different, mismatched
+   shade of "dark" sitting next to the page background. */
+.dark body {
+  background: var(--color-ink);
+  color: var(--color-paper);
 }
 
 .font-display {

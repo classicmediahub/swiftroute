@@ -199,19 +199,19 @@ export default function AgentDashboard() {
   }
 
   if (!agentProfile) {
-    return <div className="max-w-4xl mx-auto px-5 py-10 text-slate">Loading profile…</div>;
+    return <div className="max-w-4xl mx-auto px-5 py-10 text-slate dark:text-slate-light">Loading profile…</div>;
   }
 
   return (
     <div className="max-w-5xl mx-auto px-5 py-10">
-      <div className="font-mono text-xs text-slate mb-2">AGENT DASHBOARD</div>
+      <div className="font-mono text-xs text-slate dark:text-slate-light mb-2">AGENT DASHBOARD</div>
       <div className="flex items-center gap-3 mb-6">
         {user?.profile_photo && (
-          <img src={user.profile_photo} alt={user.full_name} className="w-12 h-12 rounded-full object-cover border border-slate-200" />
+          <img src={user.profile_photo} alt={user.full_name} className="w-12 h-12 rounded-full object-cover border border-slate-200 dark:border-line" />
         )}
         <h1 className="font-display text-3xl font-semibold">Your jobs</h1>
         {isLiveRideCandidate && (
-          <span className="ml-auto flex items-center gap-1.5 text-xs font-mono text-slate">
+          <span className="ml-auto flex items-center gap-1.5 text-xs font-mono text-slate dark:text-slate-light">
             <span className="relative flex h-1.5 w-1.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-delivered opacity-75" />
               <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-delivered" />
@@ -232,10 +232,10 @@ export default function AgentDashboard() {
             agentProfile.total_deliveries > 0 ? (
               <div className="flex items-center gap-1.5">
                 <StarRating value={Math.round(agentProfile.rating)} readOnly size={14} />
-                <span className="font-mono text-xs text-slate">{Number(agentProfile.rating).toFixed(1)}</span>
+                <span className="font-mono text-xs text-slate dark:text-slate-light">{Number(agentProfile.rating).toFixed(1)}</span>
               </div>
             ) : (
-              <span className="text-xs text-slate">No reviews yet</span>
+              <span className="text-xs text-slate dark:text-slate-light">No reviews yet</span>
             )
           }
         />
@@ -243,7 +243,7 @@ export default function AgentDashboard() {
       </div>
 
       {!isApproved ? (
-        <div className="border border-signal/40 bg-signal/10 rounded-2xl p-6 text-ink">
+        <div className="border border-signal/40 bg-signal/10 rounded-2xl p-6 text-ink dark:text-paper">
           <h2 className="font-display font-semibold mb-1 text-signal">Your application is under review</h2>
           <p className="text-sm">
             An admin needs to approve your agent profile before you can see and accept deliveries. This usually
@@ -266,7 +266,7 @@ export default function AgentDashboard() {
 
           {section === "deliveries" ? (
             <>
-              <div className="flex gap-2 mb-6 border-b border-slate-200">
+              <div className="flex gap-2 mb-6 border-b border-slate-200 dark:border-line">
                 <TabButton active={tab === "available"} onClick={() => setTab("available")}>
                   Available ({available.length})
                 </TabButton>
@@ -285,14 +285,14 @@ export default function AgentDashboard() {
                           POOL · {p.member_count} deliveries together
                         </div>
                         <div className="font-semibold text-sm">{p.institution_name}</div>
-                        <div className="text-xs text-slate mt-0.5">
+                        <div className="text-xs text-slate dark:text-slate-light mt-0.5">
                           Accept once to take the whole group as a single trip.
                         </div>
                       </div>
                       <button
                         disabled={poolBusyId === p.pool_id}
                         onClick={() => handleAcceptPool(p.pool_id)}
-                        className="shrink-0 text-xs font-semibold bg-route hover:bg-route-dark text-ink rounded-lg px-3.5 py-2.5 transition-colors disabled:opacity-60"
+                        className="shrink-0 text-xs font-semibold bg-route hover:bg-route-dark text-ink dark:text-paper rounded-lg px-3.5 py-2.5 transition-colors disabled:opacity-60"
                       >
                         {poolBusyId === p.pool_id ? "Accepting…" : `Accept pool (${p.member_count})`}
                       </button>
@@ -301,21 +301,21 @@ export default function AgentDashboard() {
                 </div>
               )}
               {loading ? (
-                <p className="text-sm text-slate">Loading…</p>
+                <p className="text-sm text-slate dark:text-slate-light">Loading…</p>
               ) : tab === "available" ? (
                 available.length === 0 ? (
                   <EmptyState text="No pending deliveries match your vehicle type right now." />
                 ) : (
                   <div className="space-y-3">
                     {available.map((d) => (
-                      <div key={d.id} className="border border-slate-200 rounded-xl p-4 bg-white flex items-start justify-between gap-4">
+                      <div key={d.id} className="border border-slate-200 dark:border-line rounded-xl p-4 bg-white dark:bg-ink-soft flex items-start justify-between gap-4">
                         <div>
-                          <div className="font-mono text-xs text-slate mb-1">{d.tracking_code}</div>
+                          <div className="font-mono text-xs text-slate dark:text-slate-light mb-1">{d.tracking_code}</div>
                           <div className="font-semibold text-sm mb-1">
                             {d.package_type} · {d.pickup_city} → {d.dropoff_city}
-                            {d.distance_km && <span className="text-slate font-normal"> · {d.distance_km} km</span>}
+                            {d.distance_km && <span className="text-slate dark:text-slate-light font-normal"> · {d.distance_km} km</span>}
                           </div>
-                          <div className="text-xs text-slate space-y-0.5">
+                          <div className="text-xs text-slate dark:text-slate-light space-y-0.5">
                             <div>Pickup: {d.pickup_address}{d.pickup_landmark && ` (${d.pickup_landmark})`}</div>
                             <div>Drop-off: {d.dropoff_address}{d.dropoff_landmark && ` (${d.dropoff_landmark})`}</div>
                             <div>Customer: {d.customer_name} · {d.customer_phone}</div>
@@ -326,7 +326,7 @@ export default function AgentDashboard() {
                           <button
                             disabled={busyId === d.id}
                             onClick={() => handleAccept(d.id)}
-                            className="text-xs font-semibold bg-ink text-paper rounded-lg px-3 py-2 hover:bg-ink-soft transition-colors disabled:opacity-60"
+                            className="text-xs font-semibold bg-ink text-paper dark:bg-route dark:text-ink rounded-lg px-3 py-2 hover:bg-ink-soft transition-colors disabled:opacity-60"
                           >
                             {busyId === d.id ? "Accepting…" : "Accept job"}
                           </button>
@@ -340,18 +340,18 @@ export default function AgentDashboard() {
               ) : (
                 <div className="space-y-3">
                   {assigned.map((d) => (
-                    <div key={d.id} className="border border-slate-200 rounded-xl p-4 bg-white">
+                    <div key={d.id} className="border border-slate-200 dark:border-line rounded-xl p-4 bg-white dark:bg-ink-soft">
                       <div className="flex items-start justify-between mb-2">
                         <div>
-                          <div className="font-mono text-xs text-slate mb-1">{d.tracking_code}</div>
+                          <div className="font-mono text-xs text-slate dark:text-slate-light mb-1">{d.tracking_code}</div>
                           <div className="font-semibold text-sm">
                           {d.package_type} · {d.pickup_city} → {d.dropoff_city}
-                          {d.distance_km && <span className="text-slate font-normal"> · {d.distance_km} km</span>}
+                          {d.distance_km && <span className="text-slate dark:text-slate-light font-normal"> · {d.distance_km} km</span>}
                         </div>
                         </div>
                       </div>
                       <TripStatusStepper steps={DELIVERY_STEPS} currentKey={d.status} className="mb-3" />
-                      <div className="text-xs text-slate space-y-0.5 mb-3">
+                      <div className="text-xs text-slate dark:text-slate-light space-y-0.5 mb-3">
                         <div>Pickup: {d.pickup_address}{d.pickup_landmark && ` (${d.pickup_landmark})`}</div>
                         <div>Drop-off: {d.dropoff_address}{d.dropoff_landmark && ` (${d.dropoff_landmark})`} · to {d.recipient_name} ({d.recipient_phone})</div>
                         <div>Customer: {d.customer_name} · {d.customer_phone}</div>
@@ -362,19 +362,19 @@ export default function AgentDashboard() {
                           <button
                             disabled={busyId === d.id || (d.status === "in_transit" && !d.locker_id && !proofPhotos[d.id])}
                             onClick={() => handleAdvance(d.id, d)}
-                            className="text-xs font-semibold bg-route hover:bg-route-dark text-ink rounded-lg px-3 py-2 transition-colors disabled:opacity-60"
+                            className="text-xs font-semibold bg-route hover:bg-route-dark text-ink dark:text-paper rounded-lg px-3 py-2 transition-colors disabled:opacity-60"
                           >
                             {busyId === d.id ? "Updating…" : nextLabelFor(d)}
                           </button>
                         )}
                       </div>
                       {d.status === "in_transit" && !d.locker_id && (
-                        <div className="border border-slate-200 rounded-lg p-3 mt-3 bg-paper">
-                          <div className="text-xs font-semibold text-ink mb-2">Proof of delivery photo (required)</div>
+                        <div className="border border-slate-200 dark:border-line rounded-lg p-3 mt-3 bg-paper">
+                          <div className="text-xs font-semibold text-ink dark:text-paper mb-2">Proof of delivery photo (required)</div>
                           {proofPhotos[d.id] ? (
                             <div className="flex items-center gap-3">
                               <img src={proofPhotos[d.id]} alt="Proof of delivery" className="w-16 h-16 rounded-lg object-cover border border-slate-300" />
-                              <label className="text-xs font-semibold text-ink underline cursor-pointer">
+                              <label className="text-xs font-semibold text-ink dark:text-paper underline cursor-pointer">
                                 Retake
                                 <input
                                   type="file"
@@ -386,7 +386,7 @@ export default function AgentDashboard() {
                               </label>
                             </div>
                           ) : (
-                            <label className="inline-block text-xs font-semibold bg-ink text-paper rounded-lg px-3 py-2 cursor-pointer">
+                            <label className="inline-block text-xs font-semibold bg-ink text-paper dark:bg-route dark:text-ink rounded-lg px-3 py-2 cursor-pointer">
                               Take photo
                               <input
                                 type="file"
@@ -404,12 +404,12 @@ export default function AgentDashboard() {
                           <div className="text-xs font-semibold text-route-dark mb-1.5">
                             Dropped at locker — awaiting pickup
                           </div>
-                          <div className="text-sm text-ink">
+                          <div className="text-sm text-ink dark:text-paper">
                             Slot <span className="font-mono font-semibold">{d.locker_slot}</span>
                             {"  \u00b7  "}
                             Pickup code <span className="font-mono font-semibold text-base">{d.locker_pickup_code}</span>
                           </div>
-                          <div className="text-xs text-slate mt-1.5">
+                          <div className="text-xs text-slate dark:text-slate-light mt-1.5">
                             The customer needs both this code and their tracking code to collect it — share it if they haven't received it already.
                           </div>
                         </div>
@@ -428,7 +428,7 @@ export default function AgentDashboard() {
             </>
           ) : (
             <>
-              <div className="flex gap-2 mb-6 border-b border-slate-200">
+              <div className="flex gap-2 mb-6 border-b border-slate-200 dark:border-line">
                 <TabButton active={rideTab === "available"} onClick={() => setRideTab("available")}>
                   Available ({availableRides.length})
                 </TabButton>
@@ -439,27 +439,27 @@ export default function AgentDashboard() {
 
               {rideError && <p className="text-sm text-signal mb-4">{rideError}</p>}
               {loadingRides ? (
-                <p className="text-sm text-slate">Loading…</p>
+                <p className="text-sm text-slate dark:text-slate-light">Loading…</p>
               ) : rideTab === "available" ? (
                 availableRides.length === 0 ? (
                   <EmptyState text="No ride requests right now." />
                 ) : (
                   <div className="space-y-3">
                     {availableRides.map((r) => (
-                      <div key={r.id} className="border border-slate-200 rounded-xl p-4 bg-white flex items-start justify-between gap-4">
+                      <div key={r.id} className="border border-slate-200 dark:border-line rounded-xl p-4 bg-white dark:bg-ink-soft flex items-start justify-between gap-4">
                         <div>
                           <div className="font-semibold text-sm mb-1">
                             {r.pickup_address} → {r.dropoff_address}
-                            {r.distance_km && <span className="text-slate font-normal"> · {r.distance_km} km</span>}
+                            {r.distance_km && <span className="text-slate dark:text-slate-light font-normal"> · {r.distance_km} km</span>}
                           </div>
-                          <div className="text-xs text-slate">Rider: {r.customer_name} · {r.customer_phone}</div>
+                          <div className="text-xs text-slate dark:text-slate-light">Rider: {r.customer_name} · {r.customer_phone}</div>
                         </div>
                         <div className="text-right shrink-0">
                           <div className="font-mono font-semibold mb-2">₦{r.price.toLocaleString()}</div>
                           <button
                             disabled={busyId === r.id}
                             onClick={() => handleAcceptRide(r.id)}
-                            className="text-xs font-semibold bg-ink text-paper rounded-lg px-3 py-2 hover:bg-ink-soft transition-colors disabled:opacity-60"
+                            className="text-xs font-semibold bg-ink text-paper dark:bg-route dark:text-ink rounded-lg px-3 py-2 hover:bg-ink-soft transition-colors disabled:opacity-60"
                           >
                             {busyId === r.id ? "Accepting…" : "Accept ride"}
                           </button>
@@ -473,13 +473,13 @@ export default function AgentDashboard() {
               ) : (
                 <div className="space-y-3">
                   {assignedRides.map((r) => (
-                    <div key={r.id} className="border border-slate-200 rounded-xl p-4 bg-white">
+                    <div key={r.id} className="border border-slate-200 dark:border-line rounded-xl p-4 bg-white dark:bg-ink-soft">
                       <div className="font-semibold text-sm mb-2">
                         {r.pickup_address} → {r.dropoff_address}
-                        {r.distance_km && <span className="text-slate font-normal"> · {r.distance_km} km</span>}
+                        {r.distance_km && <span className="text-slate dark:text-slate-light font-normal"> · {r.distance_km} km</span>}
                       </div>
                       <TripStatusStepper steps={RIDE_STEPS} currentKey={r.status} className="mb-3" />
-                      <div className="text-xs text-slate mb-3">Rider: {r.customer_name} · {r.customer_phone}</div>
+                      <div className="text-xs text-slate dark:text-slate-light mb-3">Rider: {r.customer_name} · {r.customer_phone}</div>
                       {RIDE_ACTIVE_STATUSES.includes(r.status) && r.id === activeRide?.id && (
                         <div className="text-xs text-delivered mb-3 flex items-center gap-1.5">
                           <span className="relative flex h-1.5 w-1.5">
@@ -510,7 +510,7 @@ export default function AgentDashboard() {
                             <button
                               disabled={busyId === r.id}
                               onClick={() => handleAdvanceRide(r.id)}
-                              className="text-xs font-semibold bg-route hover:bg-route-dark text-ink rounded-lg px-3 py-2 transition-colors disabled:opacity-60"
+                              className="text-xs font-semibold bg-route hover:bg-route-dark text-ink dark:text-paper rounded-lg px-3 py-2 transition-colors disabled:opacity-60"
                             >
                               {busyId === r.id ? "Updating…" : RIDE_NEXT_LABEL[r.status]}
                             </button>
@@ -531,8 +531,8 @@ export default function AgentDashboard() {
 
 function SummaryCard({ label, value, custom }) {
   return (
-    <div className="border border-slate-200 rounded-xl p-4 bg-white">
-      <div className="text-xs text-slate mb-1">{label}</div>
+    <div className="border border-slate-200 dark:border-line rounded-xl p-4 bg-white dark:bg-ink-soft">
+      <div className="text-xs text-slate dark:text-slate-light mb-1">{label}</div>
       {custom || <div className="font-mono font-semibold capitalize">{value}</div>}
     </div>
   );
@@ -543,7 +543,7 @@ function SectionButton({ active, onClick, children }) {
     <button
       onClick={onClick}
       className={`text-sm font-semibold px-4 py-2 rounded-full transition-colors ${
-        active ? "bg-ink text-paper" : "bg-slate-100 text-slate hover:bg-slate-200"
+        active ? "bg-ink text-paper dark:bg-route dark:text-ink" : "bg-slate-100 dark:bg-white/10 text-slate dark:text-slate-light hover:bg-slate-200"
       }`}
     >
       {children}
@@ -556,7 +556,7 @@ function TabButton({ active, onClick, children }) {
     <button
       onClick={onClick}
       className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-        active ? "border-ink text-ink" : "border-transparent text-slate hover:text-ink"
+        active ? "border-ink text-ink dark:text-paper" : "border-transparent text-slate dark:text-slate-light hover:text-ink dark:hover:text-paper dark:text-paper"
       }`}
     >
       {children}
@@ -565,5 +565,5 @@ function TabButton({ active, onClick, children }) {
 }
 
 function EmptyState({ text }) {
-  return <div className="border border-dashed border-slate-300 rounded-2xl p-8 text-center text-slate text-sm">{text}</div>;
+  return <div className="border border-dashed border-slate-300 rounded-2xl p-8 text-center text-slate dark:text-slate-light text-sm">{text}</div>;
 }

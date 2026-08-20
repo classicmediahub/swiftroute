@@ -1,5 +1,6 @@
 import Layout from "./Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { ThemeProvider } from "./context/ThemeContext";
 
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
@@ -26,10 +27,29 @@ import VerifyEmail from "./pages/VerifyEmail";
 // needs a plain route-record array instead (same shape react-router-dom's
 // data routers use), so it can walk it at build time and prerender each
 // public path to real HTML. Every path below is unchanged from before.
+// This used to be a component rendering <Routes>/<Route>. vite-react-ssg
+// needs a plain route-record array instead (same shape react-router-dom's
+// data routers use), so it can walk it at build time and prerender each
+// public path to real HTML. Every path below is unchanged from before.
+//
+// ThemedLayout wraps the real Layout in ThemeProvider — this is the dark-
+// mode wiring point. There's no main.jsx with a JSX <App/> to wrap here
+// (vite-react-ssg consumes this route array directly instead), and Layout
+// is the one component every single route renders inside via its own
+// <Outlet/>, so wrapping it here covers every page in one place without
+// needing to touch Layout.jsx itself.
+function ThemedLayout() {
+  return (
+    <ThemeProvider>
+      <Layout />
+    </ThemeProvider>
+  );
+}
+
 const routes = [
   {
     path: "/",
-    Component: Layout,
+    Component: ThemedLayout,
     entry: "src/Layout.jsx",
     children: [
       { index: true, Component: Landing },

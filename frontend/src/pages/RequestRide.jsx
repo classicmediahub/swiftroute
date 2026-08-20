@@ -168,18 +168,18 @@ export default function RequestRide() {
   return (
     <div className="max-w-3xl mx-auto px-5 py-10">
       <TripCompleteCelebration trip={celebrating} onClose={dismissCelebration} />
-      <div className="font-mono text-xs text-slate mb-2">RIDES</div>
+      <div className="font-mono text-xs text-slate dark:text-slate-light mb-2">RIDES</div>
       <h1 className="font-display text-3xl font-semibold mb-6">Get a ride</h1>
 
-      <div className="flex gap-2 mb-6 border-b border-slate-200">
+      <div className="flex gap-2 mb-6 border-b border-slate-200 dark:border-line">
         <TabButton active={tab === "request"} onClick={() => setTab("request")}>Request a ride</TabButton>
         <TabButton active={tab === "mine"} onClick={() => setTab("mine")}>My rides ({rides.length})</TabButton>
       </div>
 
       {tab === "request" ? (
         <div className="space-y-5">
-          <div className="border border-slate-200 rounded-2xl p-5 bg-white">
-            <div className="text-sm font-medium text-ink mb-3">Pickup</div>
+          <div className="border border-slate-200 dark:border-line rounded-2xl p-5 bg-white dark:bg-ink-soft">
+            <div className="text-sm font-medium text-ink dark:text-paper mb-3">Pickup</div>
             <div className="grid sm:grid-cols-[1fr_auto] gap-3 mb-2">
               <input
                 className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
@@ -204,8 +204,8 @@ export default function RequestRide() {
             />
           </div>
 
-          <div className="border border-slate-200 rounded-2xl p-5 bg-white">
-            <div className="text-sm font-medium text-ink mb-3">Drop-off</div>
+          <div className="border border-slate-200 dark:border-line rounded-2xl p-5 bg-white dark:bg-ink-soft">
+            <div className="text-sm font-medium text-ink dark:text-paper mb-3">Drop-off</div>
             <div className="grid sm:grid-cols-[1fr_auto] gap-3 mb-2">
               <input
                 className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
@@ -241,19 +241,19 @@ export default function RequestRide() {
               {estimating ? "Calculating fare…" : "Get fare estimate"}
             </button>
           ) : (
-            <div className="border border-slate-200 rounded-2xl p-5 bg-white">
+            <div className="border border-slate-200 dark:border-line rounded-2xl p-5 bg-white dark:bg-ink-soft">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <div className="text-xs text-slate mb-0.5">Estimated fare</div>
+                  <div className="text-xs text-slate dark:text-slate-light mb-0.5">Estimated fare</div>
                   <div className="font-mono text-2xl font-semibold">₦{quote.price.toLocaleString()}</div>
-                  <div className="text-xs text-slate mt-0.5">{quote.distanceKm} km · cab</div>
+                  <div className="text-xs text-slate dark:text-slate-light mt-0.5">{quote.distanceKm} km · cab</div>
                 </div>
-                <button onClick={() => setQuote(null)} className="text-xs font-semibold text-ink underline">
+                <button onClick={() => setQuote(null)} className="text-xs font-semibold text-ink dark:text-paper underline">
                   Recalculate
                 </button>
               </div>
 
-              <p className="text-xs text-slate mb-4">
+              <p className="text-xs text-slate dark:text-slate-light mb-4">
                 This is just a ballpark. Once your driver starts the trip, the meter runs on real
                 distance and time — you'll see the exact total live, and only pay once the trip ends.
               </p>
@@ -261,7 +261,7 @@ export default function RequestRide() {
               <button
                 disabled={requesting}
                 onClick={handleRequestRide}
-                className="w-full bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-3 transition-colors disabled:opacity-60"
+                className="w-full bg-route hover:bg-route-dark text-ink dark:text-paper font-semibold rounded-lg px-4 py-3 transition-colors disabled:opacity-60"
               >
                 {requesting ? "Requesting…" : "Request ride"}
               </button>
@@ -269,9 +269,9 @@ export default function RequestRide() {
           )}
         </div>
       ) : loadingRides ? (
-        <p className="text-sm text-slate">Loading…</p>
+        <p className="text-sm text-slate dark:text-slate-light">Loading…</p>
       ) : rides.length === 0 ? (
-        <div className="border border-dashed border-slate-300 rounded-2xl p-8 text-center text-slate text-sm">
+        <div className="border border-dashed border-slate-300 rounded-2xl p-8 text-center text-slate dark:text-slate-light text-sm">
           No rides yet.
         </div>
       ) : (
@@ -279,16 +279,16 @@ export default function RequestRide() {
           {rides.map((r) => {
             const isActive = ACTIVE_STATUSES.includes(r.status);
             return (
-              <div key={r.id} className="border border-slate-200 rounded-xl p-4 bg-white">
+              <div key={r.id} className="border border-slate-200 dark:border-line rounded-xl p-4 bg-white dark:bg-ink-soft">
                 <div className="flex items-start justify-between mb-3">
                   <div className="text-sm">
                     <div className="font-semibold mb-0.5">{r.pickup_address} → {r.dropoff_address}</div>
-                    <div className="text-xs text-slate">{r.distance_km ? `${r.distance_km} km · ` : ""}₦{r.price.toLocaleString()}</div>
+                    <div className="text-xs text-slate dark:text-slate-light">{r.distance_km ? `${r.distance_km} km · ` : ""}₦{r.price.toLocaleString()}</div>
                   </div>
                 </div>
                 <TripStatusStepper steps={RIDE_STEPS} currentKey={r.status} className="mb-3" />
                 {r.agent_name && (
-                  <div className="text-xs text-slate mb-2">Driver: {r.agent_name} · {r.agent_phone}</div>
+                  <div className="text-xs text-slate dark:text-slate-light mb-2">Driver: {r.agent_name} · {r.agent_phone}</div>
                 )}
 
                 {isActive && (
@@ -345,10 +345,10 @@ function RideReview({ ride, token, onSubmitted }) {
     return (
       <div className="border-t border-slate-100 mt-3 pt-3">
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs text-slate">Your rating:</span>
+          <span className="text-xs text-slate dark:text-slate-light">Your rating:</span>
           <StarRating value={ride.review_rating} readOnly size={14} />
         </div>
-        {ride.review_comment && <p className="text-xs text-slate italic">"{ride.review_comment}"</p>}
+        {ride.review_comment && <p className="text-xs text-slate dark:text-slate-light italic">"{ride.review_comment}"</p>}
       </div>
     );
   }
@@ -369,7 +369,7 @@ function RideReview({ ride, token, onSubmitted }) {
 
   return (
     <div className="border-t border-slate-100 mt-3 pt-3">
-      <div className="text-xs font-medium text-ink mb-2">Rate this trip</div>
+      <div className="text-xs font-medium text-ink dark:text-paper mb-2">Rate this trip</div>
       <StarRating value={rating} onChange={setRating} size={20} />
       <textarea
         value={comment}
@@ -394,7 +394,7 @@ function RidePayment({ ride, walletBalance, paying, onPay }) {
   const insufficientWallet = walletBalance < ride.price;
   return (
     <div className="border-t border-slate-100 mt-3 pt-3">
-      <div className="text-xs font-medium text-ink mb-2">
+      <div className="text-xs font-medium text-ink dark:text-paper mb-2">
         Trip ended — pay ₦{ride.price.toLocaleString()} to close it out
       </div>
       <div className="flex gap-2">
@@ -409,7 +409,7 @@ function RidePayment({ ride, walletBalance, paying, onPay }) {
           disabled={paying || insufficientWallet}
           onClick={() => onPay("wallet")}
           title={insufficientWallet ? "Insufficient wallet balance" : undefined}
-          className="flex-1 text-xs font-semibold border border-ink text-ink rounded-lg px-3 py-2.5 transition-colors disabled:opacity-40"
+          className="flex-1 text-xs font-semibold border border-ink text-ink dark:text-paper rounded-lg px-3 py-2.5 transition-colors disabled:opacity-40"
         >
           {paying ? "Paying…" : `Wallet (₦${walletBalance.toLocaleString()})`}
         </button>
@@ -426,7 +426,7 @@ function TabButton({ active, onClick, children }) {
     <button
       onClick={onClick}
       className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-        active ? "border-ink text-ink" : "border-transparent text-slate hover:text-ink"
+        active ? "border-ink text-ink dark:text-paper" : "border-transparent text-slate dark:text-slate-light hover:text-ink dark:hover:text-paper dark:text-paper"
       }`}
     >
       {children}

@@ -362,7 +362,7 @@ export default function CustomerDashboard() {
     <div className="grid lg:grid-cols-5 gap-8">
       <div className="lg:col-span-2">
         <WalletPanel token={token} />
-        <form onSubmit={handleSubmit} className="border border-slate-200 rounded-2xl p-6 bg-white h-fit">
+        <form onSubmit={handleSubmit} className="border border-slate-200 dark:border-line rounded-2xl p-6 bg-white dark:bg-ink-soft h-fit">
           <Field label="What are you sending?">
             <select className={inputClass} value={form.package_type} onChange={(e) => update("package_type", e.target.value)}>
               {PACKAGE_TYPES.map((p) => <option key={p} value={p}>{p}</option>)}
@@ -372,23 +372,23 @@ export default function CustomerDashboard() {
             <input className={inputClass} value={form.package_note} onChange={(e) => update("package_note", e.target.value)} placeholder="Fragile — handle with care" />
           </Field>
 
-          <label className="flex items-start gap-2.5 border border-slate-200 rounded-lg p-3.5 mb-4 bg-paper cursor-pointer">
+          <label className="flex items-start gap-2.5 border border-slate-200 dark:border-line rounded-lg p-3.5 mb-4 bg-paper cursor-pointer">
             <input
               type="checkbox"
               checked={form.is_return}
               onChange={(e) => setForm((f) => ({ ...f, is_return: e.target.checked, original_delivery_id: "", return_reason: "" }))}
               className="mt-0.5"
             />
-            <span className="text-sm text-ink">
+            <span className="text-sm text-ink dark:text-paper">
               This is a return
-              <span className="block text-xs text-slate mt-0.5">
+              <span className="block text-xs text-slate dark:text-slate-light mt-0.5">
                 Picking something up to send back — set pickup to the customer's location and drop-off to yours below.
               </span>
             </span>
           </label>
 
           {form.is_return && (
-            <div className="border border-slate-200 rounded-lg p-3.5 mb-4 bg-paper space-y-2">
+            <div className="border border-slate-200 dark:border-line rounded-lg p-3.5 mb-4 bg-paper space-y-2">
               {deliveries.filter((d) => d.status === "delivered" && !d.is_return).length > 0 && (
                 <Field label="Which order is this a return for? (optional)">
                   <select
@@ -419,7 +419,7 @@ export default function CustomerDashboard() {
               type="button"
               onClick={toggleCampusMode}
               className={`w-full text-left text-sm font-medium rounded-lg px-3.5 py-2.5 border mb-2 transition-colors ${
-                campusMode ? "border-ink bg-ink text-paper" : "border-slate-300 hover:border-slate-400 text-ink"
+                campusMode ? "border-ink bg-ink text-paper dark:bg-route dark:text-ink" : "border-slate-300 hover:border-slate-400 text-ink dark:text-paper"
               }`}
             >
               {campusMode ? "✓ Delivering within a campus" : "Delivering within a campus?"}
@@ -429,7 +429,7 @@ export default function CustomerDashboard() {
             type="button"
             onClick={toggleLockerMode}
             className={`w-full text-left text-sm font-medium rounded-lg px-3.5 py-2.5 border mb-4 transition-colors ${
-              lockerMode ? "border-ink bg-ink text-paper" : "border-slate-300 hover:border-slate-400 text-ink"
+              lockerMode ? "border-ink bg-ink text-paper dark:bg-route dark:text-ink" : "border-slate-300 hover:border-slate-400 text-ink dark:text-paper"
             }`}
           >
             {lockerMode ? "✓ Deliver to a locker" : "Deliver to a locker?"}
@@ -479,7 +479,7 @@ export default function CustomerDashboard() {
               )}
 
               {form.institution_id && form.pickup_landmark_id && form.dropoff_landmark_id && (
-                <label className="flex items-start gap-2.5 border border-slate-200 rounded-lg p-3.5 mb-4 bg-paper cursor-pointer">
+                <label className="flex items-start gap-2.5 border border-slate-200 dark:border-line rounded-lg p-3.5 mb-4 bg-paper cursor-pointer">
                   <input
                     type="checkbox"
                     checked={form.pool_delivery}
@@ -491,9 +491,9 @@ export default function CustomerDashboard() {
                     }))}
                     className="mt-0.5"
                   />
-                  <span className="text-sm text-ink">
+                  <span className="text-sm text-ink dark:text-paper">
                     Pool this delivery to save
-                    <span className="block text-xs text-slate mt-0.5">
+                    <span className="block text-xs text-slate dark:text-slate-light mt-0.5">
                       Share your trip with others delivering to this campus around the same time — up to 20% off.
                       If more people join after you order, you'll be refunded the difference straight to your
                       wallet automatically. The price shown below doesn't include this discount yet, since it
@@ -504,11 +504,11 @@ export default function CustomerDashboard() {
               )}
 
               {form.institution_id && (
-                <div className="border border-slate-200 rounded-lg p-3.5 mb-4 bg-paper">
+                <div className="border border-slate-200 dark:border-line rounded-lg p-3.5 mb-4 bg-paper">
                   <button
                     type="button"
                     onClick={() => setShowSuggestForm((v) => !v)}
-                    className="text-xs font-semibold text-ink underline"
+                    className="text-xs font-semibold text-ink dark:text-paper underline"
                   >
                     {showSuggestForm ? "Cancel suggestion" : "Can't find your landmark? Suggest one"}
                   </button>
@@ -540,30 +540,30 @@ export default function CustomerDashboard() {
                         type="button"
                         onClick={handleSuggestLandmark}
                         disabled={suggestSubmitting || !suggestName.trim()}
-                        className="text-xs font-semibold bg-ink text-paper rounded-lg px-3 py-1.5 disabled:opacity-60"
+                        className="text-xs font-semibold bg-ink text-paper dark:bg-route dark:text-ink rounded-lg px-3 py-1.5 disabled:opacity-60"
                       >
                         {suggestSubmitting ? "Submitting…" : "Submit landmark"}
                       </button>
-                      {suggestStatus && <p className="text-xs text-slate mt-1.5">{suggestStatus}</p>}
+                      {suggestStatus && <p className="text-xs text-slate dark:text-slate-light mt-1.5">{suggestStatus}</p>}
                     </div>
                   )}
 
                   {pendingLandmarks.length > 0 && (
-                    <div className="mt-4 pt-3 border-t border-slate-200">
-                      <div className="text-xs font-semibold text-ink mb-2">Help verify landmarks near you</div>
+                    <div className="mt-4 pt-3 border-t border-slate-200 dark:border-line">
+                      <div className="text-xs font-semibold text-ink dark:text-paper mb-2">Help verify landmarks near you</div>
                       <div className="space-y-2">
                         {pendingLandmarks.map((p) => (
-                          <div key={p.id} className="flex items-center justify-between gap-2 text-xs bg-white border border-slate-200 rounded-lg px-3 py-2">
+                          <div key={p.id} className="flex items-center justify-between gap-2 text-xs bg-white dark:bg-ink-soft border border-slate-200 dark:border-line rounded-lg px-3 py-2">
                             <div>
-                              <div className="font-medium text-ink">{p.name}</div>
-                              {p.note && <div className="text-slate">{p.note}</div>}
+                              <div className="font-medium text-ink dark:text-paper">{p.name}</div>
+                              {p.note && <div className="text-slate dark:text-slate-light">{p.note}</div>}
                               <div className="text-slate-light mt-0.5">{p.confirmation_count} of 3 confirmations</div>
                             </div>
                             <button
                               type="button"
                               onClick={() => handleConfirmLandmark(p.id)}
                               disabled={confirmingId === p.id}
-                              className="shrink-0 text-xs font-semibold bg-route hover:bg-route-dark text-ink rounded-lg px-2.5 py-1.5 disabled:opacity-60"
+                              className="shrink-0 text-xs font-semibold bg-route hover:bg-route-dark text-ink dark:text-paper rounded-lg px-2.5 py-1.5 disabled:opacity-60"
                             >
                               {confirmingId === p.id ? "…" : "Confirm"}
                             </button>
@@ -603,13 +603,13 @@ export default function CustomerDashboard() {
               </Suspense>
 
               {lockerMode ? (
-                <div className="border border-slate-200 rounded-lg p-3.5 mb-4 bg-paper">
+                <div className="border border-slate-200 dark:border-line rounded-lg p-3.5 mb-4 bg-paper">
                   <div className="flex gap-2 mb-3">
                     <button
                       type="button"
                       onClick={() => { setLockerLocationType("campus"); update("dropoff_locker_id", ""); }}
                       className={`flex-1 text-xs font-semibold rounded-lg px-3 py-2 border transition-colors ${
-                        lockerLocationType === "campus" ? "border-ink bg-ink text-paper" : "border-slate-300 text-ink"
+                        lockerLocationType === "campus" ? "border-ink bg-ink text-paper dark:bg-route dark:text-ink" : "border-slate-300 text-ink dark:text-paper"
                       }`}
                     >
                       On a campus
@@ -618,7 +618,7 @@ export default function CustomerDashboard() {
                       type="button"
                       onClick={() => { setLockerLocationType("city"); update("dropoff_locker_id", ""); }}
                       className={`flex-1 text-xs font-semibold rounded-lg px-3 py-2 border transition-colors ${
-                        lockerLocationType === "city" ? "border-ink bg-ink text-paper" : "border-slate-300 text-ink"
+                        lockerLocationType === "city" ? "border-ink bg-ink text-paper dark:bg-route dark:text-ink" : "border-slate-300 text-ink dark:text-paper"
                       }`}
                     >
                       In the city
@@ -661,7 +661,7 @@ export default function CustomerDashboard() {
                     </select>
                   </Field>
                   {selectedLocker?.address && (
-                    <p className="text-xs text-slate mt-1.5">{selectedLocker.address}</p>
+                    <p className="text-xs text-slate dark:text-slate-light mt-1.5">{selectedLocker.address}</p>
                   )}
                 </div>
               ) : (
@@ -703,19 +703,19 @@ export default function CustomerDashboard() {
             </Field>
           </div>
 
-          <span className="block text-sm font-medium text-ink mb-1.5">Preferred vehicle</span>
+          <span className="block text-sm font-medium text-ink dark:text-paper mb-1.5">Preferred vehicle</span>
           <div className="grid grid-cols-4 gap-2 mb-4">
             {VEHICLES.map((v) => (
               <button type="button" key={v.value} onClick={() => update("preferred_vehicle", v.value)}
                 className={`text-xs font-medium rounded-lg px-2 py-2 border transition-colors ${
-                  form.preferred_vehicle === v.value ? "border-ink bg-ink text-paper" : "border-slate-300 hover:border-slate-400"
+                  form.preferred_vehicle === v.value ? "border-ink bg-ink text-paper dark:bg-route dark:text-ink" : "border-slate-300 hover:border-slate-400"
                 }`}>
                 {v.label}
               </button>
             ))}
           </div>
 
-          <label className={`flex items-start gap-2.5 border rounded-lg p-3.5 mb-4 ${form.pool_delivery ? "border-slate-200 bg-slate-50 opacity-60" : "border-slate-200 bg-paper cursor-pointer"}`}>
+          <label className={`flex items-start gap-2.5 border rounded-lg p-3.5 mb-4 ${form.pool_delivery ? "border-slate-200 dark:border-line bg-slate-50 dark:bg-white/5 opacity-60" : "border-slate-200 dark:border-line bg-paper cursor-pointer"}`}>
             <input
               type="checkbox"
               checked={form.guaranteed}
@@ -723,9 +723,9 @@ export default function CustomerDashboard() {
               onChange={(e) => update("guaranteed", e.target.checked)}
               className="mt-0.5"
             />
-            <span className="text-sm text-ink">
+            <span className="text-sm text-ink dark:text-paper">
               Guarantee this delivery — +₦300
-              <span className="block text-xs text-slate mt-0.5">
+              <span className="block text-xs text-slate dark:text-slate-light mt-0.5">
                 {form.pool_delivery
                   ? "Not available when pooling — pick one or the other."
                   : "If it's not handed off within the estimated window, you get ₦500 credited to your wallet automatically. No need to ask."}
@@ -733,7 +733,7 @@ export default function CustomerDashboard() {
             </span>
           </label>
 
-          <label className={`flex items-start gap-2.5 border rounded-lg p-3.5 mb-4 ${form.pool_delivery ? "border-slate-200 bg-slate-50 opacity-60" : "border-slate-200 bg-paper cursor-pointer"}`}>
+          <label className={`flex items-start gap-2.5 border rounded-lg p-3.5 mb-4 ${form.pool_delivery ? "border-slate-200 dark:border-line bg-slate-50 dark:bg-white/5 opacity-60" : "border-slate-200 dark:border-line bg-paper cursor-pointer"}`}>
             <input
               type="checkbox"
               checked={form.elite_requested}
@@ -741,9 +741,9 @@ export default function CustomerDashboard() {
               onChange={(e) => update("elite_requested", e.target.checked)}
               className="mt-0.5"
             />
-            <span className="text-sm text-ink">
+            <span className="text-sm text-ink dark:text-paper">
               Elite agent only — +₦400
-              <span className="block text-xs text-slate mt-0.5">
+              <span className="block text-xs text-slate dark:text-slate-light mt-0.5">
                 {form.pool_delivery
                   ? "Not available when pooling — pick one or the other."
                   : "Only our highest-rated, most reliable agents — 4.8★+ and 95%+ on-time — can accept this job."}
@@ -751,8 +751,8 @@ export default function CustomerDashboard() {
             </span>
           </label>
 
-          <div className={`border rounded-lg p-3.5 mb-4 ${form.pool_delivery ? "border-slate-200 bg-slate-50 opacity-60" : "border-slate-200 bg-paper"}`}>
-            <label className="block text-sm text-ink mb-1">
+          <div className={`border rounded-lg p-3.5 mb-4 ${form.pool_delivery ? "border-slate-200 dark:border-line bg-slate-50 dark:bg-white/5 opacity-60" : "border-slate-200 dark:border-line bg-paper"}`}>
+            <label className="block text-sm text-ink dark:text-paper mb-1">
               Insure this package (optional)
             </label>
             <input
@@ -764,7 +764,7 @@ export default function CustomerDashboard() {
               value={form.declared_value}
               onChange={(e) => update("declared_value", e.target.value)}
             />
-            <p className="text-xs text-slate mt-1.5">
+            <p className="text-xs text-slate dark:text-slate-light mt-1.5">
               {form.pool_delivery
                 ? "Not available when pooling — pick one or the other."
                 : form.declared_value && Number(form.declared_value) > 0
@@ -783,7 +783,7 @@ export default function CustomerDashboard() {
               type="button"
               onClick={() => update("payment_method", "paystack")}
               className={`text-xs font-medium rounded-lg px-2 py-2.5 border transition-colors ${
-                form.payment_method === "paystack" ? "border-ink bg-ink text-paper" : "border-slate-300 hover:border-slate-400"
+                form.payment_method === "paystack" ? "border-ink bg-ink text-paper dark:bg-route dark:text-ink" : "border-slate-300 hover:border-slate-400"
               }`}
             >
               Card / bank (Paystack)
@@ -793,7 +793,7 @@ export default function CustomerDashboard() {
               disabled={estimate !== null && walletBalance < estimate}
               onClick={() => update("payment_method", "wallet")}
               className={`text-xs font-medium rounded-lg px-2 py-2.5 border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                form.payment_method === "wallet" ? "border-ink bg-ink text-paper" : "border-slate-300 hover:border-slate-400"
+                form.payment_method === "wallet" ? "border-ink bg-ink text-paper dark:bg-route dark:text-ink" : "border-slate-300 hover:border-slate-400"
               }`}
             >
               Wallet (₦{walletBalance.toLocaleString()})
@@ -804,11 +804,11 @@ export default function CustomerDashboard() {
           )}
 
           {estimate !== null && (
-            <div className="flex items-center justify-between bg-paper border border-slate-200 rounded-lg px-4 py-3 mb-4">
+            <div className="flex items-center justify-between bg-paper border border-slate-200 dark:border-line rounded-lg px-4 py-3 mb-4">
               <div>
-                <span className="text-sm text-slate">Estimated price</span>
+                <span className="text-sm text-slate dark:text-slate-light">Estimated price</span>
                 {estimateDistance !== null && (
-                  <div className="text-xs text-slate">≈ {estimateDistance} km driving distance</div>
+                  <div className="text-xs text-slate dark:text-slate-light">≈ {estimateDistance} km driving distance</div>
                 )}
               </div>
               <span className="font-mono font-semibold text-lg">₦{estimate.toLocaleString()}</span>
@@ -819,7 +819,7 @@ export default function CustomerDashboard() {
 
           <button
             disabled={submitting || (campusMode && (!form.institution_id || !form.pickup_landmark_id || !form.dropoff_landmark_id || form.pickup_landmark_id === form.dropoff_landmark_id)) || (lockerMode && !form.dropoff_locker_id)}
-            className="w-full bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-2.5 transition-colors disabled:opacity-60"
+            className="w-full bg-route hover:bg-route-dark text-ink dark:text-paper font-semibold rounded-lg px-4 py-2.5 transition-colors disabled:opacity-60"
           >
             {submitting ? "Redirecting to payment…" : form.payment_method === "wallet" ? "Pay from wallet" : "Continue to payment"}
           </button>
@@ -829,18 +829,18 @@ export default function CustomerDashboard() {
       <div className="lg:col-span-3">
         <h2 className="font-display text-lg font-semibold mb-4">Your deliveries</h2>
         {loadingList ? (
-          <p className="text-sm text-slate">Loading…</p>
+          <p className="text-sm text-slate dark:text-slate-light">Loading…</p>
         ) : deliveries.length === 0 ? (
-          <div className="border border-dashed border-slate-300 rounded-2xl p-8 text-center text-slate text-sm">
+          <div className="border border-dashed border-slate-300 rounded-2xl p-8 text-center text-slate dark:text-slate-light text-sm">
             No deliveries yet. Post your first one on the left.
           </div>
         ) : (
           <div className="space-y-3">
             {deliveries.map((d) => (
-              <div key={d.id} className="border border-slate-200 rounded-xl p-4 bg-white">
+              <div key={d.id} className="border border-slate-200 dark:border-line rounded-xl p-4 bg-white dark:bg-ink-soft">
                 <div className="flex items-start justify-between mb-2">
                   <div>
-                    <div className="font-mono text-xs text-slate mb-1 flex items-center gap-2">
+                    <div className="font-mono text-xs text-slate dark:text-slate-light mb-1 flex items-center gap-2">
                       {d.tracking_code}
                       {d.is_return && (
                         <span className="text-[10px] font-semibold bg-route/10 text-route-dark rounded-full px-2 py-0.5">
@@ -850,7 +850,7 @@ export default function CustomerDashboard() {
                     </div>
                     <div className="font-semibold text-sm">
                       {d.package_type} · {d.pickup_city} → {d.dropoff_city}
-                      {d.distance_km && <span className="text-slate font-normal"> · {d.distance_km} km</span>}
+                      {d.distance_km && <span className="text-slate dark:text-slate-light font-normal"> · {d.distance_km} km</span>}
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1.5">
@@ -858,13 +858,13 @@ export default function CustomerDashboard() {
                     {d.payment_status !== "paid" && <StatusBadge status={d.payment_status} />}
                   </div>
                 </div>
-                <div className="text-xs text-slate space-y-0.5 mb-2">
+                <div className="text-xs text-slate dark:text-slate-light space-y-0.5 mb-2">
                   <div>Pickup: {d.pickup_address}{d.pickup_landmark && ` (${d.pickup_landmark})`}</div>
                   <div>Drop-off: {d.dropoff_address}{d.dropoff_landmark && ` (${d.dropoff_landmark})`} · to {d.recipient_name}</div>
                   {d.agent_name && (
                     <div className="flex items-center gap-2">
                       {d.agent_photo && (
-                        <img src={d.agent_photo} alt={d.agent_name} className="w-6 h-6 rounded-full object-cover border border-slate-200" />
+                        <img src={d.agent_photo} alt={d.agent_name} className="w-6 h-6 rounded-full object-cover border border-slate-200 dark:border-line" />
                       )}
                       <span>Agent: {d.agent_name} · {d.agent_phone}</span>
                     </div>
@@ -873,7 +873,7 @@ export default function CustomerDashboard() {
 
                 {["accepted", "picked_up", "in_transit"].includes(d.status) && (
                   <div className="mb-3">
-                    <Suspense fallback={<div style={{ height: 220 }} className="rounded-xl bg-paper border border-slate-200 animate-pulse" />}>
+                    <Suspense fallback={<div style={{ height: 220 }} className="rounded-xl bg-paper border border-slate-200 dark:border-line animate-pulse" />}>
                       <DeliveryMap
                         height={220}
                         pickup={d.pickup_lat != null ? { lat: d.pickup_lat, lng: d.pickup_lng } : null}
@@ -882,16 +882,16 @@ export default function CustomerDashboard() {
                       />
                     </Suspense>
                     {d.current_lat != null && (
-                      <p className="text-xs text-slate mt-1.5">
+                      <p className="text-xs text-slate dark:text-slate-light mt-1.5">
                         Agent location last updated {new Date(d.location_updated_at).toLocaleTimeString()}
                       </p>
                     )}
                   </div>
                 )}
                 {d.declared_value && ["delivered", "cancelled"].includes(d.status) && (
-                  <div className="border border-slate-200 rounded-lg p-3 mb-3 bg-paper">
+                  <div className="border border-slate-200 dark:border-line rounded-lg p-3 mb-3 bg-paper">
                     {claimStatus[d.id] ? (
-                      <p className="text-xs text-slate">{claimStatus[d.id]}</p>
+                      <p className="text-xs text-slate dark:text-slate-light">{claimStatus[d.id]}</p>
                     ) : claimFormOpenId === d.id ? (
                       <div className="space-y-2">
                         <textarea
@@ -915,14 +915,14 @@ export default function CustomerDashboard() {
                             type="button"
                             disabled={claimSubmitting}
                             onClick={() => handleFileClaim(d.id)}
-                            className="text-xs font-semibold bg-ink text-paper rounded-lg px-3 py-1.5 disabled:opacity-60"
+                            className="text-xs font-semibold bg-ink text-paper dark:bg-route dark:text-ink rounded-lg px-3 py-1.5 disabled:opacity-60"
                           >
                             {claimSubmitting ? "Submitting…" : "Submit claim"}
                           </button>
                           <button
                             type="button"
                             onClick={() => { setClaimFormOpenId(null); setClaimReason(""); setClaimAmount(""); }}
-                            className="text-xs font-medium text-slate hover:text-ink"
+                            className="text-xs font-medium text-slate dark:text-slate-light hover:text-ink dark:hover:text-paper dark:text-paper"
                           >
                             Cancel
                           </button>
@@ -932,7 +932,7 @@ export default function CustomerDashboard() {
                       <button
                         type="button"
                         onClick={() => setClaimFormOpenId(d.id)}
-                        className="text-xs font-semibold text-ink underline"
+                        className="text-xs font-semibold text-ink dark:text-paper underline"
                       >
                         File an insurance claim
                       </button>
@@ -943,7 +943,7 @@ export default function CustomerDashboard() {
                   <span className="font-mono text-sm font-semibold">₦{d.price.toLocaleString()}</span>
                   <div className="flex items-center gap-3">
                     {["unpaid", "failed"].includes(d.payment_status) && d.status !== "cancelled" && (
-                      <button onClick={() => handleRetryPayment(d.id)} className="text-xs bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-3 py-1.5 transition-colors">
+                      <button onClick={() => handleRetryPayment(d.id)} className="text-xs bg-route hover:bg-route-dark text-ink dark:text-paper font-semibold rounded-lg px-3 py-1.5 transition-colors">
                         Complete payment
                       </button>
                     )}
@@ -959,7 +959,7 @@ export default function CustomerDashboard() {
                   d.review_rating ? (
                     <div className="border-t border-slate-100 mt-3 pt-3 flex items-center gap-2">
                       <StarRating value={d.review_rating} readOnly size={16} />
-                      {d.review_comment && <span className="text-xs text-slate">"{d.review_comment}"</span>}
+                      {d.review_comment && <span className="text-xs text-slate dark:text-slate-light">"{d.review_comment}"</span>}
                     </div>
                   ) : (
                     <ReviewForm deliveryId={d.id} token={token} onSubmitted={loadDeliveries} />
@@ -976,7 +976,7 @@ export default function CustomerDashboard() {
   return (
     <div className="max-w-6xl mx-auto px-5 py-10">
       <TripCompleteCelebration trip={celebrating} onClose={dismissCelebration} />
-      <div className="font-mono text-xs text-slate mb-2">
+      <div className="font-mono text-xs text-slate dark:text-slate-light mb-2">
         {isBusiness ? `BUSINESS DASHBOARD · ${user.company_name}` : "CUSTOMER DASHBOARD"}
       </div>
       <h1 className="font-display text-3xl font-semibold mb-8">
@@ -984,7 +984,7 @@ export default function CustomerDashboard() {
       </h1>
 
       {isBusiness && (
-        <div className="flex gap-2 mb-8 border-b border-slate-200">
+        <div className="flex gap-2 mb-8 border-b border-slate-200 dark:border-line">
           {[
             { id: "send", label: "Send a delivery" },
             { id: "bulk", label: "Bulk upload" },
@@ -996,7 +996,7 @@ export default function CustomerDashboard() {
               key={t.id}
               onClick={() => setTab(t.id)}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                tab === t.id ? "border-ink text-ink" : "border-transparent text-slate hover:text-ink"
+                tab === t.id ? "border-ink text-ink dark:text-paper" : "border-transparent text-slate dark:text-slate-light hover:text-ink dark:hover:text-paper dark:text-paper"
               }`}
             >
               {t.label}
