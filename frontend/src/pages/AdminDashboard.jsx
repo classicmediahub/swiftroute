@@ -2,6 +2,15 @@ import { useEffect, useState, useCallback } from "react";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import StatusBadge from "../components/StatusBadge";
+import { Users, UserCheck, Package, Car, Lock } from "lucide-react";
+
+const SIDEBAR_ITEMS = [
+  { key: "agents", label: "Agents", icon: UserCheck },
+  { key: "customers", label: "Customers", icon: Users },
+  { key: "deliveries", label: "Deliveries", icon: Package },
+  { key: "rides", label: "Rides", icon: Car },
+  { key: "lockers", label: "Lockers", icon: Lock },
+];
 
 // Ride statuses are a different string set than delivery statuses
 // (in_progress/completed vs in_transit/delivered) — a small local badge
@@ -19,11 +28,11 @@ const RIDE_STATUS_COLOR = {
   accepted: "bg-blue-100 text-blue-800",
   in_progress: "bg-blue-100 text-blue-800",
   completed: "bg-emerald-100 text-emerald-800",
-  cancelled: "bg-slate-100 text-slate-600",
+  cancelled: "bg-slate-100 text-slate dark:text-slate-light-600",
 };
 function RideStatusBadge({ status }) {
   return (
-    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${RIDE_STATUS_COLOR[status] || "bg-slate-100 text-slate-600"}`}>
+    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${RIDE_STATUS_COLOR[status] || "bg-slate-100 text-slate dark:text-slate-light-600"}`}>
       {RIDE_STATUS_LABEL[status] || status}
     </span>
   );
@@ -121,42 +130,70 @@ export default function AdminDashboard() {
     }
   }
 
-  if (loading) return <div className="max-w-6xl mx-auto px-5 py-10 text-slate">Loading dashboard…</div>;
+  if (loading) return <div className="max-w-6xl mx-auto px-5 py-10 text-slate dark:text-slate-light">Loading dashboard…</div>;
 
   const totalPlatformRevenue = stats.revenue + stats.rideRevenue;
 
   return (
-    <div className="max-w-6xl mx-auto px-5 py-10">
-      <div className="font-mono text-xs text-slate mb-2">ADMIN DASHBOARD</div>
-      <h1 className="font-display text-3xl font-semibold mb-8">Network overview</h1>
+    <div className="flex flex-col md:flex-row min-h-screen">
+      {/* SIDEBAR — dark wine chrome regardless of site theme, same
+          "always-dark" treatment as the Navbar and Footer, so all three
+          brand-chrome surfaces read as one consistent dark band rather
+          than the sidebar looking like a mistake in light mode. Collapses
+          to a horizontal scrollable bar on mobile instead of disappearing
+          — a real off-canvas drawer felt like more mechanism than this
+          admin-only screen needs. */}
+      <aside className="md:w-56 md:shrink-0 bg-ink text-paper">
+        <div className="px-5 py-6 hidden md:block">
+          <div className="font-mono text-xs text-slate-light">ADMIN</div>
+          <div className="font-display text-lg font-semibold">Network overview</div>
+        </div>
+        <nav className="flex md:flex-col overflow-x-auto md:overflow-visible px-3 md:px-3 py-3 md:py-0 gap-1">
+          {SIDEBAR_ITEMS.map(({ key, label, icon: Icon }) => {
+            const active = tab === key;
+            const count = { agents, customers, deliveries, rides, lockers }[key].length;
+            return (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                className={`flex items-center gap-2.5 shrink-0 md:w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  active ? "bg-route text-ink dark:text-paper" : "text-slate-light hover:bg-white/5 hover:text-paper"
+                }`}
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                <span className="flex-1">{label}</span>
+                <span className={`font-mono text-xs ${active ? "text-ink/70" : "text-slate-light"}`}>{count}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </aside>
 
-      <div className="grid sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
-        <Stat label="Customers" value={stats.totalUsers} />
-        <Stat label="Agents" value={stats.totalAgents} />
-        <Stat label="Pending approvals" value={stats.pendingAgents} highlight={stats.pendingAgents > 0} />
-        <Stat label="Active deliveries" value={stats.activeDeliveries} />
-        <Stat label="Completed deliveries" value={stats.completedDeliveries} />
-        <Stat label="Delivery revenue" value={`₦${Math.round(stats.revenue).toLocaleString()}`} />
-      </div>
-      <div className="grid sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-10">
-        <Stat label="Active rides" value={stats.activeRides} />
-        <Stat label="Completed rides" value={stats.completedRides} />
-        <Stat label="Ride revenue" value={`₦${Math.round(stats.rideRevenue).toLocaleString()}`} />
-        <Stat label="Total platform revenue" value={`₦${Math.round(totalPlatformRevenue).toLocaleString()}`} highlight />
-      </div>
+      <main className="flex-1 min-w-0 px-5 py-8 md:px-8 md:py-10">
+        <div className="font-mono text-xs text-slate dark:text-slate-light mb-2 md:hidden">ADMIN DASHBOARD</div>
+        <h1 className="font-display text-3xl font-semibold mb-8 text-ink dark:text-paper hidden md:block">
+          {SIDEBAR_ITEMS.find((i) => i.key === tab)?.label}
+        </h1>
 
-      <div className="flex gap-2 mb-6 border-b border-slate-200 flex-wrap">
-        <TabButton active={tab === "agents"} onClick={() => setTab("agents")}>Agents ({agents.length})</TabButton>
-        <TabButton active={tab === "customers"} onClick={() => setTab("customers")}>Customers ({customers.length})</TabButton>
-        <TabButton active={tab === "deliveries"} onClick={() => setTab("deliveries")}>Deliveries ({deliveries.length})</TabButton>
-        <TabButton active={tab === "rides"} onClick={() => setTab("rides")}>Rides ({rides.length})</TabButton>
-        <TabButton active={tab === "lockers"} onClick={() => setTab("lockers")}>Lockers ({lockers.length})</TabButton>
-      </div>
+        <div className="grid sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
+          <Stat label="Customers" value={stats.totalUsers} />
+          <Stat label="Agents" value={stats.totalAgents} />
+          <Stat label="Pending approvals" value={stats.pendingAgents} highlight={stats.pendingAgents > 0} />
+          <Stat label="Active deliveries" value={stats.activeDeliveries} />
+          <Stat label="Completed deliveries" value={stats.completedDeliveries} />
+          <Stat label="Delivery revenue" value={`₦${Math.round(stats.revenue).toLocaleString()}`} />
+        </div>
+        <div className="grid sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-10">
+          <Stat label="Active rides" value={stats.activeRides} />
+          <Stat label="Completed rides" value={stats.completedRides} />
+          <Stat label="Ride revenue" value={`₦${Math.round(stats.rideRevenue).toLocaleString()}`} />
+          <Stat label="Total platform revenue" value={`₦${Math.round(totalPlatformRevenue).toLocaleString()}`} highlight />
+        </div>
 
       {tab === "agents" && (
-        <div className="overflow-x-auto border border-slate-200 rounded-xl">
+        <div className="overflow-x-auto border border-slate-200 dark:border-line rounded-xl">
           <table className="w-full text-sm">
-            <thead className="bg-paper text-left text-xs text-slate uppercase font-mono">
+            <thead className="bg-paper dark:bg-white/5 text-left text-xs text-slate dark:text-slate-light uppercase font-mono">
               <tr>
                 <th className="px-4 py-3">Agent</th>
                 <th className="px-4 py-3">Vehicle</th>
@@ -170,28 +207,28 @@ export default function AdminDashboard() {
             </thead>
             <tbody>
               {agents.map((a) => (
-                <tr key={a.id} className="border-t border-slate-100">
+                <tr key={a.id} className="border-t border-slate-100 dark:border-line">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       {a.profile_photo ? (
-                        <img src={a.profile_photo} alt={a.full_name} className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0" />
+                        <img src={a.profile_photo} alt={a.full_name} className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-line shrink-0" />
                       ) : (
-                        <div className="w-10 h-10 rounded-full bg-paper border border-slate-200 shrink-0" />
+                        <div className="w-10 h-10 rounded-full bg-paper dark:bg-white/5 border border-slate-200 dark:border-line shrink-0" />
                       )}
                       <div>
                         <div className="font-medium">{a.full_name}</div>
-                        <div className="text-xs text-slate">{a.email} · {a.phone}</div>
+                        <div className="text-xs text-slate dark:text-slate-light">{a.email} · {a.phone}</div>
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-3 capitalize">
                     {a.vehicle_type}
-                    {a.vehicle_plate && <div className="text-xs text-slate font-mono">{a.vehicle_plate}</div>}
+                    {a.vehicle_plate && <div className="text-xs text-slate dark:text-slate-light font-mono">{a.vehicle_plate}</div>}
                   </td>
                   <td className="px-4 py-3">{a.city}</td>
                   <td className="px-4 py-3"><StatusBadge status={a.approval_status} /></td>
                   <td className="px-4 py-3">{a.total_deliveries}</td>
-                  <td className="px-4 py-3">{a.vehicle_type === "cab" ? a.total_rides : <span className="text-slate">—</span>}</td>
+                  <td className="px-4 py-3">{a.vehicle_type === "cab" ? a.total_rides : <span className="text-slate dark:text-slate-light">—</span>}</td>
                   <td className="px-4 py-3 font-mono">₦{a.wallet_balance.toLocaleString()}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2 flex-wrap">
@@ -212,7 +249,7 @@ export default function AdminDashboard() {
                 </tr>
               ))}
               {agents.length === 0 && (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-slate">No agents have registered yet.</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-slate dark:text-slate-light">No agents have registered yet.</td></tr>
               )}
             </tbody>
           </table>
@@ -220,9 +257,9 @@ export default function AdminDashboard() {
       )}
 
       {tab === "customers" && (
-        <div className="overflow-x-auto border border-slate-200 rounded-xl">
+        <div className="overflow-x-auto border border-slate-200 dark:border-line rounded-xl">
           <table className="w-full text-sm">
-            <thead className="bg-paper text-left text-xs text-slate uppercase font-mono">
+            <thead className="bg-paper dark:bg-white/5 text-left text-xs text-slate dark:text-slate-light uppercase font-mono">
               <tr>
                 <th className="px-4 py-3">Customer</th>
                 <th className="px-4 py-3">Joined</th>
@@ -232,12 +269,12 @@ export default function AdminDashboard() {
             </thead>
             <tbody>
               {customers.map((c) => (
-                <tr key={c.id} className="border-t border-slate-100">
+                <tr key={c.id} className="border-t border-slate-100 dark:border-line">
                   <td className="px-4 py-3">
                     <div className="font-medium">{c.full_name}</div>
-                    <div className="text-xs text-slate">{c.email} · {c.phone}</div>
+                    <div className="text-xs text-slate dark:text-slate-light">{c.email} · {c.phone}</div>
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate font-mono">{c.created_at}</td>
+                  <td className="px-4 py-3 text-xs text-slate dark:text-slate-light font-mono">{c.created_at}</td>
                   <td className="px-4 py-3 capitalize">{c.status}</td>
                   <td className="px-4 py-3">
                     <ActionBtn
@@ -250,7 +287,7 @@ export default function AdminDashboard() {
                 </tr>
               ))}
               {customers.length === 0 && (
-                <tr><td colSpan={4} className="px-4 py-8 text-center text-slate">No customers yet.</td></tr>
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-slate dark:text-slate-light">No customers yet.</td></tr>
               )}
             </tbody>
           </table>
@@ -258,9 +295,9 @@ export default function AdminDashboard() {
       )}
 
       {tab === "deliveries" && (
-        <div className="overflow-x-auto border border-slate-200 rounded-xl">
+        <div className="overflow-x-auto border border-slate-200 dark:border-line rounded-xl">
           <table className="w-full text-sm">
-            <thead className="bg-paper text-left text-xs text-slate uppercase font-mono">
+            <thead className="bg-paper dark:bg-white/5 text-left text-xs text-slate dark:text-slate-light uppercase font-mono">
               <tr>
                 <th className="px-4 py-3">Tracking</th>
                 <th className="px-4 py-3">Route</th>
@@ -272,17 +309,17 @@ export default function AdminDashboard() {
             </thead>
             <tbody>
               {deliveries.map((d) => (
-                <tr key={d.id} className="border-t border-slate-100">
+                <tr key={d.id} className="border-t border-slate-100 dark:border-line">
                   <td className="px-4 py-3 font-mono text-xs">{d.tracking_code}</td>
                   <td className="px-4 py-3">{d.pickup_city} → {d.dropoff_city}</td>
                   <td className="px-4 py-3">{d.customer_name}</td>
-                  <td className="px-4 py-3">{d.agent_name || <span className="text-slate">Unassigned</span>}</td>
+                  <td className="px-4 py-3">{d.agent_name || <span className="text-slate dark:text-slate-light">Unassigned</span>}</td>
                   <td className="px-4 py-3 font-mono">₦{d.price.toLocaleString()}</td>
                   <td className="px-4 py-3"><StatusBadge status={d.status} /></td>
                 </tr>
               ))}
               {deliveries.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate">No deliveries yet.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate dark:text-slate-light">No deliveries yet.</td></tr>
               )}
             </tbody>
           </table>
@@ -290,9 +327,9 @@ export default function AdminDashboard() {
       )}
 
       {tab === "rides" && (
-        <div className="overflow-x-auto border border-slate-200 rounded-xl">
+        <div className="overflow-x-auto border border-slate-200 dark:border-line rounded-xl">
           <table className="w-full text-sm">
-            <thead className="bg-paper text-left text-xs text-slate uppercase font-mono">
+            <thead className="bg-paper dark:bg-white/5 text-left text-xs text-slate dark:text-slate-light uppercase font-mono">
               <tr>
                 <th className="px-4 py-3">Route</th>
                 <th className="px-4 py-3">Customer</th>
@@ -305,25 +342,25 @@ export default function AdminDashboard() {
             </thead>
             <tbody>
               {rides.map((r) => (
-                <tr key={r.id} className="border-t border-slate-100">
+                <tr key={r.id} className="border-t border-slate-100 dark:border-line">
                   <td className="px-4 py-3">
                     <div className="max-w-xs truncate">{r.pickup_address} → {r.dropoff_address}</div>
-                    {r.distance_km && <div className="text-xs text-slate">{r.distance_km} km</div>}
+                    {r.distance_km && <div className="text-xs text-slate dark:text-slate-light">{r.distance_km} km</div>}
                   </td>
                   <td className="px-4 py-3">{r.customer_name}</td>
-                  <td className="px-4 py-3">{r.agent_name || <span className="text-slate">Unassigned</span>}</td>
+                  <td className="px-4 py-3">{r.agent_name || <span className="text-slate dark:text-slate-light">Unassigned</span>}</td>
                   <td className="px-4 py-3 font-mono">₦{r.price.toLocaleString()}</td>
                   <td className="px-4 py-3 capitalize">
                     <span className={r.payment_status === "paid" ? "text-emerald-700" : "text-amber-700"}>
                       {r.payment_status}
                     </span>
                   </td>
-                  <td className="px-4 py-3">{r.review_rating ? `${r.review_rating} ★` : <span className="text-slate">—</span>}</td>
+                  <td className="px-4 py-3">{r.review_rating ? `${r.review_rating} ★` : <span className="text-slate dark:text-slate-light">—</span>}</td>
                   <td className="px-4 py-3"><RideStatusBadge status={r.status} /></td>
                 </tr>
               ))}
               {rides.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-slate">No rides yet.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-slate dark:text-slate-light">No rides yet.</td></tr>
               )}
             </tbody>
           </table>
@@ -342,21 +379,21 @@ export default function AdminDashboard() {
           </div>
 
           {showLockerForm && (
-            <form onSubmit={handleCreateLocker} className="border border-slate-200 rounded-xl p-5 mb-6 bg-white grid sm:grid-cols-2 gap-4">
+            <form onSubmit={handleCreateLocker} className="border border-slate-200 dark:border-line rounded-xl p-5 mb-6 bg-white dark:bg-ink-soft grid sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-mono text-slate uppercase mb-1.5">Name</label>
+                <label className="block text-xs font-mono text-slate dark:text-slate-light uppercase mb-1.5">Name</label>
                 <input
                   required
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-slate-300 dark:border-line rounded-lg px-3 py-2 text-sm"
                   placeholder="Covenant University Main Gate Locker"
                   value={lockerForm.name}
                   onChange={(e) => setLockerForm((f) => ({ ...f, name: e.target.value }))}
                 />
               </div>
               <div>
-                <label className="block text-xs font-mono text-slate uppercase mb-1.5">Institution (optional — leave blank for a standalone city locker)</label>
+                <label className="block text-xs font-mono text-slate dark:text-slate-light uppercase mb-1.5">Institution (optional — leave blank for a standalone city locker)</label>
                 <select
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-slate-300 dark:border-line rounded-lg px-3 py-2 text-sm"
                   value={lockerForm.institution_id}
                   onChange={(e) => setLockerForm((f) => ({ ...f, institution_id: e.target.value }))}
                 >
@@ -365,29 +402,29 @@ export default function AdminDashboard() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-mono text-slate uppercase mb-1.5">City</label>
+                <label className="block text-xs font-mono text-slate dark:text-slate-light uppercase mb-1.5">City</label>
                 <input
                   required
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-slate-300 dark:border-line rounded-lg px-3 py-2 text-sm"
                   placeholder="Lagos"
                   value={lockerForm.city}
                   onChange={(e) => setLockerForm((f) => ({ ...f, city: e.target.value }))}
                 />
               </div>
               <div>
-                <label className="block text-xs font-mono text-slate uppercase mb-1.5">Total slots</label>
+                <label className="block text-xs font-mono text-slate dark:text-slate-light uppercase mb-1.5">Total slots</label>
                 <input
                   type="number"
                   min={1}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-slate-300 dark:border-line rounded-lg px-3 py-2 text-sm"
                   value={lockerForm.total_slots}
                   onChange={(e) => setLockerForm((f) => ({ ...f, total_slots: e.target.value }))}
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-xs font-mono text-slate uppercase mb-1.5">Address / description (optional)</label>
+                <label className="block text-xs font-mono text-slate dark:text-slate-light uppercase mb-1.5">Address / description (optional)</label>
                 <input
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-slate-300 dark:border-line rounded-lg px-3 py-2 text-sm"
                   placeholder="Beside the security post, Main Gate"
                   value={lockerForm.address}
                   onChange={(e) => setLockerForm((f) => ({ ...f, address: e.target.value }))}
@@ -397,7 +434,7 @@ export default function AdminDashboard() {
               <div className="sm:col-span-2">
                 <button
                   disabled={lockerSubmitting}
-                  className="text-sm font-semibold bg-route hover:bg-route-dark text-ink rounded-lg px-4 py-2.5 disabled:opacity-60"
+                  className="text-sm font-semibold bg-route hover:bg-route-dark text-ink dark:text-paper rounded-lg px-4 py-2.5 disabled:opacity-60"
                 >
                   {lockerSubmitting ? "Creating…" : "Create locker"}
                 </button>
@@ -405,9 +442,9 @@ export default function AdminDashboard() {
             </form>
           )}
 
-          <div className="overflow-x-auto border border-slate-200 rounded-xl">
+          <div className="overflow-x-auto border border-slate-200 dark:border-line rounded-xl">
             <table className="w-full text-sm">
-              <thead className="bg-paper text-left text-xs text-slate uppercase font-mono">
+              <thead className="bg-paper dark:bg-white/5 text-left text-xs text-slate dark:text-slate-light uppercase font-mono">
                 <tr>
                   <th className="px-4 py-3">Locker</th>
                   <th className="px-4 py-3">Location</th>
@@ -418,21 +455,21 @@ export default function AdminDashboard() {
               </thead>
               <tbody>
                 {lockers.map((l) => (
-                  <tr key={l.id} className="border-t border-slate-100">
+                  <tr key={l.id} className="border-t border-slate-100 dark:border-line">
                     <td className="px-4 py-3">
                       <div className="font-medium">{l.name}</div>
-                      {l.address && <div className="text-xs text-slate">{l.address}</div>}
+                      {l.address && <div className="text-xs text-slate dark:text-slate-light">{l.address}</div>}
                     </td>
                     <td className="px-4 py-3">
                       {l.institution_name ? (
                         <span>{l.institution_name}</span>
                       ) : (
-                        <span>{l.city} <span className="text-slate text-xs">(standalone)</span></span>
+                        <span>{l.city} <span className="text-slate dark:text-slate-light text-xs">(standalone)</span></span>
                       )}
                     </td>
                     <td className="px-4 py-3 font-mono">{l.total_slots}</td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${l.is_active ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}`}>
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${l.is_active ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate dark:text-slate-light-600"}`}>
                         {l.is_active ? "Active" : "Inactive"}
                       </span>
                     </td>
@@ -447,36 +484,24 @@ export default function AdminDashboard() {
                   </tr>
                 ))}
                 {lockers.length === 0 && (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-slate">No lockers yet — add your first one above.</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-slate dark:text-slate-light">No lockers yet — add your first one above.</td></tr>
                 )}
               </tbody>
             </table>
           </div>
         </div>
       )}
+      </main>
     </div>
   );
 }
 
 function Stat({ label, value, highlight }) {
   return (
-    <div className={`border rounded-xl p-4 ${highlight ? "border-signal bg-orange-50" : "border-slate-200 bg-white"}`}>
-      <div className="text-xs text-slate mb-1">{label}</div>
-      <div className="font-mono font-semibold text-xl">{value}</div>
+    <div className={`border-t-4 rounded-xl p-4 bg-white dark:bg-ink-soft shadow-sm ${highlight ? "border-signal" : "border-brand-blue"}`}>
+      <div className="text-xs text-slate dark:text-slate-light mb-1">{label}</div>
+      <div className="font-mono font-semibold text-xl text-ink dark:text-paper">{value}</div>
     </div>
-  );
-}
-
-function TabButton({ active, onClick, children }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-        active ? "border-ink text-ink" : "border-transparent text-slate hover:text-ink"
-      }`}
-    >
-      {children}
-    </button>
   );
 }
 
