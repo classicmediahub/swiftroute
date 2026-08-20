@@ -47,31 +47,42 @@ export default function Landing() {
     <div>
       {/* HERO — one primary audience: someone who needs to send something.
           Rider/agent signup stays available but as a secondary link, not a
-          second headline competing for attention. */}
-      <section className="bg-ink text-paper relative overflow-hidden">
-        {/* Ambient depth layer — purely decorative, sits behind everything */}
+          second headline competing for attention.
+          Cream/light per brand spec, not the dark navy this used to be —
+          also lets HeroLiveMap (now itself a light daytime illustration)
+          sit directly on the section without a jarring light-panel-on-
+          dark-hero mismatch. */}
+      <section className="bg-paper text-ink relative overflow-hidden">
+        {/* Ambient depth layer — purely decorative, sits behind everything.
+            Much lower opacity than the old dark-hero version: a glow that
+            reads as moody ambient light on navy just looks like a color
+            smudge at the same strength on cream, so these are toned way
+            down and sized a little smaller. Second glow now pulls from
+            brand-blue instead of signal (which is "warning orange" now,
+            not a color to feature ambiently) — gives a red/blue duo
+            instead of two warm tones sitting on top of each other. */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
           <div
-            className="hero-glow-a absolute -top-24 -left-24 w-[420px] h-[420px] rounded-full blur-[100px] opacity-30"
+            className="hero-glow-a absolute -top-24 -left-24 w-[420px] h-[420px] rounded-full blur-[100px] opacity-10"
             style={{ background: "radial-gradient(circle, var(--color-route) 0%, transparent 70%)" }}
           />
           <div
-            className="hero-glow-b absolute top-1/3 -right-32 w-[480px] h-[480px] rounded-full blur-[110px] opacity-25"
-            style={{ background: "radial-gradient(circle, var(--color-signal) 0%, transparent 70%)" }}
+            className="hero-glow-b absolute top-1/3 -right-32 w-[480px] h-[480px] rounded-full blur-[110px] opacity-10"
+            style={{ background: "radial-gradient(circle, var(--color-brand-blue) 0%, transparent 70%)" }}
           />
           <div className="absolute inset-0 grain-overlay" />
         </div>
 
         <div className="max-w-6xl mx-auto px-5 pt-20 pb-16 grid md:grid-cols-2 gap-10 items-center relative">
           <div className="fade-up-stagger">
-            <div className="inline-flex items-center gap-2 font-mono text-xs text-route border border-line rounded-full px-3 py-1 mb-6">
+            <div className="inline-flex items-center gap-2 font-mono text-xs text-route bg-white/60 border border-ink/10 rounded-full px-3 py-1 mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-route" />
               VERIFIED RIDERS · INSURED PARCELS
             </div>
-            <h1 className="font-display text-4xl sm:text-5xl font-semibold leading-[1.1] mb-5">
+            <h1 className="font-display text-4xl sm:text-5xl font-semibold leading-[1.1] mb-5 text-ink">
               Send it today.<br />Track every mile.
             </h1>
-            <p className="text-slate-light text-lg mb-6 max-w-md">
+            <p className="text-slate text-lg mb-6 max-w-md">
               Get a live rider, a real price, and proof of delivery — in one request. Watch every
               step from pickup to your door.
             </p>
@@ -81,15 +92,15 @@ export default function Landing() {
             </div>
 
             <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
-              <Link to="/track" className="text-slate-light hover:text-paper underline decoration-line underline-offset-4 transition-colors">
+              <Link to="/track" className="text-slate hover:text-ink underline decoration-ink/20 underline-offset-4 transition-colors">
                 Track a package
               </Link>
-              <Link to="/signup/agent" className="text-slate-light hover:text-paper underline decoration-line underline-offset-4 transition-colors">
+              <Link to="/signup/agent" className="text-slate hover:text-ink underline decoration-ink/20 underline-offset-4 transition-colors">
                 Earn as a rider instead
               </Link>
             </div>
           </div>
-          <div className="hidden md:block">
+          <div className="hidden md:block bg-white/50 border border-ink/5 rounded-3xl p-3 shadow-sm">
             <HeroLiveMap className="w-full h-auto" />
           </div>
         </div>
