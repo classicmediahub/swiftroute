@@ -211,16 +211,19 @@ export default function Landing() {
         </Reveal>
       </section>
 
-      {/* VEHICLE TYPES */}
+      {/* VEHICLE TYPES — flipped to light, same white-card-with-colored-
+          top-border treatment the brand spec calls for on dashboard cards,
+          so this reads as one consistent card language across the site
+          rather than a one-off. */}
       <section>
         <Reveal className="max-w-6xl mx-auto px-5 py-16">
           <div className="font-mono text-xs text-slate mb-2">AGENT FLEET</div>
-          <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-10">Every kind of drop, covered</h2>
+          <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-10 text-ink">Every kind of drop, covered</h2>
           <div className="grid sm:grid-cols-3 gap-5">
             {VEHICLES.map((v) => (
-              <div key={v.name} className="card-tactile rounded-2xl p-6 bg-ink text-paper">
+              <div key={v.name} className="card-tactile rounded-2xl p-6 bg-white border-t-4 border-brand-blue shadow-sm">
                 <h3 className="font-display text-lg font-semibold mb-2 text-route">{v.name}</h3>
-                <p className="text-sm text-slate-light">{v.detail}</p>
+                <p className="text-sm text-slate">{v.detail}</p>
               </div>
             ))}
           </div>
@@ -250,7 +253,7 @@ export default function Landing() {
         <Reveal className="max-w-6xl mx-auto px-5 py-16 text-center relative">
           <h2 className="font-display text-3xl font-semibold mb-4 text-ink">Ready to move something?</h2>
           <p className="text-slate mb-8">Get a quote above, or sign up in under a minute.</p>
-          <Link to="/signup" className="btn-tactile bg-route hover:bg-route-dark text-paper font-semibold rounded-lg px-7 py-3 transition-colors inline-block">
+          <Link to="/signup" className="btn-tactile bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-7 py-3 transition-colors inline-block">
             Create your account
           </Link>
         </Reveal>

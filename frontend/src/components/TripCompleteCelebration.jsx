@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 
-const CONFETTI_COLORS = ["#C1121F", "#669BBC", "#FDF0D5", "#2A9D8F", "#FFFFFF"]; // on-brand: red, light blue, cream, teal-green, white
+const CONFETTI_COLORS = ["#f0b400", "#5c1327", "#f8f5ef", "#12946b", "#FFFFFF"]; // on-brand: champagne gold, wine, cream, green, white
 const CONFETTI_COUNT = 70;
 
 function ConfettiPiece({ color, left, delay, duration, rotate, drift }) {
@@ -99,7 +99,7 @@ export default function TripCompleteCelebration({ trip, onClose }) {
         style={{ animation: "pae-celebrate-pop 0.45s cubic-bezier(0.2,0.8,0.2,1)" }}
       >
         <div className="mx-auto mb-4 w-14 h-14 rounded-full bg-delivered/15 flex items-center justify-center">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2A9D8F" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#12946b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20 6 9 17l-5-5" style={{ strokeDasharray: 24, strokeDashoffset: 0, animation: "pae-check-draw 0.5s 0.25s ease-out backwards" }} />
           </svg>
         </div>

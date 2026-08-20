@@ -292,7 +292,7 @@ export default function AgentDashboard() {
                       <button
                         disabled={poolBusyId === p.pool_id}
                         onClick={() => handleAcceptPool(p.pool_id)}
-                        className="shrink-0 text-xs font-semibold bg-route hover:bg-route-dark text-paper rounded-lg px-3.5 py-2.5 transition-colors disabled:opacity-60"
+                        className="shrink-0 text-xs font-semibold bg-route hover:bg-route-dark text-ink rounded-lg px-3.5 py-2.5 transition-colors disabled:opacity-60"
                       >
                         {poolBusyId === p.pool_id ? "Accepting…" : `Accept pool (${p.member_count})`}
                       </button>
@@ -362,7 +362,7 @@ export default function AgentDashboard() {
                           <button
                             disabled={busyId === d.id || (d.status === "in_transit" && !d.locker_id && !proofPhotos[d.id])}
                             onClick={() => handleAdvance(d.id, d)}
-                            className="text-xs font-semibold bg-route hover:bg-route-dark text-paper rounded-lg px-3 py-2 transition-colors disabled:opacity-60"
+                            className="text-xs font-semibold bg-route hover:bg-route-dark text-ink rounded-lg px-3 py-2 transition-colors disabled:opacity-60"
                           >
                             {busyId === d.id ? "Updating…" : nextLabelFor(d)}
                           </button>
@@ -510,7 +510,7 @@ export default function AgentDashboard() {
                             <button
                               disabled={busyId === r.id}
                               onClick={() => handleAdvanceRide(r.id)}
-                              className="text-xs font-semibold bg-route hover:bg-route-dark text-paper rounded-lg px-3 py-2 transition-colors disabled:opacity-60"
+                              className="text-xs font-semibold bg-route hover:bg-route-dark text-ink rounded-lg px-3 py-2 transition-colors disabled:opacity-60"
                             >
                               {busyId === r.id ? "Updating…" : RIDE_NEXT_LABEL[r.status]}
                             </button>

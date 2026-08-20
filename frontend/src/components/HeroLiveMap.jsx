@@ -18,31 +18,31 @@
 function BikeArt() {
   return (
     <>
-      <ellipse cx="46" cy="86" rx="42" ry="9" fill="#003049" opacity="0.14" />
+      <ellipse cx="46" cy="86" rx="42" ry="9" fill="#1a0d13" opacity="0.14" />
       <g transform="translate(0,-8)">
         <g className="pae-bob-el">
           {/* delivery box */}
-          <rect x="0" y="20" width="30" height="26" rx="5" fill="url(#pae-grad-green)" stroke="#04372E" strokeWidth="1.2" />
-          <path d="M4 33 H26" stroke="#04372E" strokeWidth="1" opacity="0.5" />
-          <path d="M4 27 c3 -6 10 -6 13 0" stroke="#04372E" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+          <rect x="0" y="20" width="30" height="26" rx="5" fill="url(#pae-grad-green)" stroke="#0a5a42" strokeWidth="1.2" />
+          <path d="M4 33 H26" stroke="#0a5a42" strokeWidth="1" opacity="0.5" />
+          <path d="M4 27 c3 -6 10 -6 13 0" stroke="#0a5a42" strokeWidth="1.4" fill="none" strokeLinecap="round" />
 
           {/* wheels */}
-          <circle className="pae-wheel" cx="24" cy="70" r="22" fill="#0B1B26" stroke="#FDF0D5" strokeWidth="4" />
-          <circle cx="24" cy="70" r="6" fill="#FDF0D5" />
-          <circle className="pae-wheel" cx="92" cy="70" r="22" fill="#0B1B26" stroke="#FDF0D5" strokeWidth="4" />
-          <circle cx="92" cy="70" r="6" fill="#FDF0D5" />
+          <circle className="pae-wheel" cx="24" cy="70" r="22" fill="#1a0d13" stroke="#f8f5ef" strokeWidth="4" />
+          <circle cx="24" cy="70" r="6" fill="#f8f5ef" />
+          <circle className="pae-wheel" cx="92" cy="70" r="22" fill="#1a0d13" stroke="#f8f5ef" strokeWidth="4" />
+          <circle cx="92" cy="70" r="6" fill="#f8f5ef" />
 
           {/* frame */}
           <path d="M24 70 L46 26 L76 26 L92 70" stroke="url(#pae-grad-red)" strokeWidth="7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M46 26 L46 12 L54 4" stroke="#003049" strokeWidth="7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M46 26 L46 12 L54 4" stroke="#1a0d13" strokeWidth="7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           <path d="M76 26 L80 10" stroke="url(#pae-grad-red)" strokeWidth="7" fill="none" strokeLinecap="round" />
-          <path d="M54 4 L80 10" stroke="#003049" strokeWidth="7" fill="none" strokeLinecap="round" />
+          <path d="M54 4 L80 10" stroke="#1a0d13" strokeWidth="7" fill="none" strokeLinecap="round" />
 
           {/* rider */}
-          <circle cx="56" cy="-2" r="12" fill="#FDF0D5" stroke="#003049" strokeWidth="1.5" />
-          <path d="M44 -8 a12 12 0 0 1 24 0 Z" fill="#003049" />
-          <circle cx="61" cy="-3" r="2" fill="#003049" />
-          <path d="M52 3 q4 3.5 7 0" stroke="#003049" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+          <circle cx="56" cy="-2" r="12" fill="#f8f5ef" stroke="#1a0d13" strokeWidth="1.5" />
+          <path d="M44 -8 a12 12 0 0 1 24 0 Z" fill="#1a0d13" />
+          <circle cx="61" cy="-3" r="2" fill="#1a0d13" />
+          <path d="M52 3 q4 3.5 7 0" stroke="#1a0d13" strokeWidth="1.6" fill="none" strokeLinecap="round" />
         </g>
       </g>
     </>
@@ -52,21 +52,21 @@ function BikeArt() {
 function CabArt() {
   return (
     <>
-      <ellipse cx="70" cy="92" rx="76" ry="10" fill="#003049" opacity="0.14" />
-      <path d="M-6 46 Q0 4 46 0 H98 Q130 2 138 46 Z" fill="url(#pae-grad-red)" stroke="#5C0000" strokeWidth="1.5" />
+      <ellipse cx="70" cy="92" rx="76" ry="10" fill="#1a0d13" opacity="0.14" />
+      <path d="M-6 46 Q0 4 46 0 H98 Q130 2 138 46 Z" fill="url(#pae-grad-red)" stroke="#43091b" strokeWidth="1.5" />
       <path d="M-4 44 Q2 44 20 44 Q26 8 48 4 H96 Q120 6 128 44 Q134 44 136 44" stroke="#FFFFFF" strokeWidth="2" opacity="0.35" fill="none" strokeLinecap="round" />
       <path d="M22 42 Q28 12 48 8 H72 V42 Z" fill="#8FC1E3" opacity="0.85" />
       <path d="M76 42 V8 H94 Q112 12 116 42 Z" fill="#8FC1E3" opacity="0.85" />
-      <path d="M72 8 V42" stroke="#5C0000" strokeWidth="2" opacity="0.6" />
-      <rect x="-6" y="40" width="144" height="24" rx="8" fill="#0B1B26" />
+      <path d="M72 8 V42" stroke="#43091b" strokeWidth="2" opacity="0.6" />
+      <rect x="-6" y="40" width="144" height="24" rx="8" fill="#1a0d13" />
       <rect x="46" y="-16" width="36" height="20" rx="4" fill="url(#pae-grad-navy)" />
-      <text x="64" y="-2" textAnchor="middle" fontFamily="'IBM Plex Mono', monospace" fontSize="11" fontWeight="700" fill="#FDF0D5">P</text>
+      <text x="64" y="-2" textAnchor="middle" fontFamily="'IBM Plex Mono', monospace" fontSize="11" fontWeight="700" fill="#f8f5ef">P</text>
       <circle cx="-4" cy="50" r="4" fill="#FFE9A8" />
-      <circle cx="134" cy="50" r="3" fill="#780000" />
-      <circle className="pae-wheel" cx="24" cy="68" r="17" fill="#0B1B26" stroke="#FDF0D5" strokeWidth="3.5" />
-      <circle cx="24" cy="68" r="5" fill="#FDF0D5" />
-      <circle className="pae-wheel" cx="108" cy="68" r="17" fill="#0B1B26" stroke="#FDF0D5" strokeWidth="3.5" />
-      <circle cx="108" cy="68" r="5" fill="#FDF0D5" />
+      <circle cx="134" cy="50" r="3" fill="#43091b" />
+      <circle className="pae-wheel" cx="24" cy="68" r="17" fill="#1a0d13" stroke="#f8f5ef" strokeWidth="3.5" />
+      <circle cx="24" cy="68" r="5" fill="#f8f5ef" />
+      <circle className="pae-wheel" cx="108" cy="68" r="17" fill="#1a0d13" stroke="#f8f5ef" strokeWidth="3.5" />
+      <circle cx="108" cy="68" r="5" fill="#f8f5ef" />
     </>
   );
 }
@@ -74,23 +74,23 @@ function CabArt() {
 function VanArt() {
   return (
     <>
-      <ellipse cx="90" cy="104" rx="96" ry="11" fill="#003049" opacity="0.14" />
-      <rect x="-8" y="-6" width="176" height="86" rx="12" fill="url(#pae-grad-navy)" stroke="#00202E" strokeWidth="1.5" />
+      <ellipse cx="90" cy="104" rx="96" ry="11" fill="#1a0d13" opacity="0.14" />
+      <rect x="-8" y="-6" width="176" height="86" rx="12" fill="url(#pae-grad-navy)" stroke="#1a0d13" strokeWidth="1.5" />
       <path d="M-6 -4 H166" stroke="#FFFFFF" strokeWidth="2" opacity="0.25" strokeLinecap="round" />
-      <rect x="104" y="14" width="60" height="46" rx="6" fill="#0B1B26" />
+      <rect x="104" y="14" width="60" height="46" rx="6" fill="#1a0d13" />
       <rect x="112" y="22" width="20" height="20" rx="3" fill="#8FC1E3" opacity="0.9" />
       <rect x="136" y="22" width="20" height="20" rx="3" fill="#8FC1E3" opacity="0.9" />
       <rect x="6" y="8" width="88" height="58" rx="6" fill="url(#pae-grad-red)" opacity="0.95" />
       {/* parcel icon — a simple box with a bow, not a medical cross */}
-      <rect x="34" y="24" width="32" height="26" rx="2" fill="#FDF0D5" opacity="0.92" />
-      <path d="M34 34 H66 M50 24 V50" stroke="#780000" strokeWidth="2.2" />
-      <path d="M44 24 q6 -8 12 0" stroke="#780000" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+      <rect x="34" y="24" width="32" height="26" rx="2" fill="#f8f5ef" opacity="0.92" />
+      <path d="M34 34 H66 M50 24 V50" stroke="#43091b" strokeWidth="2.2" />
+      <path d="M44 24 q6 -8 12 0" stroke="#43091b" strokeWidth="2.2" fill="none" strokeLinecap="round" />
       <circle cx="-6" cy="26" r="4.5" fill="#FFE9A8" />
-      <circle cx="166" cy="26" r="3.5" fill="#780000" />
-      <circle className="pae-wheel" cx="30" cy="78" r="20" fill="#0B1B26" stroke="#FDF0D5" strokeWidth="4" />
-      <circle cx="30" cy="78" r="6" fill="#FDF0D5" />
-      <circle className="pae-wheel" cx="128" cy="78" r="20" fill="#0B1B26" stroke="#FDF0D5" strokeWidth="4" />
-      <circle cx="128" cy="78" r="6" fill="#FDF0D5" />
+      <circle cx="166" cy="26" r="3.5" fill="#43091b" />
+      <circle className="pae-wheel" cx="30" cy="78" r="20" fill="#1a0d13" stroke="#f8f5ef" strokeWidth="4" />
+      <circle cx="30" cy="78" r="6" fill="#f8f5ef" />
+      <circle className="pae-wheel" cx="128" cy="78" r="20" fill="#1a0d13" stroke="#f8f5ef" strokeWidth="4" />
+      <circle cx="128" cy="78" r="6" fill="#f8f5ef" />
     </>
   );
 }
@@ -153,20 +153,20 @@ export default function HeroLiveMap({ className = "" }) {
       <svg viewBox="0 0 1200 420" className="w-full h-auto" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="pae-sky" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#FFFBF3" />
-            <stop offset="100%" stopColor="#FDF0D5" />
+            <stop offset="0%" stopColor="#FFFDF9" />
+            <stop offset="100%" stopColor="#f8f5ef" />
           </linearGradient>
           <linearGradient id="pae-grad-red" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#E8394A" />
-            <stop offset="100%" stopColor="#C1121F" />
+            <stop offset="0%" stopColor="#FFD24D" />
+            <stop offset="100%" stopColor="#f0b400" />
           </linearGradient>
           <linearGradient id="pae-grad-navy" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#0A3D5C" />
-            <stop offset="100%" stopColor="#003049" />
+            <stop offset="0%" stopColor="#3a1f2a" />
+            <stop offset="100%" stopColor="#1a0d13" />
           </linearGradient>
           <linearGradient id="pae-grad-green" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#3FBBAB" />
-            <stop offset="100%" stopColor="#2A9D8F" />
+            <stop offset="0%" stopColor="#1DBE87" />
+            <stop offset="100%" stopColor="#12946b" />
           </linearGradient>
         </defs>
 
@@ -174,14 +174,14 @@ export default function HeroLiveMap({ className = "" }) {
         <rect x="0" y="0" width="1200" height="420" fill="url(#pae-sky)" />
 
         {/* soft drifting clouds */}
-        <g opacity="0.55" fill="#E4D5AE">
+        <g opacity="0.55" fill="#e6ddc9">
           <ellipse className="pae-cloud" cx="170" cy="56" rx="46" ry="14" />
           <ellipse className="pae-cloud" cx="820" cy="40" rx="34" ry="11" style={{ animationDelay: "2s" }} />
           <ellipse className="pae-cloud" cx="1080" cy="70" rx="28" ry="9" style={{ animationDelay: "4s" }} />
         </g>
 
         {/* distant skyline — light navy silhouettes, neutral (no real landmark) */}
-        <g fill="#003049" opacity="0.16">
+        <g fill="#1a0d13" opacity="0.16">
           <rect x="0" y="220" width="60" height="120" rx="3" />
           <rect x="70" y="180" width="46" height="160" rx="3" />
           <rect x="126" y="240" width="56" height="100" rx="3" />
@@ -194,38 +194,38 @@ export default function HeroLiveMap({ className = "" }) {
             stripe along the deck rail (a nod to the reference's green
             stripe, done here in brand navy/red instead) */}
         <g>
-          <rect x="430" y="150" width="340" height="20" rx="6" fill="#0A3D5C" />
-          <rect x="430" y="150" width="340" height="5" fill="#C1121F" />
-          <rect x="470" y="170" width="14" height="70" fill="#0A3D5C" />
-          <rect x="600" y="170" width="14" height="70" fill="#0A3D5C" />
-          <rect x="730" y="170" width="14" height="70" fill="#0A3D5C" />
-          <path className="pae-dashline" d="M446 160 H750" stroke="#FDF0D5" strokeWidth="3" strokeLinecap="round" opacity="0.85" />
+          <rect x="430" y="150" width="340" height="20" rx="6" fill="#2a1420" />
+          <rect x="430" y="150" width="340" height="5" fill="#f0b400" />
+          <rect x="470" y="170" width="14" height="70" fill="#2a1420" />
+          <rect x="600" y="170" width="14" height="70" fill="#2a1420" />
+          <rect x="730" y="170" width="14" height="70" fill="#2a1420" />
+          <path className="pae-dashline" d="M446 160 H750" stroke="#f8f5ef" strokeWidth="3" strokeLinecap="round" opacity="0.85" />
           <g className="pae-far-a">
-            <rect x="0" y="144" width="26" height="14" rx="4" fill="#669BBC" />
-            <circle cx="7" cy="158" r="3.6" fill="#0B1B26" />
-            <circle cx="19" cy="158" r="3.6" fill="#0B1B26" />
+            <rect x="0" y="144" width="26" height="14" rx="4" fill="#f0b400" />
+            <circle cx="7" cy="158" r="3.6" fill="#1a0d13" />
+            <circle cx="19" cy="158" r="3.6" fill="#1a0d13" />
           </g>
           <g className="pae-far-b">
-            <rect x="0" y="144" width="26" height="14" rx="4" fill="#C1121F" />
-            <circle cx="7" cy="158" r="3.6" fill="#0B1B26" />
-            <circle cx="19" cy="158" r="3.6" fill="#0B1B26" />
+            <rect x="0" y="144" width="26" height="14" rx="4" fill="#5c1327" />
+            <circle cx="7" cy="158" r="3.6" fill="#1a0d13" />
+            <circle cx="19" cy="158" r="3.6" fill="#1a0d13" />
           </g>
         </g>
 
         {/* traffic light */}
         <g transform="translate(920,258)">
-          <rect x="-3" y="0" width="6" height="60" fill="#0A3D5C" />
-          <rect x="-12" y="-52" width="24" height="56" rx="5" fill="#0B1B26" />
-          <circle className="pae-light-red" cx="0" cy="-40" r="6" fill="#C1121F" />
+          <rect x="-3" y="0" width="6" height="60" fill="#2a1420" />
+          <rect x="-12" y="-52" width="24" height="56" rx="5" fill="#1a0d13" />
+          <circle className="pae-light-red" cx="0" cy="-40" r="6" fill="#d93a2b" />
           <circle className="pae-light-yellow" cx="0" cy="-26" r="6" fill="#E8A23D" />
-          <circle className="pae-light-green" cx="0" cy="-12" r="6" fill="#2A9D8F" />
+          <circle className="pae-light-green" cx="0" cy="-12" r="6" fill="#12946b" />
         </g>
 
         {/* road: pavement strip, then the main asphalt road with lane markings */}
-        <rect x="0" y="330" width="1200" height="14" fill="#E4D5AE" />
-        <rect x="0" y="344" width="1200" height="56" fill="#213040" />
-        <path d="M0 346 H1200" stroke="#3A4C60" strokeWidth="1.5" />
-        <path className="pae-dashline" d="M0 372 H1200" stroke="#FDF0D5" strokeWidth="4" strokeLinecap="round" opacity="0.9" />
+        <rect x="0" y="330" width="1200" height="14" fill="#e6ddc9" />
+        <rect x="0" y="344" width="1200" height="56" fill="#241019" />
+        <path d="M0 346 H1200" stroke="#3a1f2a" strokeWidth="1.5" />
+        <path className="pae-dashline" d="M0 372 H1200" stroke="#f8f5ef" strokeWidth="4" strokeLinecap="round" opacity="0.9" />
 
         {/* delivery van — largest, slowest lane */}
         <g transform="translate(0,296)">

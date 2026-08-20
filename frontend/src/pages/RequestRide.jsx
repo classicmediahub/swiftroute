@@ -261,7 +261,7 @@ export default function RequestRide() {
               <button
                 disabled={requesting}
                 onClick={handleRequestRide}
-                className="w-full bg-route hover:bg-route-dark text-paper font-semibold rounded-lg px-4 py-3 transition-colors disabled:opacity-60"
+                className="w-full bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-3 transition-colors disabled:opacity-60"
               >
                 {requesting ? "Requesting…" : "Request ride"}
               </button>
