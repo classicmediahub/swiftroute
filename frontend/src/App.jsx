@@ -1,5 +1,6 @@
 import Layout from "./Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ErrorScreen from "./components/ErrorScreen";
 
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
@@ -26,11 +27,22 @@ import VerifyEmail from "./pages/VerifyEmail";
 // needs a plain route-record array instead (same shape react-router-dom's
 // data routers use), so it can walk it at build time and prerender each
 // public path to real HTML. Every path below is unchanged from before.
+//
+// errorElement is new: React Router's data routers render a plain default
+// "Unexpected Application Error!" dump for any route-level render/loader
+// error (loader failures, thrown renders, and — usefully — failed
+// dynamic-import chunk loads) unless you override it. That default dump
+// is exactly what showed up during today's incidents. Setting it here,
+// on the top-level route, catches anything unhandled in any nested route
+// underneath it, without needing every individual route to set its own.
+// This ONLY adds a new field — Component/entry are untouched, so this
+// can't cause the same manifest mismatch the ThemedLayout attempt did.
 const routes = [
   {
     path: "/",
     Component: Layout,
     entry: "src/Layout.jsx",
+    errorElement: <ErrorScreen />,
     children: [
       { index: true, Component: Landing },
       { path: "login", Component: Login },
