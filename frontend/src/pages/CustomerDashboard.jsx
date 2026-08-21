@@ -10,6 +10,9 @@ import BulkUpload from "../components/BulkUpload";
 import Invoices from "../components/Invoices";
 import Reports from "../components/Reports";
 import ApiSettings from "../components/ApiSettings";
+import { SkeletonCardList } from "../components/Skeleton";
+import EmptyState from "../components/EmptyState";
+import { Package } from "lucide-react";
 import TripCompleteCelebration from "../components/TripCompleteCelebration";
 import { useCelebrateOnComplete } from "../hooks/useCelebrateOnComplete";
 import { lazy, Suspense } from "react";
@@ -829,11 +832,14 @@ export default function CustomerDashboard() {
       <div className="lg:col-span-3">
         <h2 className="font-display text-lg font-semibold mb-4">Your deliveries</h2>
         {loadingList ? (
-          <p className="text-sm text-slate dark:text-slate-light">Loading…</p>
+          <SkeletonCardList count={3} />
         ) : deliveries.length === 0 ? (
-          <div className="border border-dashed border-slate-300 rounded-2xl p-8 text-center text-slate dark:text-slate-light text-sm">
-            No deliveries yet. Post your first one on the left.
-          </div>
+          <EmptyState
+            icon={Package}
+            title="No deliveries yet."
+            description="Post your first delivery on the left to get started."
+            className="border border-dashed border-slate-300 dark:border-line rounded-2xl"
+          />
         ) : (
           <div className="space-y-3">
             {deliveries.map((d) => (

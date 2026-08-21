@@ -8,6 +8,9 @@ import TripStatusStepper, { RIDE_STEPS, DELIVERY_STEPS } from "../components/Tri
 import StatusBadge from "../components/StatusBadge";
 import StarRating from "../components/StarRating";
 import ShareLocationToggle from "../components/ShareLocationToggle";
+import { SkeletonCardList, SkeletonStatGrid } from "../components/Skeleton";
+import EmptyState from "../components/EmptyState";
+import { Inbox, Package, Car } from "lucide-react";
 
 // 'in_transit' branches two ways depending on whether this delivery has a
 // locker_id: a normal delivery goes straight to "delivered", a locker
@@ -199,7 +202,11 @@ export default function AgentDashboard() {
   }
 
   if (!agentProfile) {
-    return <div className="max-w-4xl mx-auto px-5 py-10 text-slate dark:text-slate-light">Loading profile…</div>;
+    return (
+      <div className="max-w-4xl mx-auto px-5 py-10">
+        <SkeletonStatGrid count={4} />
+      </div>
+    );
   }
 
   return (
@@ -301,10 +308,10 @@ export default function AgentDashboard() {
                 </div>
               )}
               {loading ? (
-                <p className="text-sm text-slate dark:text-slate-light">Loading…</p>
+                <SkeletonCardList count={2} />
               ) : tab === "available" ? (
                 available.length === 0 ? (
-                  <EmptyState text="No pending deliveries match your vehicle type right now." />
+                  <EmptyState icon={Package} title="Nothing available right now" description="No pending deliveries match your vehicle type at the moment — check back soon." className="border border-dashed border-slate-300 dark:border-line rounded-2xl" />
                 ) : (
                   <div className="space-y-3">
                     {available.map((d) => (
@@ -336,7 +343,7 @@ export default function AgentDashboard() {
                   </div>
                 )
               ) : assigned.length === 0 ? (
-                <EmptyState text="You haven't accepted any deliveries yet." />
+                <EmptyState icon={Inbox} title="No deliveries accepted yet" description="Deliveries you accept from the Available tab will show up here." className="border border-dashed border-slate-300 dark:border-line rounded-2xl" />
               ) : (
                 <div className="space-y-3">
                   {assigned.map((d) => (
@@ -439,10 +446,10 @@ export default function AgentDashboard() {
 
               {rideError && <p className="text-sm text-signal mb-4">{rideError}</p>}
               {loadingRides ? (
-                <p className="text-sm text-slate dark:text-slate-light">Loading…</p>
+                <SkeletonCardList count={2} />
               ) : rideTab === "available" ? (
                 availableRides.length === 0 ? (
-                  <EmptyState text="No ride requests right now." />
+                  <EmptyState icon={Car} title="No ride requests right now" description="New ride requests near you will appear here as they come in." className="border border-dashed border-slate-300 dark:border-line rounded-2xl" />
                 ) : (
                   <div className="space-y-3">
                     {availableRides.map((r) => (
@@ -469,7 +476,7 @@ export default function AgentDashboard() {
                   </div>
                 )
               ) : assignedRides.length === 0 ? (
-                <EmptyState text="You haven't accepted any rides yet." />
+                <EmptyState icon={Inbox} title="No rides accepted yet" description="Rides you accept from the Available tab will show up here." className="border border-dashed border-slate-300 dark:border-line rounded-2xl" />
               ) : (
                 <div className="space-y-3">
                   {assignedRides.map((r) => (
@@ -564,6 +571,3 @@ function TabButton({ active, onClick, children }) {
   );
 }
 
-function EmptyState({ text }) {
-  return <div className="border border-dashed border-slate-300 rounded-2xl p-8 text-center text-slate dark:text-slate-light text-sm">{text}</div>;
-}

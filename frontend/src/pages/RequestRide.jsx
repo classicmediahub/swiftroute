@@ -8,6 +8,9 @@ import RideMeter from "../components/RideMeter";
 import TripStatusStepper, { RIDE_STEPS } from "../components/TripStatusStepper";
 import TripCompleteCelebration from "../components/TripCompleteCelebration";
 import { useCelebrateOnComplete } from "../hooks/useCelebrateOnComplete";
+import { SkeletonCardList } from "../components/Skeleton";
+import EmptyState from "../components/EmptyState";
+import { Car } from "lucide-react";
 
 const CITIES = ["Lagos", "Ota", "Ogun", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City"];
 
@@ -269,11 +272,14 @@ export default function RequestRide() {
           )}
         </div>
       ) : loadingRides ? (
-        <p className="text-sm text-slate dark:text-slate-light">Loading…</p>
+        <SkeletonCardList count={2} />
       ) : rides.length === 0 ? (
-        <div className="border border-dashed border-slate-300 rounded-2xl p-8 text-center text-slate dark:text-slate-light text-sm">
-          No rides yet.
-        </div>
+        <EmptyState
+          icon={Car}
+          title="No rides yet."
+          description="Once you request a ride, it'll show up here."
+          className="border border-dashed border-slate-300 dark:border-line rounded-2xl"
+        />
       ) : (
         <div className="space-y-3">
           {rides.map((r) => {
