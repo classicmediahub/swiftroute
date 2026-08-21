@@ -3,6 +3,8 @@ import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import StatusBadge from "../components/StatusBadge";
 import { Users, UserCheck, Package, Car, Lock } from "lucide-react";
+import { SkeletonStatGrid, SkeletonTable } from "../components/Skeleton";
+import EmptyState from "../components/EmptyState";
 
 const SIDEBAR_ITEMS = [
   { key: "agents", label: "Agents", icon: UserCheck },
@@ -130,7 +132,21 @@ export default function AdminDashboard() {
     }
   }
 
-  if (loading) return <div className="max-w-6xl mx-auto px-5 py-10 text-slate dark:text-slate-light">Loading dashboard…</div>;
+  if (loading) {
+    return (
+      <div className="flex flex-col md:flex-row min-h-screen">
+        <aside className="md:w-56 md:shrink-0 bg-ink text-paper">
+          <div className="px-5 py-6 hidden md:block">
+            <div className="font-mono text-xs text-slate-light">ADMIN</div>
+            <div className="font-display text-lg font-semibold">Network overview</div>
+          </div>
+        </aside>
+        <main className="flex-1 min-w-0 px-5 py-8 md:px-8 md:py-10">
+          <SkeletonStatGrid count={6} />
+        </main>
+      </div>
+    );
+  }
 
   const totalPlatformRevenue = stats.revenue + stats.rideRevenue;
 
@@ -249,7 +265,7 @@ export default function AdminDashboard() {
                 </tr>
               ))}
               {agents.length === 0 && (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-slate dark:text-slate-light">No agents have registered yet.</td></tr>
+                <tr><td colSpan={8}><EmptyState icon={UserCheck} title="No agents have registered yet." description="Once agents sign up, they'll show up here for approval." /></td></tr>
               )}
             </tbody>
           </table>
@@ -287,7 +303,7 @@ export default function AdminDashboard() {
                 </tr>
               ))}
               {customers.length === 0 && (
-                <tr><td colSpan={4} className="px-4 py-8 text-center text-slate dark:text-slate-light">No customers yet.</td></tr>
+                <tr><td colSpan={4}><EmptyState icon={Users} title="No customers yet." description="Registered customers will appear here." /></td></tr>
               )}
             </tbody>
           </table>
@@ -319,7 +335,7 @@ export default function AdminDashboard() {
                 </tr>
               ))}
               {deliveries.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate dark:text-slate-light">No deliveries yet.</td></tr>
+                <tr><td colSpan={6}><EmptyState icon={Package} title="No deliveries yet." description="Deliveries booked on the platform will show up here." /></td></tr>
               )}
             </tbody>
           </table>
@@ -360,7 +376,7 @@ export default function AdminDashboard() {
                 </tr>
               ))}
               {rides.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-slate dark:text-slate-light">No rides yet.</td></tr>
+                <tr><td colSpan={7}><EmptyState icon={Car} title="No rides yet." description="Rides booked on the platform will show up here." /></td></tr>
               )}
             </tbody>
           </table>
@@ -484,7 +500,7 @@ export default function AdminDashboard() {
                   </tr>
                 ))}
                 {lockers.length === 0 && (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-slate dark:text-slate-light">No lockers yet — add your first one above.</td></tr>
+                  <tr><td colSpan={5}><EmptyState icon={Lock} title="No lockers yet" description="Add your first locker above to get started." /></td></tr>
                 )}
               </tbody>
             </table>
