@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import WhatsAppButton from "./components/WhatsAppButton";
+import RouteProgressBar from "./components/RouteProgressBar";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { ThemeProvider } from "./context/ThemeContext.jsx";
 import LaunchGate from "./components/LaunchGate";
@@ -30,6 +31,10 @@ export default function Layout() {
   return (
     <ThemeProvider>
       <AuthProvider>
+        {/* Outside LaunchGate on purpose — navigation feedback should show
+            up even for a locked-out visitor moving between the coming-soon
+            screen and whatever public route they tried to reach. */}
+        <RouteProgressBar />
         <LaunchGate>
           <div className="min-h-screen flex flex-col">
             <Navbar />
