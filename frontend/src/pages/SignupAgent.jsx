@@ -6,6 +6,7 @@ import AuthLayout, { Field, inputClass } from "../components/AuthLayout";
 import LivenessCheck from "../components/LivenessCheck";
 import WizardStepper from "../components/WizardStepper";
 import { useWizardSteps } from "../hooks/useWizardSteps";
+import Button from "../components/Button";
 
 const VEHICLES = [
   { value: "self", label: "Self", detail: "On foot, local errands" },
@@ -296,30 +297,18 @@ export default function SignupAgent() {
 
         <div className="flex items-center gap-3 mt-6">
           {!wizard.isFirst && (
-            <button
-              type="button"
-              onClick={wizard.back}
-              className="px-4 py-2.5 border border-slate-300 dark:border-line rounded-lg text-sm font-semibold text-ink dark:text-paper hover:border-slate-400 dark:hover:border-slate-light transition-colors"
-            >
+            <Button type="button" variant="secondary" onClick={wizard.back}>
               Back
-            </button>
+            </Button>
           )}
           {wizard.isLast ? (
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-2.5 transition-colors disabled:opacity-60"
-            >
-              {loading ? "Verifying your details…" : "Submit application"}
-            </button>
+            <Button type="submit" loading={loading} loadingText="Verifying your details…" fullWidth className="flex-1">
+              Submit application
+            </Button>
           ) : (
-            <button
-              type="button"
-              onClick={handleNext}
-              className="flex-1 bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-2.5 transition-colors"
-            >
+            <Button type="button" onClick={handleNext} fullWidth className="flex-1">
               Continue
-            </button>
+            </Button>
           )}
         </div>
       </form>
