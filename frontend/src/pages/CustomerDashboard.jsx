@@ -13,6 +13,7 @@ import ApiSettings from "../components/ApiSettings";
 import { SkeletonCardList } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
 import { Package } from "lucide-react";
+import DashboardGreeting from "../components/DashboardGreeting";
 import TripCompleteCelebration from "../components/TripCompleteCelebration";
 import { useCelebrateOnComplete } from "../hooks/useCelebrateOnComplete";
 import { lazy, Suspense } from "react";
@@ -979,12 +980,27 @@ export default function CustomerDashboard() {
     </div>
   );
 
+  // Computed right before render from data already loaded — matches the
+  // definition of "on the way" used in the delivery status stepper
+  // (picked_up / in_transit), not just "not yet delivered", so a pending-
+  // but-not-yet-picked-up order doesn't inflate the count.
+  const activeDeliveryCount = deliveries.filter((d) => ["picked_up", "in_transit"].includes(d.status)).length;
+
   return (
     <div className="max-w-6xl mx-auto px-5 py-10">
       <TripCompleteCelebration trip={celebrating} onClose={dismissCelebration} />
       <div className="font-mono text-xs text-slate dark:text-slate-light mb-2">
         {isBusiness ? `BUSINESS DASHBOARD · ${user.company_name}` : "CUSTOMER DASHBOARD"}
       </div>
+      <DashboardGreeting
+        name={user?.full_name}
+        subtitle={
+          activeDeliveryCount > 0
+            ? `${activeDeliveryCount} ${activeDeliveryCount === 1 ? "delivery" : "deliveries"} on the way`
+            : "No deliveries in progress right now"
+        }
+        className="mb-5"
+      />
       <h1 className="font-display text-3xl font-semibold mb-8">
         {tab === "send" ? "Send a new delivery" : tab === "bulk" ? "Bulk upload" : tab === "invoices" ? "Invoices" : tab === "reports" ? "Reports" : "API access"}
       </h1>

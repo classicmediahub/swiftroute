@@ -11,6 +11,7 @@ import ShareLocationToggle from "../components/ShareLocationToggle";
 import { SkeletonCardList, SkeletonStatGrid } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
 import { Inbox, Package, Car } from "lucide-react";
+import DashboardGreeting from "../components/DashboardGreeting";
 
 // 'in_transit' branches two ways depending on whether this delivery has a
 // locker_id: a normal delivery goes straight to "delivered", a locker
@@ -209,6 +210,16 @@ export default function AgentDashboard() {
     );
   }
 
+  // Built once, right before render, from data already loaded above —
+  // not a new fetch. Handles the zero/singular/plural cases explicitly
+  // rather than always saying "0 deliveries and 1 rides", which reads as
+  // obviously machine-generated the moment either count isn't exactly 1.
+  const pendingParts = [];
+  if (available.length > 0) pendingParts.push(`${available.length} ${available.length === 1 ? "delivery" : "deliveries"}`);
+  if (availableRides.length > 0) pendingParts.push(`${availableRides.length} ${availableRides.length === 1 ? "ride" : "rides"}`);
+  const pendingJobsSubtitle =
+    pendingParts.length > 0 ? `${pendingParts.join(" and ")} waiting nearby` : "Nothing waiting right now — check back soon";
+
   return (
     <div className="max-w-5xl mx-auto px-5 py-10">
       <div className="font-mono text-xs text-slate dark:text-slate-light mb-2">AGENT DASHBOARD</div>
@@ -216,7 +227,7 @@ export default function AgentDashboard() {
         {user?.profile_photo && (
           <img src={user.profile_photo} alt={user.full_name} className="w-12 h-12 rounded-full object-cover border border-slate-200 dark:border-line" />
         )}
-        <h1 className="font-display text-3xl font-semibold">Your jobs</h1>
+        <DashboardGreeting name={user?.full_name} subtitle={pendingJobsSubtitle} />
         {isLiveRideCandidate && (
           <span className="ml-auto flex items-center gap-1.5 text-xs font-mono text-slate dark:text-slate-light">
             <span className="relative flex h-1.5 w-1.5">
