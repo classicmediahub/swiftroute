@@ -5,6 +5,7 @@ import StatusBadge from "../components/StatusBadge";
 import { Users, UserCheck, Package, Car, Lock } from "lucide-react";
 import { SkeletonStatGrid, SkeletonTable } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
+import CountUp from "../components/CountUp";
 
 const SIDEBAR_ITEMS = [
   { key: "agents", label: "Agents", icon: UserCheck },
@@ -197,13 +198,13 @@ export default function AdminDashboard() {
           <Stat label="Pending approvals" value={stats.pendingAgents} highlight={stats.pendingAgents > 0} />
           <Stat label="Active deliveries" value={stats.activeDeliveries} />
           <Stat label="Completed deliveries" value={stats.completedDeliveries} />
-          <Stat label="Delivery revenue" value={`₦${Math.round(stats.revenue).toLocaleString()}`} />
+          <Stat label="Delivery revenue" value={Math.round(stats.revenue)} prefix="₦" />
         </div>
         <div className="grid sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-10">
           <Stat label="Active rides" value={stats.activeRides} />
           <Stat label="Completed rides" value={stats.completedRides} />
-          <Stat label="Ride revenue" value={`₦${Math.round(stats.rideRevenue).toLocaleString()}`} />
-          <Stat label="Total platform revenue" value={`₦${Math.round(totalPlatformRevenue).toLocaleString()}`} highlight />
+          <Stat label="Ride revenue" value={Math.round(stats.rideRevenue)} prefix="₦" />
+          <Stat label="Total platform revenue" value={Math.round(totalPlatformRevenue)} prefix="₦" highlight />
         </div>
 
       {tab === "agents" && (
@@ -512,11 +513,13 @@ export default function AdminDashboard() {
   );
 }
 
-function Stat({ label, value, highlight }) {
+function Stat({ label, value, prefix, highlight }) {
   return (
     <div className={`border-t-4 rounded-xl p-4 bg-white dark:bg-ink-soft shadow-sm ${highlight ? "border-signal" : "border-brand-blue"}`}>
       <div className="text-xs text-slate dark:text-slate-light mb-1">{label}</div>
-      <div className="font-mono font-semibold text-xl text-ink dark:text-paper">{value}</div>
+      <div className="font-mono font-semibold text-xl text-ink dark:text-paper">
+        <CountUp value={value} prefix={prefix} />
+      </div>
     </div>
   );
 }
