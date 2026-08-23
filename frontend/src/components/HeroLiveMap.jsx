@@ -248,12 +248,12 @@ export default function HeroLiveMap({ className = "" }) {
 
       {/* live-tracking badge — dark pill on the light scene now, same as
           the reference's own dark badge sitting on its light banner */}
-      <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-ink/95 border border-ink rounded-full pl-2.5 pr-3 py-1.5 shadow-sm">
-        <span className="relative flex h-1.5 w-1.5">
+      <div className="absolute top-1.5 right-1.5 sm:top-3 sm:right-3 flex items-center gap-1 sm:gap-1.5 bg-ink/95 border border-ink rounded-full pl-1.5 pr-2 py-0.5 sm:pl-2.5 sm:pr-3 sm:py-1.5 shadow-sm">
+        <span className="relative flex h-1 w-1 sm:h-1.5 sm:w-1.5">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-delivered opacity-75" />
-          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-delivered" />
+          <span className="relative inline-flex rounded-full h-1 w-1 sm:h-1.5 sm:w-1.5 bg-delivered" />
         </span>
-        <span className="font-mono text-xs text-paper">Live tracking, every trip</span>
+        <span className="font-mono text-[9px] sm:text-xs text-paper whitespace-nowrap">Live tracking, every trip</span>
       </div>
     </div>
   );

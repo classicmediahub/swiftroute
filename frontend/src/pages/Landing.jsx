@@ -110,7 +110,7 @@ export default function Landing() {
               a framed photo that keeps its own look regardless of site
               theme reads better than trying to reskin the SVG itself for
               a second, dark-mode-only color pass. */}
-          <div className="hidden md:block bg-white/50 dark:bg-paper/90 border border-ink/5 dark:border-transparent rounded-3xl p-3 shadow-sm">
+          <div className="bg-white/50 dark:bg-paper/90 border border-ink/5 dark:border-transparent rounded-3xl p-3 shadow-sm">
             <HeroLiveMap className="w-full h-auto" />
           </div>
         </div>
