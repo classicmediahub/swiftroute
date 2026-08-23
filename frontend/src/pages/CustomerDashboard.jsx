@@ -16,6 +16,7 @@ import { Package } from "lucide-react";
 import DashboardGreeting from "../components/DashboardGreeting";
 import TripCompleteCelebration from "../components/TripCompleteCelebration";
 import { useCelebrateOnComplete } from "../hooks/useCelebrateOnComplete";
+import Button from "../components/Button";
 import { lazy, Suspense } from "react";
 const DeliveryMap = lazy(() => import("../components/DeliveryMap"));
 const PinMap = lazy(() => import("../components/PinMap"));
@@ -563,14 +564,15 @@ export default function CustomerDashboard() {
                               {p.note && <div className="text-slate dark:text-slate-light">{p.note}</div>}
                               <div className="text-slate-light mt-0.5">{p.confirmation_count} of 3 confirmations</div>
                             </div>
-                            <button
-                              type="button"
+                            <Button
+                              size="sm"
+                              loading={confirmingId === p.id}
+                              loadingText="…"
                               onClick={() => handleConfirmLandmark(p.id)}
-                              disabled={confirmingId === p.id}
-                              className="shrink-0 text-xs font-semibold bg-route hover:bg-route-dark text-ink dark:text-paper rounded-lg px-2.5 py-1.5 disabled:opacity-60"
+                              className="shrink-0"
                             >
-                              {confirmingId === p.id ? "…" : "Confirm"}
-                            </button>
+                              Confirm
+                            </Button>
                           </div>
                         ))}
                       </div>

@@ -17,6 +17,7 @@ const VARIANTS = {
   secondary: "border border-slate-300 dark:border-line text-ink dark:text-paper hover:border-slate-400 dark:hover:border-slate-light bg-transparent",
   ghost: "text-ink dark:text-paper hover:bg-ink/5 dark:hover:bg-paper/10 bg-transparent",
   destructive: "bg-signal hover:bg-brand-dark text-white",
+  dark: "bg-ink hover:bg-ink-soft text-paper",
 };
 
 const SIZES = {

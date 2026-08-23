@@ -10,6 +10,7 @@ import TripCompleteCelebration from "../components/TripCompleteCelebration";
 import { useCelebrateOnComplete } from "../hooks/useCelebrateOnComplete";
 import { SkeletonCardList } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
+import Button from "../components/Button";
 import { Car } from "lucide-react";
 
 const CITIES = ["Lagos", "Ota", "Ogun", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City"];
@@ -261,13 +262,9 @@ export default function RequestRide() {
                 distance and time — you'll see the exact total live, and only pay once the trip ends.
               </p>
 
-              <button
-                disabled={requesting}
-                onClick={handleRequestRide}
-                className="w-full bg-route hover:bg-route-dark text-ink dark:text-paper font-semibold rounded-lg px-4 py-3 transition-colors disabled:opacity-60"
-              >
-                {requesting ? "Requesting…" : "Request ride"}
-              </button>
+              <Button loading={requesting} loadingText="Requesting…" onClick={handleRequestRide} fullWidth size="lg">
+                Request ride
+              </Button>
             </div>
           )}
         </div>
@@ -404,21 +401,21 @@ function RidePayment({ ride, walletBalance, paying, onPay }) {
         Trip ended — pay ₦{ride.price.toLocaleString()} to close it out
       </div>
       <div className="flex gap-2">
-        <button
-          disabled={paying}
-          onClick={() => onPay("paystack")}
-          className="flex-1 text-xs font-semibold bg-ink hover:bg-ink-soft text-paper rounded-lg px-3 py-2.5 transition-colors disabled:opacity-60"
-        >
-          {paying ? "Starting checkout…" : "Pay with card"}
-        </button>
-        <button
-          disabled={paying || insufficientWallet}
+        <Button variant="dark" size="sm" loading={paying} loadingText="Starting checkout…" onClick={() => onPay("paystack")} fullWidth>
+          Pay with card
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          loading={paying}
+          loadingText="Paying…"
+          disabled={insufficientWallet}
           onClick={() => onPay("wallet")}
           title={insufficientWallet ? "Insufficient wallet balance" : undefined}
-          className="flex-1 text-xs font-semibold border border-ink text-ink dark:text-paper rounded-lg px-3 py-2.5 transition-colors disabled:opacity-40"
+          fullWidth
         >
-          {paying ? "Paying…" : `Wallet (₦${walletBalance.toLocaleString()})`}
-        </button>
+          {`Wallet (₦${walletBalance.toLocaleString()})`}
+        </Button>
       </div>
       {insufficientWallet && (
         <p className="text-xs text-signal mt-1.5">Insufficient wallet balance for this trip — pay with card instead.</p>

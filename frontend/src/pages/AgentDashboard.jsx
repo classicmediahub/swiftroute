@@ -12,6 +12,7 @@ import { SkeletonCardList, SkeletonStatGrid } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
 import { Inbox, Package, Car } from "lucide-react";
 import DashboardGreeting from "../components/DashboardGreeting";
+import Button from "../components/Button";
 
 // 'in_transit' branches two ways depending on whether this delivery has a
 // locker_id: a normal delivery goes straight to "delivered", a locker
@@ -341,13 +342,16 @@ export default function AgentDashboard() {
                         </div>
                         <div className="text-right shrink-0">
                           <div className="font-mono font-semibold mb-2">₦{d.price.toLocaleString()}</div>
-                          <button
-                            disabled={busyId === d.id}
+                          <Button
+                            variant="dark"
+                            size="sm"
+                            className="dark:bg-route dark:text-ink"
+                            loading={busyId === d.id}
+                            loadingText="Accepting…"
                             onClick={() => handleAccept(d.id)}
-                            className="text-xs font-semibold bg-ink text-paper dark:bg-route dark:text-ink rounded-lg px-3 py-2 hover:bg-ink-soft transition-colors disabled:opacity-60"
                           >
-                            {busyId === d.id ? "Accepting…" : "Accept job"}
-                          </button>
+                            Accept job
+                          </Button>
                         </div>
                       </div>
                     ))}
@@ -377,13 +381,15 @@ export default function AgentDashboard() {
                       <div className="flex items-center justify-between">
                         <span className="font-mono text-sm font-semibold">₦{d.price.toLocaleString()}</span>
                         {nextLabelFor(d) && (
-                          <button
-                            disabled={busyId === d.id || (d.status === "in_transit" && !d.locker_id && !proofPhotos[d.id])}
+                          <Button
+                            size="sm"
+                            disabled={d.status === "in_transit" && !d.locker_id && !proofPhotos[d.id]}
+                            loading={busyId === d.id}
+                            loadingText="Updating…"
                             onClick={() => handleAdvance(d.id, d)}
-                            className="text-xs font-semibold bg-route hover:bg-route-dark text-ink dark:text-paper rounded-lg px-3 py-2 transition-colors disabled:opacity-60"
                           >
-                            {busyId === d.id ? "Updating…" : nextLabelFor(d)}
-                          </button>
+                            {nextLabelFor(d)}
+                          </Button>
                         )}
                       </div>
                       {d.status === "in_transit" && !d.locker_id && (
@@ -474,13 +480,16 @@ export default function AgentDashboard() {
                         </div>
                         <div className="text-right shrink-0">
                           <div className="font-mono font-semibold mb-2">₦{r.price.toLocaleString()}</div>
-                          <button
-                            disabled={busyId === r.id}
+                          <Button
+                            variant="dark"
+                            size="sm"
+                            className="dark:bg-route dark:text-ink"
+                            loading={busyId === r.id}
+                            loadingText="Accepting…"
                             onClick={() => handleAcceptRide(r.id)}
-                            className="text-xs font-semibold bg-ink text-paper dark:bg-route dark:text-ink rounded-lg px-3 py-2 hover:bg-ink-soft transition-colors disabled:opacity-60"
                           >
-                            {busyId === r.id ? "Accepting…" : "Accept ride"}
-                          </button>
+                            Accept ride
+                          </Button>
                         </div>
                       </div>
                     ))}
@@ -525,13 +534,14 @@ export default function AgentDashboard() {
                             </button>
                           )}
                           {RIDE_NEXT_LABEL[r.status] && (
-                            <button
-                              disabled={busyId === r.id}
+                            <Button
+                              size="sm"
+                              loading={busyId === r.id}
+                              loadingText="Updating…"
                               onClick={() => handleAdvanceRide(r.id)}
-                              className="text-xs font-semibold bg-route hover:bg-route-dark text-ink dark:text-paper rounded-lg px-3 py-2 transition-colors disabled:opacity-60"
                             >
-                              {busyId === r.id ? "Updating…" : RIDE_NEXT_LABEL[r.status]}
-                            </button>
+                              {RIDE_NEXT_LABEL[r.status]}
+                            </Button>
                           )}
                         </div>
                       </div>
