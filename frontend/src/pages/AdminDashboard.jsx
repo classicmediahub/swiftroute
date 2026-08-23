@@ -6,6 +6,8 @@ import { Users, UserCheck, Package, Car, Lock } from "lucide-react";
 import { SkeletonStatGrid, SkeletonTable } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
 import CountUp from "../components/CountUp";
+import CommandPalette from "../components/CommandPalette";
+import { Search } from "lucide-react";
 
 const SIDEBAR_ITEMS = [
   { key: "agents", label: "Agents", icon: UserCheck },
@@ -44,6 +46,26 @@ function RideStatusBadge({ status }) {
 export default function AdminDashboard() {
   const { token } = useAuth();
   const [tab, setTab] = useState("agents");
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // Cmd+K on Mac, Ctrl+K everywhere else — the near-universal shortcut for
+  // "open quick search" (Linear, Notion, Vercel, GitHub all use the same
+  // one), registered globally so it works no matter what's focused, not
+  // just while a search box happens to already be focused.
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((open) => !open);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  function handlePaletteSelect(item) {
+    setTab(item.tabKey);
+  }
   const [stats, setStats] = useState(null);
   const [agents, setAgents] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -153,6 +175,15 @@ export default function AdminDashboard() {
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen">
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        agents={agents}
+        customers={customers}
+        deliveries={deliveries}
+        rides={rides}
+        onSelect={handlePaletteSelect}
+      />
       {/* SIDEBAR — dark wine chrome regardless of site theme, same
           "always-dark" treatment as the Navbar and Footer, so all three
           brand-chrome surfaces read as one consistent dark band rather
@@ -164,6 +195,17 @@ export default function AdminDashboard() {
         <div className="px-5 py-6 hidden md:block">
           <div className="font-mono text-xs text-slate-light">ADMIN</div>
           <div className="font-display text-lg font-semibold">Network overview</div>
+        </div>
+        <div className="px-3 pb-3 hidden md:block">
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            className="w-full flex items-center gap-2 text-left px-3 py-2 rounded-lg text-sm text-slate-light bg-white/5 hover:bg-white/10 transition-colors"
+          >
+            <Search className="w-4 h-4 shrink-0" />
+            <span className="flex-1">Search…</span>
+            <kbd className="text-[10px] font-mono border border-white/15 rounded px-1.5 py-0.5">⌘K</kbd>
+          </button>
         </div>
         <nav className="flex md:flex-col overflow-x-auto md:overflow-visible px-3 md:px-3 py-3 md:py-0 gap-1">
           {SIDEBAR_ITEMS.map(({ key, label, icon: Icon }) => {
