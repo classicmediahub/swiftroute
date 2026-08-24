@@ -14,6 +14,8 @@ import { SkeletonCardList } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
 import { Package } from "lucide-react";
 import DashboardGreeting from "../components/DashboardGreeting";
+import StreakCalendar, { buildStreakDays, nextMilestone } from "../components/StreakCalendar";
+import { useStreakMilestone } from "../hooks/useStreakMilestone";
 import TripCompleteCelebration from "../components/TripCompleteCelebration";
 import { useCelebrateOnComplete } from "../hooks/useCelebrateOnComplete";
 import Button from "../components/Button";
@@ -205,6 +207,20 @@ export default function CustomerDashboard() {
   }, [token]);
 
   useEffect(() => { refreshWallet(); }, [refreshWallet]);
+
+  // Streak — fetched once on mount, not polled, since it only changes at
+  // most once a day (a new delivery/ride today doesn't move the needle
+  // again until tomorrow), unlike deliveries which poll every 8s above.
+  const [streak, setStreak] = useState(null);
+  useEffect(() => {
+    api.getStreak(token).then(setStreak).catch(() => {});
+  }, [token]);
+  const streakDays = streak ? buildStreakDays(streak.current_streak, streak.last_streak_date) : null;
+  const streakNextMilestone = streak ? nextMilestone(streak.milestones, streak.current_streak) : null;
+  const { celebrating: streakCelebrating, dismiss: dismissStreakCelebration } = useStreakMilestone(
+    streak?.current_streak,
+    streak?.milestones
+  );
 
   const loadDeliveries = useCallback(async () => {
     try {
@@ -991,6 +1007,18 @@ export default function CustomerDashboard() {
   return (
     <div className="max-w-6xl mx-auto px-5 py-10">
       <TripCompleteCelebration trip={celebrating} onClose={dismissCelebration} />
+      {streakCelebrating && (
+        <TripCompleteCelebration
+          trip={{
+            id: `streak-${streakCelebrating}`,
+            badge: "Streak milestone",
+            title: `${streakCelebrating}-day streak!`,
+            subtitle: "You've been showing up — keep it going.",
+            closeLabel: "Nice!",
+          }}
+          onClose={dismissStreakCelebration}
+        />
+      )}
       <div className="font-mono text-xs text-slate dark:text-slate-light mb-2">
         {isBusiness ? `BUSINESS DASHBOARD · ${user.company_name}` : "CUSTOMER DASHBOARD"}
       </div>
@@ -1003,6 +1031,15 @@ export default function CustomerDashboard() {
         }
         className="mb-5"
       />
+      {streak && streakDays && (
+        <StreakCalendar
+          days={streakDays}
+          currentStreak={streak.current_streak}
+          longestStreak={streak.longest_streak}
+          nextMilestoneInfo={streakNextMilestone}
+          className="mb-8"
+        />
+      )}
       <h1 className="font-display text-3xl font-semibold mb-8">
         {tab === "send" ? "Send a new delivery" : tab === "bulk" ? "Bulk upload" : tab === "invoices" ? "Invoices" : tab === "reports" ? "Reports" : "API access"}
       </h1>

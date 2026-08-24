@@ -12,6 +12,9 @@ import { SkeletonCardList, SkeletonStatGrid } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
 import { Inbox, Package, Car } from "lucide-react";
 import DashboardGreeting from "../components/DashboardGreeting";
+import StreakCalendar, { buildStreakDays, nextMilestone } from "../components/StreakCalendar";
+import { useStreakMilestone } from "../hooks/useStreakMilestone";
+import TripCompleteCelebration from "../components/TripCompleteCelebration";
 import Button from "../components/Button";
 
 // 'in_transit' branches two ways depending on whether this delivery has a
@@ -52,6 +55,19 @@ export default function AgentDashboard() {
   }
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
+
+  // Streak — fetched once on mount, not polled, since it only changes at
+  // most once a day.
+  const [streak, setStreak] = useState(null);
+  useEffect(() => {
+    api.getStreak(token).then(setStreak).catch(() => {});
+  }, [token]);
+  const streakDays = streak ? buildStreakDays(streak.current_streak, streak.last_streak_date) : null;
+  const streakNextMilestone = streak ? nextMilestone(streak.milestones, streak.current_streak) : null;
+  const { celebrating: streakCelebrating, dismiss: dismissStreakCelebration } = useStreakMilestone(
+    streak?.current_streak,
+    streak?.milestones
+  );
   const [error, setError] = useState("");
 
   const [rideTab, setRideTab] = useState("available");
@@ -220,9 +236,20 @@ export default function AgentDashboard() {
   if (availableRides.length > 0) pendingParts.push(`${availableRides.length} ${availableRides.length === 1 ? "ride" : "rides"}`);
   const pendingJobsSubtitle =
     pendingParts.length > 0 ? `${pendingParts.join(" and ")} waiting nearby` : "Nothing waiting right now — check back soon";
-
   return (
     <div className="max-w-5xl mx-auto px-5 py-10">
+      {streakCelebrating && (
+        <TripCompleteCelebration
+          trip={{
+            id: `streak-${streakCelebrating}`,
+            badge: "Streak milestone",
+            title: `${streakCelebrating}-day streak!`,
+            subtitle: "You've been showing up — keep it going.",
+            closeLabel: "Nice!",
+          }}
+          onClose={dismissStreakCelebration}
+        />
+      )}
       <div className="font-mono text-xs text-slate dark:text-slate-light mb-2">AGENT DASHBOARD</div>
       <div className="flex items-center gap-3 mb-6">
         {user?.profile_photo && (
@@ -239,6 +266,16 @@ export default function AgentDashboard() {
           </span>
         )}
       </div>
+
+      {streak && streakDays && (
+        <StreakCalendar
+          days={streakDays}
+          currentStreak={streak.current_streak}
+          longestStreak={streak.longest_streak}
+          nextMilestoneInfo={streakNextMilestone}
+          className="mb-8"
+        />
+      )}
 
       {/* Profile summary */}
       <div className="grid sm:grid-cols-5 gap-4 mb-8">
