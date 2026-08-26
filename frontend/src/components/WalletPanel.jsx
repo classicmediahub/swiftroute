@@ -4,7 +4,10 @@ import { api } from "../api";
 const TYPE_LABELS = {
   topup: "Wallet top-up",
   delivery_payment: "Delivery payment",
+  ride_payment: "Ride payment",
   refund: "Refund",
+  streak_reward: "Streak bonus",
+  referral_reward: "Referral reward",
 };
 
 export default function WalletPanel({ token }) {

@@ -16,6 +16,8 @@ import StreakCalendar, { buildStreakDays, nextMilestone } from "../components/St
 import { useStreakMilestone } from "../hooks/useStreakMilestone";
 import TripCompleteCelebration from "../components/TripCompleteCelebration";
 import Button from "../components/Button";
+import ReferralCard from "../components/ReferralCard";
+import WithdrawalPanel from "../components/WithdrawalPanel";
 
 // 'in_transit' branches two ways depending on whether this delivery has a
 // locker_id: a normal delivery goes straight to "delivered", a locker
@@ -296,6 +298,11 @@ export default function AgentDashboard() {
           }
         />
         <SummaryCard label="Wallet balance" value={`₦${agentProfile.wallet_balance.toLocaleString()}`} />
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-4 mb-8">
+        <WithdrawalPanel token={token} agentProfile={agentProfile} onChanged={refresh} />
+        <ReferralCard token={token} role="agent" />
       </div>
 
       {!isApproved ? (

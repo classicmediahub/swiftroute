@@ -72,6 +72,21 @@ export const api = {
   fundWallet: (token, payload) => request("/wallet/fund", { method: "POST", body: payload, token }),
   verifyWalletTopup: (token, reference) => request(`/wallet/verify/${reference}`, { token }),
 
+  // Referrals — any role
+  getReferralInfo: (token) => request("/referrals/me", { token }),
+
+  // Agent bank withdrawals
+  listWithdrawalBanks: (token) => request("/withdrawals/banks", { token }),
+  resolveWithdrawalAccount: (token, payload) => request("/withdrawals/resolve-account", { method: "POST", body: payload, token }),
+  saveWithdrawalBankDetails: (token, payload) => request("/withdrawals/bank-details", { method: "POST", body: payload, token }),
+  requestWithdrawal: (token, amount) => request("/withdrawals", { method: "POST", body: { amount }, token }),
+  myWithdrawals: (token) => request("/withdrawals", { token }),
+
+  // Admin: withdrawal review
+  adminPendingWithdrawals: (token) => request("/withdrawals/admin/pending", { token }),
+  approveWithdrawal: (token, id) => request(`/withdrawals/admin/${id}/approve`, { method: "POST", token }),
+  rejectWithdrawal: (token, id, reason) => request(`/withdrawals/admin/${id}/reject`, { method: "POST", body: { reason }, token }),
+
   listApiKeys: (token) => request("/keys", { token }),
   createApiKey: (token, label) => request("/keys", { method: "POST", body: { label }, token }),
   revokeApiKey: (token, id) => request(`/keys/${id}`, { method: "DELETE", token }),

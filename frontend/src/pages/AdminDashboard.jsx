@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import StatusBadge from "../components/StatusBadge";
-import { Users, UserCheck, Package, Car, Lock } from "lucide-react";
+import { Users, UserCheck, Package, Car, Lock, Landmark } from "lucide-react";
 import { SkeletonStatGrid, SkeletonTable } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
 import CountUp from "../components/CountUp";
@@ -15,6 +15,7 @@ const SIDEBAR_ITEMS = [
   { key: "deliveries", label: "Deliveries", icon: Package },
   { key: "rides", label: "Rides", icon: Car },
   { key: "lockers", label: "Lockers", icon: Lock },
+  { key: "withdrawals", label: "Withdrawals", icon: Landmark },
 ];
 
 // Ride statuses are a different string set than delivery statuses
@@ -72,9 +73,12 @@ export default function AdminDashboard() {
   const [deliveries, setDeliveries] = useState([]);
   const [rides, setRides] = useState([]);
   const [lockers, setLockers] = useState([]);
+  const [withdrawals, setWithdrawals] = useState([]);
   const [institutions, setInstitutions] = useState([]);
   const [busyId, setBusyId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [rejectingId, setRejectingId] = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
   const [showLockerForm, setShowLockerForm] = useState(false);
   const [lockerForm, setLockerForm] = useState({
     name: "", city: "Lagos", address: "", institution_id: "", total_slots: 20,
@@ -84,11 +88,11 @@ export default function AdminDashboard() {
 
   const loadAll = useCallback(async () => {
     try {
-      const [s, a, c, d, r, l, i] = await Promise.all([
+      const [s, a, c, d, r, l, i, w] = await Promise.all([
         api.adminStats(token), api.adminAgents(token), api.adminCustomers(token), api.adminDeliveries(token), api.adminRides(token),
-        api.adminLockers(token), api.listInstitutions(token),
+        api.adminLockers(token), api.listInstitutions(token), api.adminPendingWithdrawals(token),
       ]);
-      setStats(s); setAgents(a); setCustomers(c); setDeliveries(d); setRides(r); setLockers(l); setInstitutions(i);
+      setStats(s); setAgents(a); setCustomers(c); setDeliveries(d); setRides(r); setLockers(l); setInstitutions(i); setWithdrawals(w);
     } finally {
       setLoading(false);
     }
@@ -155,6 +159,32 @@ export default function AdminDashboard() {
     }
   }
 
+  async function handleApproveWithdrawal(id) {
+    setBusyId(id);
+    try {
+      await api.approveWithdrawal(token, id);
+      await loadAll();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleRejectWithdrawal(id) {
+    setBusyId(id);
+    try {
+      await api.rejectWithdrawal(token, id, rejectReason.trim() || undefined);
+      setRejectingId(null);
+      setRejectReason("");
+      await loadAll();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col md:flex-row min-h-screen">
@@ -210,7 +240,7 @@ export default function AdminDashboard() {
         <nav className="flex md:flex-col overflow-x-auto md:overflow-visible px-3 md:px-3 py-3 md:py-0 gap-1">
           {SIDEBAR_ITEMS.map(({ key, label, icon: Icon }) => {
             const active = tab === key;
-            const count = { agents, customers, deliveries, rides, lockers }[key].length;
+            const count = { agents, customers, deliveries, rides, lockers, withdrawals }[key].length;
             return (
               <button
                 key={key}
@@ -548,6 +578,68 @@ export default function AdminDashboard() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {tab === "withdrawals" && (
+        <div className="overflow-x-auto border border-slate-200 dark:border-line rounded-xl">
+          <table className="w-full text-sm">
+            <thead className="bg-paper dark:bg-white/5 text-left text-xs text-slate dark:text-slate-light uppercase font-mono">
+              <tr>
+                <th className="px-4 py-3">Agent</th>
+                <th className="px-4 py-3">Amount</th>
+                <th className="px-4 py-3">Bank</th>
+                <th className="px-4 py-3">Requested</th>
+                <th className="px-4 py-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {withdrawals.map((w) => (
+                <tr key={w.id} className="border-t border-slate-100 dark:border-line align-top">
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{w.agent_name}</div>
+                    <div className="text-xs text-slate dark:text-slate-light">{w.agent_email} · {w.agent_phone}</div>
+                  </td>
+                  <td className="px-4 py-3 font-mono font-semibold">₦{w.amount.toLocaleString()}</td>
+                  <td className="px-4 py-3">
+                    <div>{w.bank_name}</div>
+                    <div className="text-xs text-slate dark:text-slate-light font-mono">{w.account_number}</div>
+                    <div className="text-xs text-slate dark:text-slate-light">{w.account_name}</div>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate dark:text-slate-light">
+                    {new Date(w.requested_at).toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3">
+                    {rejectingId === w.id ? (
+                      <div className="flex flex-col gap-1.5 min-w-[180px]">
+                        <input
+                          autoFocus
+                          value={rejectReason}
+                          onChange={(e) => setRejectReason(e.target.value)}
+                          placeholder="Reason (optional)"
+                          className="text-xs border border-slate-300 dark:border-line rounded-lg px-2.5 py-1.5 bg-white dark:bg-ink outline-none"
+                        />
+                        <div className="flex gap-2">
+                          <ActionBtn busy={busyId === w.id} onClick={() => handleRejectWithdrawal(w.id)} label="Confirm reject" tone="negative" />
+                          <button onClick={() => { setRejectingId(null); setRejectReason(""); }} className="text-xs text-slate dark:text-slate-light hover:text-ink dark:hover:text-paper">
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2 flex-wrap">
+                        <ActionBtn busy={busyId === w.id} onClick={() => handleApproveWithdrawal(w.id)} label="Approve & pay" tone="positive" />
+                        <ActionBtn busy={busyId === w.id} onClick={() => setRejectingId(w.id)} label="Reject" tone="negative" />
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {withdrawals.length === 0 && (
+                <tr><td colSpan={5}><EmptyState icon={Landmark} title="No withdrawals awaiting review" description="Agent withdrawal requests submitted on Mondays and Thursdays will show up here." /></td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
       )}
       </main>

@@ -6,6 +6,7 @@ import { Field, inputClass } from "../components/AuthLayout";
 import StarRating from "../components/StarRating";
 import ReviewForm from "../components/ReviewForm";
 import WalletPanel from "../components/WalletPanel";
+import ReferralCard from "../components/ReferralCard";
 import BulkUpload from "../components/BulkUpload";
 import Invoices from "../components/Invoices";
 import Reports from "../components/Reports";
@@ -383,6 +384,7 @@ export default function CustomerDashboard() {
     <div className="grid lg:grid-cols-5 gap-8">
       <div className="lg:col-span-2">
         <WalletPanel token={token} />
+        <ReferralCard token={token} role="customer" />
         <form onSubmit={handleSubmit} className="border border-slate-200 dark:border-line rounded-2xl p-6 bg-white dark:bg-ink-soft h-fit">
           <Field label="What are you sending?">
             <select className={inputClass} value={form.package_type} onChange={(e) => update("package_type", e.target.value)}>
