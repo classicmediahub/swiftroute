@@ -343,3 +343,4 @@ async function refundFailedWithdrawal(withdrawal) {
 // on the Paystack dashboard.
 
 module.exports = router;
+module.exports.refundFailedWithdrawal = refundFailedWithdrawal;
