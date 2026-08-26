@@ -77,15 +77,37 @@ async function checkReferralReward(completedUserId, role) {
     }
 
     const reward = REFERRAL_REWARD[role] || REFERRAL_REWARD.customer;
-    const { rows: walletRows } = await client.query(
-      "UPDATE users SET wallet_balance = wallet_balance + $1 WHERE id = $2 RETURNING wallet_balance",
-      [reward, user.referred_by]
-    );
+
+    // IMPORTANT: which table actually holds the referrer's spendable
+    // balance depends on the REFERRER's own role, not the referred
+    // user's role — an agent's real balance lives in
+    // agent_profiles.wallet_balance everywhere else in this codebase
+    // (deliveries.js, rides.js), never users.wallet_balance. Crediting
+    // the wrong table here would make the reward invisible on the
+    // agent's dashboard/withdrawals even though the money "exists".
+    const { rows: referrerRows } = await client.query("SELECT role FROM users WHERE id = $1", [user.referred_by]);
+    const referrerRole = referrerRows[0]?.role;
+
+    let newBalance;
+    if (referrerRole === "agent") {
+      const { rows: agentRows } = await client.query(
+        "UPDATE agent_profiles SET wallet_balance = wallet_balance + $1 WHERE user_id = $2 RETURNING wallet_balance",
+        [reward, user.referred_by]
+      );
+      newBalance = agentRows[0]?.wallet_balance;
+    } else {
+      const { rows: walletRows } = await client.query(
+        "UPDATE users SET wallet_balance = wallet_balance + $1 WHERE id = $2 RETURNING wallet_balance",
+        [reward, user.referred_by]
+      );
+      newBalance = walletRows[0]?.wallet_balance;
+    }
+
     await client.query(
       `INSERT INTO wallet_transactions (id, user_id, type, amount, balance_after, status, note)
        VALUES ($1, $2, 'referral_reward', $3, $4, 'success', $5)`,
       [
-        uuidv4(), user.referred_by, reward, walletRows[0].wallet_balance,
+        uuidv4(), user.referred_by, reward, newBalance,
         `Referral reward — your referral completed their first ${role === "agent" ? "job" : "delivery"}`,
       ]
     );

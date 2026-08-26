@@ -7,6 +7,7 @@ const { priceForRideMeter } = require("../pricing");
 const { initializeTransaction, verifyTransaction } = require("../paystack");
 const { notifyRideCustomer } = require("../notify");
 const { priceForLiveRide, finalizeLiveFare } = require("../pricing");
+const { checkReferralReward } = require("../referrals");
 
 const router = express.Router();
 
@@ -208,6 +209,14 @@ router.post("/:id/charge", requireAuth, requireRole("customer"), async (req, res
         client.release();
       }
 
+      // Referral rewards fire on a ride's first successful PAYMENT, since
+      // for rides that's what "first transaction" means (mirrors the
+      // "delivered" trigger in deliveries.js — there, completion and
+      // payment are the same moment; here, payment happens after
+      // completion, so this is the equivalent point).
+      if (ride.agent_id) await checkReferralReward(ride.agent_id, "agent");
+      await checkReferralReward(req.user.id, "customer");
+
       const { rows: updated } = await pool.query("SELECT * FROM rides WHERE id = $1", [ride.id]);
       return res.json({ ride: updated[0], authorization_url: null });
     }
@@ -264,7 +273,9 @@ router.get("/verify/:reference", requireAuth, async (req, res) => {
           `UPDATE agent_profiles SET wallet_balance = wallet_balance + $1, total_rides = total_rides + 1 WHERE user_id = $2`,
           [ride.price * 0.8, ride.agent_id]
         );
+        await checkReferralReward(ride.agent_id, "agent");
       }
+      await checkReferralReward(ride.customer_id, "customer");
     } else {
       await pool.query("UPDATE rides SET payment_status = 'failed' WHERE id = $1", [ride.id]);
     }

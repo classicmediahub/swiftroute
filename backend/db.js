@@ -564,6 +564,51 @@ async function initSchema() {
   // trip ends instead of before it starts. ---
   await pool.query(`ALTER TABLE rides ADD COLUMN IF NOT EXISTS distance_traveled_km REAL NOT NULL DEFAULT 0;`);
   await pool.query(`ALTER TABLE rides ADD COLUMN IF NOT EXISTS final_price REAL;`);
+
+  // --- Agent bank withdrawals (see paystack.js's transfer functions and
+  // routes/withdrawals.js). An agent saves ONE bank account at a time —
+  // paystack_recipient_code is Paystack's id for that account, created
+  // once via createTransferRecipient and reused for every future
+  // withdrawal, not recreated per request. Changing banks overwrites
+  // these fields and gets a fresh recipient_code.
+  await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS bank_code TEXT;`);
+  await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS bank_name TEXT;`);
+  await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS account_number TEXT;`);
+  await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS account_name TEXT;`);
+  await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS paystack_recipient_code TEXT;`);
+
+  // A withdrawal is its own row from the moment it's REQUESTED, not just
+  // once it's paid — the requested amount is deducted from
+  // agent_profiles.wallet_balance immediately (see routes/withdrawals.js),
+  // so the agent can't request it twice while it's awaiting admin review.
+  // If an admin rejects it, the amount is refunded back to their balance.
+  // 'processing' = admin approved, Paystack transfer call made, waiting on
+  // Paystack's async result; 'paid' = Paystack confirmed the transfer;
+  // 'failed' = Paystack transfer failed (auto-refunded back to the agent).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS agent_withdrawals (
+      id TEXT PRIMARY KEY,
+      agent_id TEXT NOT NULL REFERENCES users(id),
+      amount REAL NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','processing','paid','rejected','failed')),
+      bank_name TEXT NOT NULL,
+      account_number TEXT NOT NULL,
+      account_name TEXT NOT NULL,
+      paystack_transfer_code TEXT,
+      paystack_reference TEXT UNIQUE,
+      reviewed_by TEXT REFERENCES users(id),
+      reviewed_at TIMESTAMPTZ,
+      rejection_reason TEXT,
+      requested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      paid_at TIMESTAMPTZ
+    );
+  `);
+
+  await pool.query(`ALTER TABLE wallet_transactions DROP CONSTRAINT IF EXISTS wallet_transactions_type_check;`);
+  await pool.query(`
+    ALTER TABLE wallet_transactions ADD CONSTRAINT wallet_transactions_type_check
+    CHECK (type IN ('topup','delivery_payment','ride_payment','refund','streak_reward','referral_reward','landmark_reward','withdrawal','withdrawal_refund'));
+  `);
 }
 
 module.exports = { pool, initSchema };

@@ -18,12 +18,12 @@ const VEHICLE_MULTIPLIER = {
 const BASE_SAME_CITY = 1200;
 const BASE_INTERCITY = 4500;
 
-function estimatePrice({ pickup_city, dropoff_city, vehicle_type }) {
+function estimatePrice({ pickup_city, dropoff_city, vehicle_type, isFirstPayment = false }) {
   const sameCity = pickup_city.trim().toLowerCase() === dropoff_city.trim().toLowerCase();
   const base = sameCity ? BASE_SAME_CITY : BASE_INTERCITY;
   const multiplier = VEHICLE_MULTIPLIER[vehicle_type] || VEHICLE_MULTIPLIER.any;
   const price = Math.round((base * multiplier) / 50) * 50; // round to nearest 50 naira
-  return applyLaunchPromo(price);
+  return firstPaymentDiscount(price, isFirstPayment);
 }
 
 // Naira per km, by vehicle type — set to roughly match typical Nigerian
@@ -32,11 +32,11 @@ const BASE_FARE = 500;
 const PER_KM_RATE = { self: 100, bike: 130, cab: 220, any: 150 };
 const MIN_FARE = 800;
 
-function priceFromDistance({ distanceKm, vehicle_type }) {
+function priceFromDistance({ distanceKm, vehicle_type, isFirstPayment = false }) {
   const rate = PER_KM_RATE[vehicle_type] || PER_KM_RATE.any;
   let price = BASE_FARE + distanceKm * rate;
   price = Math.round(price / 50) * 50; // round to nearest 50 naira
-  return applyLaunchPromo(Math.max(price, MIN_FARE));
+  return firstPaymentDiscount(Math.max(price, MIN_FARE), isFirstPayment);
 }
 
 // ---------- RIDE (passenger) pricing — separate constants from parcel
@@ -50,10 +50,10 @@ const RIDE_BASE_FARE = 400;
 const RIDE_PER_KM_RATE = 150;
 const RIDE_MIN_FARE = 600;
 
-function priceForRide({ distanceKm }) {
+function priceForRide({ distanceKm, isFirstPayment = false }) {
   let price = RIDE_BASE_FARE + distanceKm * RIDE_PER_KM_RATE;
   price = Math.round(price / 50) * 50;
-  return applyLaunchPromo(Math.max(price, RIDE_MIN_FARE));
+  return firstPaymentDiscount(Math.max(price, RIDE_MIN_FARE), isFirstPayment);
 }
 
 // ---------- LIVE METER (Bolt-style) — the fare that actually gets charged.
@@ -70,12 +70,12 @@ function priceForRide({ distanceKm }) {
 // gridlocked trip free for the driver's time. ----------
 const RIDE_PER_MIN_RATE = 35;
 
-function priceForRideMeter({ distanceKm, elapsedMinutes }) {
+function priceForRideMeter({ distanceKm, elapsedMinutes, isFirstPayment = false }) {
   const km = Math.max(0, Number(distanceKm) || 0);
   const mins = Math.max(0, Number(elapsedMinutes) || 0);
   let price = RIDE_BASE_FARE + km * RIDE_PER_KM_RATE + mins * RIDE_PER_MIN_RATE;
   price = Math.round(price / 50) * 50;
-  return applyLaunchPromo(Math.max(price, RIDE_MIN_FARE));
+  return firstPaymentDiscount(Math.max(price, RIDE_MIN_FARE), isFirstPayment);
 }
 
 function trackingCode() {
@@ -85,19 +85,31 @@ function trackingCode() {
   return code;
 }
 
-// ---------- LAUNCH-WEEK PROMO — 50% off (capped at ₦5,000), applied
-// automatically for exactly 7 days starting at LAUNCH_DATE. Set LAUNCH_DATE
-// in backend/.env to the SAME value as the frontend's VITE_LAUNCH_DATE
-// (see LaunchGate.jsx / ComingSoon.jsx) — that keeps "launch" meaning the
-// same moment everywhere instead of drifting into two different dates.
-// ISO format with timezone, e.g. "2026-09-01T09:00:00+01:00".
+// ---------- FIRST-PAYMENT PROMO — 50% off (capped at ₦5,000), for a
+// customer's FIRST payment on each service (their first-ever paid
+// delivery, and separately, their first-ever paid ride — not a single
+// combined "first payment ever" across both), and only while still
+// within the 7-day launch window starting at LAUNCH_DATE. This replaces
+// the old behavior of discounting EVERY order placed during launch week
+// — now it's a one-time new-customer incentive per service, not a
+// blanket sale, even though it's still gated by the same launch-week
+// clock (the discount simply stops being available at all once that
+// window closes, whether or not a given customer ever used it).
 //
-// Applied centrally inside the three price functions below rather than in
-// each route, so every path that ever computes a price — normal delivery
-// quotes, campus/landmark quotes, and rides — gets the discount for free
-// with no changes needed anywhere else in the codebase. To end the promo
-// early, just remove LAUNCH_DATE from .env (or let the 7 days lapse
-// naturally); nothing else needs touching.
+// Set LAUNCH_DATE in backend/.env to the SAME value as the frontend's
+// VITE_LAUNCH_DATE (see LaunchGate.jsx / ComingSoon.jsx) so "launch"
+// means the same moment everywhere. ISO format with timezone, e.g.
+// "2026-09-01T09:00:00+01:00".
+//
+// IMPORTANT — this file has no database access and can't determine
+// on its own whether a given price calculation is really someone's
+// first payment. Every function above now takes an `isFirstPayment`
+// flag instead of discounting automatically; it's the CALLER's job
+// (the route handler, which has a DB connection) to check payment
+// history and pass that flag in truthfully. See routes/rides.js and
+// routes/deliveries.js — each needs a query like "does this customer
+// have any prior delivery/ride with payment_status = 'paid'?" before
+// calling into pricing.js.
 const LAUNCH_PROMO_DAYS = 7;
 const LAUNCH_PROMO_PERCENT = 0.5;
 const LAUNCH_PROMO_MAX_DISCOUNT = 5000;
@@ -118,7 +130,10 @@ function isLaunchPromoActive() {
 }
 
 // Exposed so a frontend banner can show "launch week — X days left" later
-// without duplicating the date math.
+// without duplicating the date math. Kept the same shape it always had —
+// still describes the WINDOW, not whether a specific customer qualifies
+// (that's a per-request, per-customer question the window alone can't
+// answer, so it stays out of this general-purpose info blob).
 function launchPromoInfo() {
   const window = launchPromoWindow();
   if (!window) return { active: false };
@@ -131,7 +146,8 @@ function launchPromoInfo() {
   };
 }
 
-function applyLaunchPromo(price) {
+function firstPaymentDiscount(price, isFirstPayment) {
+  if (!isFirstPayment) return price;
   if (!isLaunchPromoActive()) return price;
   const discount = Math.min(price * LAUNCH_PROMO_PERCENT, LAUNCH_PROMO_MAX_DISCOUNT);
   const discounted = Math.round((price - discount) / 50) * 50;
