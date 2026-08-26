@@ -609,6 +609,27 @@ async function initSchema() {
     ALTER TABLE wallet_transactions ADD CONSTRAINT wallet_transactions_type_check
     CHECK (type IN ('topup','delivery_payment','ride_payment','refund','streak_reward','referral_reward','landmark_reward','withdrawal','withdrawal_refund'));
   `);
+
+  // --- In-app chat between customer and agent, for a specific ride or
+  // delivery. One table covers both trip types (rather than
+  // ride_messages + delivery_messages) since the shape is identical and
+  // the frontend chat UI doesn't care which kind of trip it's attached
+  // to — see routes/messages.js. sender_role is stored redundantly
+  // alongside sender_id purely so the frontend can style "my message" vs
+  // "their message" without an extra join on every poll.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS trip_messages (
+      id TEXT PRIMARY KEY,
+      trip_type TEXT NOT NULL CHECK (trip_type IN ('ride','delivery')),
+      trip_id TEXT NOT NULL,
+      sender_id TEXT NOT NULL REFERENCES users(id),
+      sender_role TEXT NOT NULL CHECK (sender_role IN ('customer','agent')),
+      body TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      read_at TIMESTAMPTZ
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_trip_messages_trip ON trip_messages (trip_type, trip_id, created_at);`);
 }
 
 module.exports = { pool, initSchema };
