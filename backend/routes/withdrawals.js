@@ -95,21 +95,19 @@ router.post("/bank-details", requireAuth, requireRole("agent"), async (req, res)
 // so the same money can't be requested twice while awaiting admin review.
 // A rejection refunds it (see the admin reject route below).
 router.post("/", requireAuth, requireRole("agent"), async (req, res) => {
+  if (!isWithdrawalDayToday()) {
+    return res.status(403).json({
+      error: `Withdrawals can only be requested on ${WITHDRAWAL_DAYS.join(" and ")}. Please check back then.`,
+    });
+  }
+
+  const amount = Number(req.body.amount);
+  if (!Number.isFinite(amount) || amount < MIN_WITHDRAWAL) {
+    return res.status(400).json({ error: `Enter a valid amount (minimum ₦${MIN_WITHDRAWAL.toLocaleString()})` });
+  }
+
   const client = await pool.connect();
   try {
-    if (!isWithdrawalDayToday()) {
-      client.release();
-      return res.status(403).json({
-        error: `Withdrawals can only be requested on ${WITHDRAWAL_DAYS.join(" and ")}. Please check back then.`,
-      });
-    }
-
-    const amount = Number(req.body.amount);
-    if (!Number.isFinite(amount) || amount < MIN_WITHDRAWAL) {
-      client.release();
-      return res.status(400).json({ error: `Enter a valid amount (minimum ₦${MIN_WITHDRAWAL.toLocaleString()})` });
-    }
-
     await client.query("BEGIN");
     const { rows: profileRows } = await client.query(
       "SELECT * FROM agent_profiles WHERE user_id = $1 FOR UPDATE",
