@@ -54,6 +54,17 @@ export default function LaunchGate({ children }) {
       return;
     }
 
+    // AGENT-ONLY SOFT LAUNCH: /signup (the role-choice screen) and
+    // /signup/agent stay reachable so agents can register over the
+    // weekend ahead of Monday's public launch — every other route,
+    // including /signup/customer and /signup/admin, stays gated exactly
+    // as before. Remove this block once the full site opens (or just let
+    // VITE_LAUNCH_DATE flip `unlocked` for everyone automatically).
+    if (location.pathname === "/signup" || location.pathname === "/signup/agent") {
+      setUnlocked(true);
+      return;
+    }
+
     // Bypass link: ?key=... sets a persistent flag on this device so it
     // only needs to be used once, not re-entered on every visit.
     const params = new URLSearchParams(location.search);
