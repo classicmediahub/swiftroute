@@ -35,7 +35,14 @@ app.use(cors(allowedOrigin ? { origin: allowedOrigin } : {}));
 // request body, so this is mounted BEFORE express.json() parses anything.
 app.use("/api/webhooks", express.raw({ type: "application/json" }), webhookRoutes);
 
-app.use(express.json());
+// Default is 100KB, which a single base64-encoded photo blows past
+// immediately — proof-of-delivery photos, agent profile photos, and
+// liveness-check captures are all sent as base64 strings inside the JSON
+// body (not multipart), so the limit has to accommodate an actual image,
+// not just typical request payloads. 10MB comfortably covers a phone
+// camera photo even after base64's ~33% size inflation, while still
+// bounding worst-case request size.
+app.use(express.json({ limit: "10mb" }));
 
 app.get("/api/health", (req, res) => res.json({ ok: true, service: "PickAndEarn API" }));
 

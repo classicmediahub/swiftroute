@@ -1,9 +1,14 @@
 import { Link, useSearchParams } from "react-router-dom";
 
+// --- TEMP-LAUNCH-GATE: customer + admin routes show ComingSoon until
+// Monday (see App.jsx). comingSoon here just controls the visual badge
+// below so the click feels intentional rather than broken — remove both
+// `comingSoon: true` flags (and this comment) at the same time you
+// revert App.jsx's route gate.
 const OPTIONS = [
-  { to: "/signup/customer", code: "WB-01", title: "I want to send deliveries", desc: "Create requests, get matched with agents, track every parcel." },
+  { to: "/signup/customer", code: "WB-01", title: "I want to send deliveries", desc: "Create requests, get matched with agents, track every parcel.", comingSoon: true },
   { to: "/signup/agent", code: "WB-02", title: "I want to deliver & earn", desc: "Register as a self, bike, or cab agent and start accepting jobs." },
-  { to: "/signup/admin", code: "WB-03", title: "I'm an admin", desc: "Requires an invite code from an existing PickAndEarn admin." },
+  { to: "/signup/admin", code: "WB-03", title: "I'm an admin", desc: "Requires an invite code from an existing PickAndEarn admin.", comingSoon: true },
 ];
 
 export default function SignupChoice() {
@@ -30,10 +35,19 @@ export default function SignupChoice() {
           <Link
             key={opt.to}
             to={`${opt.to}${search}`}
-            className="border border-slate-200 rounded-2xl p-6 hover:border-ink transition-colors flex items-start justify-between gap-4 bg-white"
+            className={`border rounded-2xl p-6 transition-colors flex items-start justify-between gap-4 bg-white ${
+              opt.comingSoon ? "border-slate-200 opacity-70 hover:opacity-100 hover:border-slate-300" : "border-slate-200 hover:border-ink"
+            }`}
           >
             <div>
-              <div className="font-mono text-xs text-signal mb-2">[{opt.code}]</div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="font-mono text-xs text-signal">[{opt.code}]</span>
+                {opt.comingSoon && (
+                  <span className="font-mono text-[10px] tracking-wide bg-slate-100 text-slate rounded-full px-2 py-0.5">
+                    OPENING MONDAY
+                  </span>
+                )}
+              </div>
               <h3 className="font-display text-lg font-semibold mb-1">{opt.title}</h3>
               <p className="text-sm text-slate">{opt.desc}</p>
             </div>
