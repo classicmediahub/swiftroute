@@ -630,6 +630,34 @@ async function initSchema() {
     );
   `);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_trip_messages_trip ON trip_messages (trip_type, trip_id, created_at);`);
+
+  // --- SOS / emergency alerts. emergency_contact_* lives on users
+  // directly (both customers and agents can set one) rather than a
+  // separate table — it's one name + one phone number per person, no
+  // history to keep, so a join for it everywhere would be pure overhead.
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS emergency_contact_name TEXT;`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS emergency_contact_phone TEXT;`);
+
+  // One row per SOS press. lat/lng are nullable — if the browser's
+  // geolocation is denied or unavailable, the alert should still fire
+  // (a "help, no location" alert is far better than none at all), just
+  // with a note that location wasn't available. See routes/sos.js.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sos_alerts (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      role TEXT NOT NULL CHECK (role IN ('customer','agent')),
+      trip_type TEXT NOT NULL CHECK (trip_type IN ('ride','delivery')),
+      trip_id TEXT NOT NULL,
+      lat REAL,
+      lng REAL,
+      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','resolved')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      resolved_at TIMESTAMPTZ,
+      resolved_by TEXT REFERENCES users(id)
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_sos_alerts_status ON sos_alerts (status, created_at);`);
 }
 
 module.exports = { pool, initSchema };

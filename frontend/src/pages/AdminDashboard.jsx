@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import StatusBadge from "../components/StatusBadge";
-import { Users, UserCheck, Package, Car, Lock, Landmark } from "lucide-react";
+import { Users, UserCheck, Package, Car, Lock, Landmark, AlertTriangle } from "lucide-react";
 import { SkeletonStatGrid, SkeletonTable } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
 import CountUp from "../components/CountUp";
@@ -16,6 +16,7 @@ const SIDEBAR_ITEMS = [
   { key: "rides", label: "Rides", icon: Car },
   { key: "lockers", label: "Lockers", icon: Lock },
   { key: "withdrawals", label: "Withdrawals", icon: Landmark },
+  { key: "sos", label: "SOS Alerts", icon: AlertTriangle },
 ];
 
 // Ride statuses are a different string set than delivery statuses
@@ -74,6 +75,7 @@ export default function AdminDashboard() {
   const [rides, setRides] = useState([]);
   const [lockers, setLockers] = useState([]);
   const [withdrawals, setWithdrawals] = useState([]);
+  const [sosAlerts, setSosAlerts] = useState([]);
   const [institutions, setInstitutions] = useState([]);
   const [busyId, setBusyId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -88,17 +90,40 @@ export default function AdminDashboard() {
 
   const loadAll = useCallback(async () => {
     try {
-      const [s, a, c, d, r, l, i, w] = await Promise.all([
+      const [s, a, c, d, r, l, i, w, sos] = await Promise.all([
         api.adminStats(token), api.adminAgents(token), api.adminCustomers(token), api.adminDeliveries(token), api.adminRides(token),
-        api.adminLockers(token), api.listInstitutions(token), api.adminPendingWithdrawals(token),
+        api.adminLockers(token), api.listInstitutions(token), api.adminPendingWithdrawals(token), api.adminActiveSOS(token),
       ]);
-      setStats(s); setAgents(a); setCustomers(c); setDeliveries(d); setRides(r); setLockers(l); setInstitutions(i); setWithdrawals(w);
+      setStats(s); setAgents(a); setCustomers(c); setDeliveries(d); setRides(r); setLockers(l); setInstitutions(i); setWithdrawals(w); setSosAlerts(sos);
     } finally {
       setLoading(false);
     }
   }, [token]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  // Runs independently of loadAll and much faster — an active SOS alert
+  // needs to surface within seconds, not whenever the admin happens to
+  // refresh or switch tabs. Keeps running no matter which tab is open, so
+  // the banner below can appear even from "Agents" or "Deliveries".
+  useEffect(() => {
+    const interval = setInterval(() => {
+      api.adminActiveSOS(token).then(setSosAlerts).catch(() => {});
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [token]);
+
+  async function handleResolveSOS(id) {
+    setBusyId(id);
+    try {
+      await api.resolveSOS(token, id);
+      setSosAlerts((prev) => prev.filter((a) => a.id !== id));
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   async function setAgentApproval(id, status) {
     setBusyId(id);
@@ -240,18 +265,21 @@ export default function AdminDashboard() {
         <nav className="flex md:flex-col overflow-x-auto md:overflow-visible px-3 md:px-3 py-3 md:py-0 gap-1">
           {SIDEBAR_ITEMS.map(({ key, label, icon: Icon }) => {
             const active = tab === key;
-            const count = { agents, customers, deliveries, rides, lockers, withdrawals }[key].length;
+            const count = { agents, customers, deliveries, rides, lockers, withdrawals, sos: sosAlerts }[key].length;
+            const isSosWithAlerts = key === "sos" && count > 0;
             return (
               <button
                 key={key}
                 onClick={() => setTab(key)}
                 className={`flex items-center gap-2.5 shrink-0 md:w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  active ? "bg-route text-ink dark:text-paper" : "text-slate-light hover:bg-white/5 hover:text-paper"
+                  active
+                    ? isSosWithAlerts ? "bg-red-600 text-white" : "bg-route text-ink dark:text-paper"
+                    : isSosWithAlerts ? "text-red-300 bg-red-950/40 hover:bg-red-950/60 animate-pulse" : "text-slate-light hover:bg-white/5 hover:text-paper"
                 }`}
               >
                 <Icon className="w-4 h-4 shrink-0" />
                 <span className="flex-1">{label}</span>
-                <span className={`font-mono text-xs ${active ? "text-ink/70" : "text-slate-light"}`}>{count}</span>
+                <span className={`font-mono text-xs ${active ? "text-ink/70" : isSosWithAlerts ? "text-red-300" : "text-slate-light"}`}>{count}</span>
               </button>
             );
           })}
@@ -263,6 +291,16 @@ export default function AdminDashboard() {
         <h1 className="font-display text-3xl font-semibold mb-8 text-ink dark:text-paper hidden md:block">
           {SIDEBAR_ITEMS.find((i) => i.key === tab)?.label}
         </h1>
+
+        {sosAlerts.length > 0 && tab !== "sos" && (
+          <button
+            onClick={() => setTab("sos")}
+            className="w-full flex items-center gap-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl px-4 py-3 mb-6 transition-colors"
+          >
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            {sosAlerts.length} active SOS alert{sosAlerts.length > 1 ? "s" : ""} — click to view
+          </button>
+        )}
 
         <div className="grid sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
           <Stat label="Customers" value={stats.totalUsers} />
@@ -640,6 +678,46 @@ export default function AdminDashboard() {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+      {tab === "sos" && (
+        <div className="space-y-4">
+          {sosAlerts.map((a) => {
+            const link = a.lat != null && a.lng != null ? `https://www.google.com/maps?q=${a.lat},${a.lng}` : null;
+            return (
+              <div key={a.id} className="border-2 border-red-300 bg-red-50 dark:bg-red-950/20 dark:border-red-800 rounded-2xl p-5">
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                      <span className="font-display font-semibold text-lg text-ink dark:text-paper">{a.full_name}</span>
+                      <span className="text-xs font-mono text-slate dark:text-slate-light">({a.role})</span>
+                    </div>
+                    <div className="text-sm text-slate dark:text-slate-light">
+                      {a.trip_type === "ride" ? "Ride" : "Delivery"} #{a.trip_id.slice(0, 8)} · Triggered {new Date(a.created_at).toLocaleString()}
+                    </div>
+                    <div className="text-sm text-ink dark:text-paper mt-1">Phone: {a.phone}</div>
+                    {a.emergency_contact_phone && (
+                      <div className="text-sm text-ink dark:text-paper">
+                        Emergency contact: {a.emergency_contact_name} · {a.emergency_contact_phone}
+                      </div>
+                    )}
+                    {link ? (
+                      <a href={link} target="_blank" rel="noreferrer" className="inline-block text-sm font-semibold text-route-dark hover:underline mt-2">
+                        View last known location →
+                      </a>
+                    ) : (
+                      <div className="text-sm text-slate dark:text-slate-light mt-2">Location not available</div>
+                    )}
+                  </div>
+                  <ActionBtn busy={busyId === a.id} onClick={() => handleResolveSOS(a.id)} label="Mark resolved" tone="positive" />
+                </div>
+              </div>
+            );
+          })}
+          {sosAlerts.length === 0 && (
+            <EmptyState icon={AlertTriangle} title="No active SOS alerts" description="Emergency alerts triggered by customers or agents during an active trip will show up here." />
+          )}
         </div>
       )}
       </main>

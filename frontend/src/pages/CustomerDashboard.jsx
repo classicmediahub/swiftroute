@@ -13,13 +13,17 @@ import Reports from "../components/Reports";
 import ApiSettings from "../components/ApiSettings";
 import { SkeletonCardList } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
-import { Package } from "lucide-react";
+import { Package, MessageCircle } from "lucide-react";
 import DashboardGreeting from "../components/DashboardGreeting";
 import StreakCalendar, { buildStreakDays, nextMilestone } from "../components/StreakCalendar";
 import { useStreakMilestone } from "../hooks/useStreakMilestone";
 import TripCompleteCelebration from "../components/TripCompleteCelebration";
 import { useCelebrateOnComplete } from "../hooks/useCelebrateOnComplete";
 import Button from "../components/Button";
+import ChatPanel from "../components/ChatPanel";
+import EmergencyContactCard from "../components/EmergencyContactCard";
+import SOSButton from "../components/SOSButton";
+import { useUnreadMessages } from "../hooks/useUnreadMessages";
 import { lazy, Suspense } from "react";
 const DeliveryMap = lazy(() => import("../components/DeliveryMap"));
 const PinMap = lazy(() => import("../components/PinMap"));
@@ -57,6 +61,8 @@ export default function CustomerDashboard() {
   const [estimate, setEstimate] = useState(null);
   const [estimateDistance, setEstimateDistance] = useState(null);
   const [deliveries, setDeliveries] = useState([]);
+  const [chatOpenId, setChatOpenId] = useState(null);
+  const unreadCount = useUnreadMessages(token);
   const [walletBalance, setWalletBalance] = useState(0);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -385,6 +391,7 @@ export default function CustomerDashboard() {
       <div className="lg:col-span-2">
         <WalletPanel token={token} />
         <ReferralCard token={token} role="customer" />
+        <EmergencyContactCard token={token} />
         <form onSubmit={handleSubmit} className="border border-slate-200 dark:border-line rounded-2xl p-6 bg-white dark:bg-ink-soft h-fit">
           <Field label="What are you sending?">
             <select className={inputClass} value={form.package_type} onChange={(e) => update("package_type", e.target.value)}>
@@ -851,7 +858,14 @@ export default function CustomerDashboard() {
       </div>
 
       <div className="lg:col-span-3">
-        <h2 className="font-display text-lg font-semibold mb-4">Your deliveries</h2>
+        <h2 className="font-display text-lg font-semibold mb-4 flex items-center gap-2">
+          Your deliveries
+          {unreadCount > 0 && (
+            <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-signal text-white text-[10px] font-semibold">
+              {unreadCount}
+            </span>
+          )}
+        </h2>
         {loadingList ? (
           <SkeletonCardList count={3} />
         ) : deliveries.length === 0 ? (
@@ -889,14 +903,38 @@ export default function CustomerDashboard() {
                   <div>Pickup: {d.pickup_address}{d.pickup_landmark && ` (${d.pickup_landmark})`}</div>
                   <div>Drop-off: {d.dropoff_address}{d.dropoff_landmark && ` (${d.dropoff_landmark})`} · to {d.recipient_name}</div>
                   {d.agent_name && (
-                    <div className="flex items-center gap-2">
-                      {d.agent_photo && (
-                        <img src={d.agent_photo} alt={d.agent_name} className="w-6 h-6 rounded-full object-cover border border-slate-200 dark:border-line" />
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {d.agent_photo && (
+                          <img src={d.agent_photo} alt={d.agent_name} className="w-6 h-6 rounded-full object-cover border border-slate-200 dark:border-line" />
+                        )}
+                        <span>Agent: {d.agent_name} · {d.agent_phone}</span>
+                      </div>
+                      {d.status !== "cancelled" && (
+                        <button
+                          onClick={() => setChatOpenId(chatOpenId === d.id ? null : d.id)}
+                          className="flex items-center gap-1 text-xs font-semibold text-route-dark hover:underline shrink-0"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          {chatOpenId === d.id ? "Hide chat" : "Message agent"}
+                        </button>
                       )}
-                      <span>Agent: {d.agent_name} · {d.agent_phone}</span>
                     </div>
                   )}
                 </div>
+
+                {chatOpenId === d.id && (
+                  <div className="mb-3">
+                    <ChatPanel
+                      token={token}
+                      tripType="delivery"
+                      tripId={d.id}
+                      myRole="customer"
+                      otherPartyName={d.agent_name}
+                      disabled={d.status === "cancelled"}
+                    />
+                  </div>
+                )}
 
                 {["accepted", "picked_up", "in_transit"].includes(d.status) && (
                   <div className="mb-3">
@@ -913,6 +951,9 @@ export default function CustomerDashboard() {
                         Agent location last updated {new Date(d.location_updated_at).toLocaleTimeString()}
                       </p>
                     )}
+                    <div className="mt-3">
+                      <SOSButton token={token} tripType="delivery" tripId={d.id} />
+                    </div>
                   </div>
                 )}
                 {d.declared_value && ["delivered", "cancelled"].includes(d.status) && (

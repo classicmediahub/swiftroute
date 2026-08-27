@@ -8,10 +8,13 @@ import RideMeter from "../components/RideMeter";
 import TripStatusStepper, { RIDE_STEPS } from "../components/TripStatusStepper";
 import TripCompleteCelebration from "../components/TripCompleteCelebration";
 import { useCelebrateOnComplete } from "../hooks/useCelebrateOnComplete";
+import { useUnreadMessages } from "../hooks/useUnreadMessages";
 import { SkeletonCardList } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
 import Button from "../components/Button";
-import { Car } from "lucide-react";
+import ChatPanel from "../components/ChatPanel";
+import SOSButton from "../components/SOSButton";
+import { Car, MessageCircle } from "lucide-react";
 
 const CITIES = ["Lagos", "Ota", "Ogun", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City"];
 
@@ -41,6 +44,7 @@ export default function RequestRide() {
 
   const [rides, setRides] = useState([]);
   const [loadingRides, setLoadingRides] = useState(true);
+  const [chatOpenId, setChatOpenId] = useState(null);
   const pollRef = useRef(null);
 
   const loadRides = useCallback(async () => {
@@ -72,6 +76,7 @@ export default function RequestRide() {
   }, [tab, hasActiveRide, loadRides]);
 
   const canEstimate = pickupCoords && dropoffCoords && pickupAddress && dropoffAddress;
+  const unreadCount = useUnreadMessages(token, tab !== "mine"); // stop polling this once already looking at "mine" — ChatPanel's own poll covers it there
 
   // Fires the confetti overlay exactly once, the first time a ride is
   // observed as 'completed' — not on every subsequent poll of the same
@@ -177,7 +182,14 @@ export default function RequestRide() {
 
       <div className="flex gap-2 mb-6 border-b border-slate-200 dark:border-line">
         <TabButton active={tab === "request"} onClick={() => setTab("request")}>Request a ride</TabButton>
-        <TabButton active={tab === "mine"} onClick={() => setTab("mine")}>My rides ({rides.length})</TabButton>
+        <TabButton active={tab === "mine"} onClick={() => setTab("mine")}>
+          My rides ({rides.length})
+          {unreadCount > 0 && (
+            <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-signal text-white text-[10px] font-semibold align-middle">
+              {unreadCount}
+            </span>
+          )}
+        </TabButton>
       </div>
 
       {tab === "request" ? (
@@ -291,7 +303,31 @@ export default function RequestRide() {
                 </div>
                 <TripStatusStepper steps={RIDE_STEPS} currentKey={r.status} className="mb-3" />
                 {r.agent_name && (
-                  <div className="text-xs text-slate dark:text-slate-light mb-2">Driver: {r.agent_name} · {r.agent_phone}</div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-xs text-slate dark:text-slate-light">Driver: {r.agent_name} · {r.agent_phone}</div>
+                    {r.status !== "cancelled" && (
+                      <button
+                        onClick={() => setChatOpenId(chatOpenId === r.id ? null : r.id)}
+                        className="flex items-center gap-1 text-xs font-semibold text-route-dark hover:underline shrink-0"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        {chatOpenId === r.id ? "Hide chat" : "Message driver"}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {chatOpenId === r.id && (
+                  <div className="mb-3">
+                    <ChatPanel
+                      token={token}
+                      tripType="ride"
+                      tripId={r.id}
+                      myRole="customer"
+                      otherPartyName={r.agent_name}
+                      disabled={r.status === "cancelled"}
+                    />
+                  </div>
                 )}
 
                 {isActive && (
@@ -302,6 +338,9 @@ export default function RequestRide() {
                       current={r.current_lat != null && r.current_lng != null ? { lat: r.current_lat, lng: r.current_lng } : null}
                       height={240}
                     />
+                    <div className="mt-3">
+                      <SOSButton token={token} tripType="ride" tripId={r.id} />
+                    </div>
                   </div>
                 )}
 

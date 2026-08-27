@@ -10,7 +10,7 @@ import StarRating from "../components/StarRating";
 import ShareLocationToggle from "../components/ShareLocationToggle";
 import { SkeletonCardList, SkeletonStatGrid } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
-import { Inbox, Package, Car } from "lucide-react";
+import { Inbox, Package, Car, MessageCircle } from "lucide-react";
 import DashboardGreeting from "../components/DashboardGreeting";
 import StreakCalendar, { buildStreakDays, nextMilestone } from "../components/StreakCalendar";
 import { useStreakMilestone } from "../hooks/useStreakMilestone";
@@ -18,6 +18,10 @@ import TripCompleteCelebration from "../components/TripCompleteCelebration";
 import Button from "../components/Button";
 import ReferralCard from "../components/ReferralCard";
 import WithdrawalPanel from "../components/WithdrawalPanel";
+import ChatPanel from "../components/ChatPanel";
+import EmergencyContactCard from "../components/EmergencyContactCard";
+import SOSButton from "../components/SOSButton";
+import { useUnreadMessages } from "../hooks/useUnreadMessages";
 
 // 'in_transit' branches two ways depending on whether this delivery has a
 // locker_id: a normal delivery goes straight to "delivered", a locker
@@ -77,8 +81,10 @@ export default function AgentDashboard() {
   const [assignedRides, setAssignedRides] = useState([]);
   const [loadingRides, setLoadingRides] = useState(true);
   const [rideError, setRideError] = useState("");
+  const [chatOpenKey, setChatOpenKey] = useState(null); // "ride:<id>" or "delivery:<id>" — only one chat open at a time
 
   const isApproved = agentProfile?.approval_status === "approved";
+  const unreadCount = useUnreadMessages(token, isApproved);
 
   // Rides phase 1: only cab agents broadcast live location. No manual
   // online/offline toggle by design — being on this dashboard, approved,
@@ -303,6 +309,7 @@ export default function AgentDashboard() {
       <div className="grid md:grid-cols-2 gap-4 mb-8">
         <WithdrawalPanel token={token} agentProfile={agentProfile} onChanged={refresh} />
         <ReferralCard token={token} role="agent" />
+        <EmergencyContactCard token={token} />
       </div>
 
       {!isApproved ? (
@@ -335,6 +342,11 @@ export default function AgentDashboard() {
                 </TabButton>
                 <TabButton active={tab === "mine"} onClick={() => setTab("mine")}>
                   My deliveries ({assigned.length})
+                  {unreadCount > 0 && (
+                    <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-signal text-white text-[10px] font-semibold align-middle">
+                      {unreadCount}
+                    </span>
+                  )}
                 </TabButton>
               </div>
 
@@ -482,13 +494,37 @@ export default function AgentDashboard() {
                           </div>
                         </div>
                       )}
-                      <div className="border-t border-slate-100 mt-3 pt-3">
+                      <div className="border-t border-slate-100 mt-3 pt-3 flex items-center justify-between">
                         <ShareLocationToggle
                           deliveryId={d.id}
                           token={token}
                           active={["accepted", "picked_up", "in_transit"].includes(d.status)}
                         />
+                        <button
+                          onClick={() => setChatOpenKey(chatOpenKey === `delivery:${d.id}` ? null : `delivery:${d.id}`)}
+                          className="flex items-center gap-1 text-xs font-semibold text-route-dark hover:underline shrink-0"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          {chatOpenKey === `delivery:${d.id}` ? "Hide chat" : "Message customer"}
+                        </button>
                       </div>
+                      {chatOpenKey === `delivery:${d.id}` && (
+                        <div className="mt-3">
+                          <ChatPanel
+                            token={token}
+                            tripType="delivery"
+                            tripId={d.id}
+                            myRole="agent"
+                            otherPartyName={d.customer_name}
+                            disabled={d.status === "cancelled"}
+                          />
+                        </div>
+                      )}
+                      {["accepted", "picked_up", "in_transit"].includes(d.status) && (
+                        <div className="mt-3">
+                          <SOSButton token={token} tripType="delivery" tripId={d.id} />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -502,6 +538,11 @@ export default function AgentDashboard() {
                 </TabButton>
                 <TabButton active={rideTab === "mine"} onClick={() => setRideTab("mine")}>
                   My rides ({assignedRides.length})
+                  {unreadCount > 0 && (
+                    <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-signal text-white text-[10px] font-semibold align-middle">
+                      {unreadCount}
+                    </span>
+                  )}
                 </TabButton>
               </div>
 
@@ -550,7 +591,33 @@ export default function AgentDashboard() {
                         {r.distance_km && <span className="text-slate dark:text-slate-light font-normal"> · {r.distance_km} km</span>}
                       </div>
                       <TripStatusStepper steps={RIDE_STEPS} currentKey={r.status} className="mb-3" />
-                      <div className="text-xs text-slate dark:text-slate-light mb-3">Rider: {r.customer_name} · {r.customer_phone}</div>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="text-xs text-slate dark:text-slate-light">Rider: {r.customer_name} · {r.customer_phone}</div>
+                        <button
+                          onClick={() => setChatOpenKey(chatOpenKey === `ride:${r.id}` ? null : `ride:${r.id}`)}
+                          className="flex items-center gap-1 text-xs font-semibold text-route-dark hover:underline shrink-0"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          {chatOpenKey === `ride:${r.id}` ? "Hide chat" : "Message rider"}
+                        </button>
+                      </div>
+                      {chatOpenKey === `ride:${r.id}` && (
+                        <div className="mb-3">
+                          <ChatPanel
+                            token={token}
+                            tripType="ride"
+                            tripId={r.id}
+                            myRole="agent"
+                            otherPartyName={r.customer_name}
+                            disabled={r.status === "cancelled"}
+                          />
+                        </div>
+                      )}
+                      {RIDE_ACTIVE_STATUSES.includes(r.status) && (
+                        <div className="mb-3">
+                          <SOSButton token={token} tripType="ride" tripId={r.id} />
+                        </div>
+                      )}
                       {RIDE_ACTIVE_STATUSES.includes(r.status) && r.id === activeRide?.id && (
                         <div className="text-xs text-delivered mb-3 flex items-center gap-1.5">
                           <span className="relative flex h-1.5 w-1.5">

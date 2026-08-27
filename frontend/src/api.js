@@ -87,6 +87,25 @@ export const api = {
   approveWithdrawal: (token, id) => request(`/withdrawals/admin/${id}/approve`, { method: "POST", token }),
   rejectWithdrawal: (token, id, reason) => request(`/withdrawals/admin/${id}/reject`, { method: "POST", body: { reason }, token }),
 
+  // In-app chat — trip_type is "ride" or "delivery"
+  getMessages: (token, tripType, tripId, after) => {
+    const qs = after ? `?after=${encodeURIComponent(after)}` : "";
+    return request(`/messages/${tripType}/${tripId}${qs}`, { token });
+  },
+  sendMessage: (token, tripType, tripId, body) =>
+    request(`/messages/${tripType}/${tripId}`, { method: "POST", body: { body }, token }),
+  markMessagesRead: (token, tripType, tripId) =>
+    request(`/messages/${tripType}/${tripId}/read`, { method: "PATCH", token }),
+  unreadMessageCount: (token) => request("/messages/unread-count", { token }),
+
+  // SOS / emergency
+  getEmergencyContact: (token) => request("/sos/emergency-contact", { token }),
+  saveEmergencyContact: (token, payload) => request("/sos/emergency-contact", { method: "PUT", body: payload, token }),
+  triggerSOS: (token, payload) => request("/sos", { method: "POST", body: payload, token }),
+  myActiveSOS: (token, tripType, tripId) => request(`/sos/${tripType}/${tripId}/mine`, { token }),
+  adminActiveSOS: (token) => request("/sos/admin/active", { token }),
+  resolveSOS: (token, id) => request(`/sos/admin/${id}/resolve`, { method: "PATCH", token }),
+
   listApiKeys: (token) => request("/keys", { token }),
   createApiKey: (token, label) => request("/keys", { method: "POST", body: { label }, token }),
   revokeApiKey: (token, id) => request(`/keys/${id}`, { method: "DELETE", token }),
