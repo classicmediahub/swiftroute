@@ -38,6 +38,13 @@ export default function Navbar() {
               Rides
             </Link>
           )}
+          {/* Same visibility rule as Rides above — customer-facing, so
+              shown to logged-out visitors and logged-in customers only. */}
+          {(!user || user.role === "customer") && (
+            <Link to="/gas" className="text-sm text-slate-light hover:text-paper transition-colors font-medium">
+              Gas
+            </Link>
+          )}
           {user ? (
             <>
               <Link
