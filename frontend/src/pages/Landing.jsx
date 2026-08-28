@@ -9,6 +9,7 @@ import ReviewsSection from "../components/ReviewsSection";
 import BusinessSection from "../components/BusinessSection";
 import EarningsCalculator from "../components/EarningsCalculator";
 import Reveal from "../components/Reveal";
+import { Flame } from "lucide-react";
 
 // Lazy-loaded on purpose: this pulls in mapbox-gl, a large dependency.
 // Without this, it would ship inside the main homepage bundle and
@@ -40,6 +41,7 @@ const VEHICLES = [
   { name: "Self", detail: "On-foot local errands — documents, small parcels, same-building drops." },
   { name: "Bike", detail: "Dispatch riders for fast intra-city parcels. Our most-used vehicle class." },
   { name: "Cab", detail: "Car agents for bulkier loads, multiple stops, or fragile items." },
+  { name: "Gas", detail: "Dedicated agents who bring cooking gas and refill your cylinder at home." },
 ];
 
 export default function Landing() {
@@ -165,6 +167,36 @@ export default function Landing() {
         </Reveal>
       </section>
 
+      {/* GAS PREVIEW — same treatment as the Rides preview above: its own
+          section with a dedicated ordering link, not buried in the
+          Deliver & Earn role card. No live map here (unlike Rides'
+          NearbyDriversMap) — gas agents aren't "browsing nearby" in the
+          same way; a fixed illustration/icon block does the job without
+          fabricating a feature that doesn't exist. */}
+      <section className="bg-ink-soft/[0.03] dark:bg-paper/[0.03] border-y border-slate-200 dark:border-line">
+        <Reveal className="max-w-6xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-10 items-center">
+          <div>
+            <div className="font-mono text-xs text-slate dark:text-slate-light mb-2">COOKING GAS</div>
+            <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-4 text-ink dark:text-paper">Gas finished? We'll fill it at home.</h2>
+            <p className="text-slate dark:text-slate-light text-sm mb-6 max-w-md">
+              Pick your cylinder size, pay in the app, and a dedicated gas agent brings LPG straight
+              to your door and refills your existing cylinder on the spot — no trip to the station.
+            </p>
+            <div className="flex flex-wrap gap-x-5 gap-y-2">
+              <Link to="/gas" className="text-sm font-semibold text-ink dark:text-paper border-b-2 border-route w-fit pb-0.5 hover:border-signal transition-colors">
+                Order a refill →
+              </Link>
+              <Link to="/signup/agent" className="text-sm font-semibold text-ink dark:text-paper border-b-2 border-route w-fit pb-0.5 hover:border-signal transition-colors">
+                Register as a gas agent →
+              </Link>
+            </div>
+          </div>
+          <div className="card-tactile rounded-2xl p-10 bg-white dark:bg-ink-soft border border-slate-200 dark:border-line flex items-center justify-center">
+            <Flame className="w-24 h-24 text-route" strokeWidth={1.25} />
+          </div>
+        </Reveal>
+      </section>
+
       {/* ROLE CARDS */}
       <section>
         <Reveal className="max-w-6xl mx-auto px-5 py-16">
@@ -229,7 +261,7 @@ export default function Landing() {
         <Reveal className="max-w-6xl mx-auto px-5 py-16">
           <div className="font-mono text-xs text-slate dark:text-slate-light mb-2">AGENT FLEET</div>
           <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-10 text-ink dark:text-paper">Every kind of drop, covered</h2>
-          <div className="grid sm:grid-cols-3 gap-5">
+          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-5">
             {VEHICLES.map((v) => (
               <div key={v.name} className="card-tactile rounded-2xl p-6 bg-white dark:bg-ink-soft border-t-4 border-brand-blue shadow-sm">
                 <h3 className="font-display text-lg font-semibold mb-2 text-route">{v.name}</h3>

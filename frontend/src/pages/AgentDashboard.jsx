@@ -21,6 +21,7 @@ import WithdrawalPanel from "../components/WithdrawalPanel";
 import ChatPanel from "../components/ChatPanel";
 import EmergencyContactCard from "../components/EmergencyContactCard";
 import SOSButton from "../components/SOSButton";
+import GasJobsPanel from "../components/GasJobsPanel";
 import { useUnreadMessages } from "../hooks/useUnreadMessages";
 
 // 'in_transit' branches two ways depending on whether this delivery has a
@@ -91,6 +92,7 @@ export default function AgentDashboard() {
   // with location permission granted IS being online. Bike/self agents
   // just don't run this at all yet.
   const isLiveRideCandidate = isApproved && agentProfile?.vehicle_type === "cab";
+  const isGasAgent = agentProfile?.vehicle_type === "gas";
   useLiveLocation(token, isLiveRideCandidate);
 
   // Rides phase 2: while this agent has a ride actively accepted/in
@@ -320,6 +322,8 @@ export default function AgentDashboard() {
             takes a short while — check back soon.
           </p>
         </div>
+      ) : isGasAgent ? (
+        <GasJobsPanel token={token} />
       ) : (
         <>
           {/* Deliveries vs Rides — only cab agents get a Rides section at all */}

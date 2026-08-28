@@ -106,6 +106,19 @@ export const api = {
   adminActiveSOS: (token) => request("/sos/admin/active", { token }),
   resolveSOS: (token, id) => request(`/sos/admin/${id}/resolve`, { method: "PATCH", token }),
 
+  // Gas orders
+  gasCylinderSizes: (token) => request("/gas/cylinder-sizes", { token }),
+  gasEstimate: (token, cylinder_size_kg) => request("/gas/estimate", { method: "POST", body: { cylinder_size_kg }, token }),
+  createGasOrder: (token, payload) => request("/gas", { method: "POST", body: payload, token }),
+  myGasOrders: (token) => request("/gas/mine", { token }),
+  cancelGasOrder: (token, id) => request(`/gas/${id}/cancel`, { method: "PATCH", token }),
+  verifyGasPayment: (token, reference) => request(`/gas/verify/${reference}`, { token }),
+  availableGasOrders: (token) => request("/gas/available", { token }),
+  assignedGasOrders: (token) => request("/gas/assigned", { token }),
+  acceptGasOrder: (token, id) => request(`/gas/${id}/accept`, { method: "POST", token }),
+  agentCancelGasOrder: (token, id) => request(`/gas/${id}/agent-cancel`, { method: "PATCH", token }),
+  advanceGasOrder: (token, id, payload) => request(`/gas/${id}/advance`, { method: "PATCH", body: payload, token }),
+
   listApiKeys: (token) => request("/keys", { token }),
   createApiKey: (token, label) => request("/keys", { method: "POST", body: { label }, token }),
   revokeApiKey: (token, id) => request(`/keys/${id}`, { method: "DELETE", token }),

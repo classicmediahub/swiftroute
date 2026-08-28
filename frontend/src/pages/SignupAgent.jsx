@@ -12,6 +12,7 @@ const VEHICLES = [
   { value: "self", label: "Self", detail: "On foot, local errands" },
   { value: "bike", label: "Bike", detail: "Dispatch rider" },
   { value: "cab", label: "Cab", detail: "Car / bulkier loads" },
+  { value: "gas", label: "Gas", detail: "Cooking gas refills" },
 ];
 
 const CITIES = ["Lagos", "Ota", "Ogun", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City"];
@@ -57,7 +58,7 @@ export default function SignupAgent() {
     setForm((f) => ({ ...f, profile_photo: null, liveness_challenge: null, liveness_samples: null }));
   }
 
-  const needsVehicleDetails = form.vehicle_type === "bike" || form.vehicle_type === "cab";
+  const needsVehicleDetails = form.vehicle_type === "bike" || form.vehicle_type === "cab" || form.vehicle_type === "gas";
   const identityComplete = Boolean(form.profile_photo && form.liveness_challenge && form.liveness_samples);
 
   // Per-step validation lives here, next to the step definitions, rather
@@ -78,7 +79,7 @@ export default function SignupAgent() {
     }
     if (index === 2) {
       if (needsVehicleDetails) {
-        if (!form.vehicle_make.trim()) return `Enter your ${form.vehicle_type === "cab" ? "car" : "bike"} make/model.`;
+        if (!form.vehicle_make.trim()) return `Enter your ${form.vehicle_type === "cab" ? "car" : form.vehicle_type === "gas" ? "delivery vehicle" : "bike"} make/model.`;
         if (!form.vehicle_plate.trim()) return "Enter your plate number.";
         if (!form.license_number.trim()) return "Enter your license/permit number.";
       }
@@ -206,7 +207,7 @@ export default function SignupAgent() {
         {wizard.currentIndex === 2 && (
           <div>
             <span className="block text-sm font-medium text-ink dark:text-paper mb-1.5">Vehicle type</span>
-            <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
               {VEHICLES.map((v) => (
                 <button
                   type="button"
@@ -226,8 +227,8 @@ export default function SignupAgent() {
 
             {needsVehicleDetails && (
               <div className="grid sm:grid-cols-2 gap-x-4">
-                <Field label={form.vehicle_type === "cab" ? "Car make/model" : "Bike make/model"}>
-                  <input className={inputClass} value={form.vehicle_make} onChange={(e) => update("vehicle_make", e.target.value)} placeholder={form.vehicle_type === "cab" ? "Toyota Corolla" : "Honda CB125"} />
+                <Field label={form.vehicle_type === "cab" ? "Car make/model" : form.vehicle_type === "gas" ? "Delivery vehicle make/model" : "Bike make/model"}>
+                  <input className={inputClass} value={form.vehicle_make} onChange={(e) => update("vehicle_make", e.target.value)} placeholder={form.vehicle_type === "cab" ? "Toyota Corolla" : form.vehicle_type === "gas" ? "Honda CB125 / tricycle" : "Honda CB125"} />
                 </Field>
                 <Field label="Plate number">
                   <input className={inputClass} value={form.vehicle_plate} onChange={(e) => update("vehicle_plate", e.target.value)} placeholder="LND-123XY" />

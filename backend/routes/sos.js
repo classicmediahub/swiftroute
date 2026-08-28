@@ -17,7 +17,7 @@ function mapsLink(lat, lng) {
 // admin-can-read-but-not-send distinction messages.js has; SOS has no
 // admin-triggers-an-alert case at all.
 async function loadTripParticipant(tripType, tripId, user) {
-  const table = tripType === "ride" ? "rides" : "deliveries";
+  const table = tripType === "ride" ? "rides" : tripType === "gas" ? "gas_orders" : "deliveries";
   const { rows } = await pool.query(`SELECT id, customer_id, agent_id FROM ${table} WHERE id = $1`, [tripId]);
   const trip = rows[0];
   if (!trip) return { trip: null, role: null };
@@ -61,7 +61,7 @@ router.put("/emergency-contact", requireAuth, async (req, res) => {
 router.post("/", requireAuth, async (req, res) => {
   try {
     const { trip_type, trip_id, lat, lng } = req.body;
-    if (trip_type !== "ride" && trip_type !== "delivery") {
+    if (trip_type !== "ride" && trip_type !== "delivery" && trip_type !== "gas") {
       return res.status(400).json({ error: "Invalid trip type" });
     }
 
@@ -113,7 +113,7 @@ async function notifyOfAlert(alert, triggeringUser) {
 
   const link = mapsLink(alert.lat, alert.lng);
   const locationLine = link ? `Location: ${link}` : "Location: not available";
-  const tripLabel = alert.trip_type === "ride" ? "ride" : "delivery";
+  const tripLabel = alert.trip_type === "ride" ? "ride" : alert.trip_type === "gas" ? "gas order" : "delivery";
 
   const tasks = [];
 

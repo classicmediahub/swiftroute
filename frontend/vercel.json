@@ -7,6 +7,8 @@
     { "source": "/payment/callback", "destination": "/" },
     { "source": "/wallet/callback", "destination": "/" },
     { "source": "/rides", "destination": "/" },
-    { "source": "/ride/payment/callback", "destination": "/" }
+    { "source": "/ride/payment/callback", "destination": "/" },
+    { "source": "/gas", "destination": "/" },
+    { "source": "/gas/payment/callback", "destination": "/" }
   ]
 }

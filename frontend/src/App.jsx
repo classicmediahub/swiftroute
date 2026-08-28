@@ -15,6 +15,8 @@ import PaymentCallback from "./pages/PaymentCallback";
 import WalletCallback from "./pages/WalletCallback";
 import RequestRide from "./pages/RequestRide";
 import RideCallback from "./pages/RideCallback";
+import RequestGas from "./pages/RequestGas";
+import GasCallback from "./pages/GasCallback";
 import TrackPublic from "./pages/TrackPublic";
 import RedeemLocker from "./pages/RedeemLocker";
 import About from "./pages/About";
@@ -98,6 +100,22 @@ const routes = [
         element: (
           <ProtectedRoute role="customer">
             <RideCallback />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "gas",
+        element: (
+          <ProtectedRoute role="customer">
+            <RequestGas />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "gas/payment/callback",
+        element: (
+          <ProtectedRoute role="customer">
+            <GasCallback />
           </ProtectedRoute>
         ),
       },

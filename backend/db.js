@@ -607,7 +607,7 @@ async function initSchema() {
   await pool.query(`ALTER TABLE wallet_transactions DROP CONSTRAINT IF EXISTS wallet_transactions_type_check;`);
   await pool.query(`
     ALTER TABLE wallet_transactions ADD CONSTRAINT wallet_transactions_type_check
-    CHECK (type IN ('topup','delivery_payment','ride_payment','refund','streak_reward','referral_reward','landmark_reward','withdrawal','withdrawal_refund'));
+    CHECK (type IN ('topup','delivery_payment','ride_payment','gas_payment','refund','streak_reward','referral_reward','landmark_reward','withdrawal','withdrawal_refund'));
   `);
 
   // --- In-app chat between customer and agent, for a specific ride or
@@ -658,6 +658,67 @@ async function initSchema() {
     );
   `);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_sos_alerts_status ON sos_alerts (status, created_at);`);
+
+  // --- GAS FILLING — a fourth job type alongside deliveries/rides.
+  // Deliberately its OWN agent specialty: vehicle_type gets a 'gas' value
+  // (an agent picks exactly one type at signup, same as self/bike/cab —
+  // see SignupAgent.jsx), rather than any agent being eligible. Handling
+  // and transporting LPG isn't the same skill/equipment as a delivery
+  // bike or a passenger cab, so mixing them into the same pool would let
+  // an unequipped agent accept a job they can't actually do.
+  await pool.query(`ALTER TABLE agent_profiles DROP CONSTRAINT IF EXISTS agent_profiles_vehicle_type_check;`);
+  await pool.query(`
+    ALTER TABLE agent_profiles ADD CONSTRAINT agent_profiles_vehicle_type_check
+    CHECK (vehicle_type IN ('self','bike','cab','gas'));
+  `);
+
+  // One address, not pickup+dropoff — this is a house-call service, not a
+  // point-to-point trip. price_per_kg is snapshotted onto the order
+  // (rather than only living in a config constant) so a later change to
+  // the rate never silently changes what an already-placed order costs.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS gas_orders (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT NOT NULL REFERENCES users(id),
+      agent_id TEXT REFERENCES users(id),
+      address TEXT NOT NULL,
+      address_lat REAL,
+      address_lng REAL,
+      landmark TEXT,
+      contact_phone TEXT NOT NULL,
+      cylinder_size_kg REAL NOT NULL,
+      price_per_kg REAL NOT NULL,
+      price REAL NOT NULL,
+      note TEXT,
+      tracking_code TEXT NOT NULL UNIQUE,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','en_route','filling','completed','cancelled')),
+      payment_status TEXT NOT NULL DEFAULT 'unpaid',
+      payment_method TEXT,
+      paystack_reference TEXT,
+      proof_photo TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      accepted_at TIMESTAMPTZ,
+      completed_at TIMESTAMPTZ,
+      cancelled_at TIMESTAMPTZ
+    );
+  `);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS gas_orders_paystack_reference_idx
+    ON gas_orders(paystack_reference) WHERE paystack_reference IS NOT NULL;
+  `);
+
+  // Chat and SOS both key off trip_type — extending both CHECK
+  // constraints here so a gas order is a full first-class trip for
+  // safety/coordination purposes, same as a ride or delivery. This
+  // matters MORE for gas than for a delivery, arguably: an agent is
+  // physically entering someone's home, not dropping a package at the
+  // door.
+  await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS total_gas_jobs INTEGER NOT NULL DEFAULT 0;`);
+
+  await pool.query(`ALTER TABLE trip_messages DROP CONSTRAINT IF EXISTS trip_messages_trip_type_check;`);
+  await pool.query(`ALTER TABLE trip_messages ADD CONSTRAINT trip_messages_trip_type_check CHECK (trip_type IN ('ride','delivery','gas'));`);
+  await pool.query(`ALTER TABLE sos_alerts DROP CONSTRAINT IF EXISTS sos_alerts_trip_type_check;`);
+  await pool.query(`ALTER TABLE sos_alerts ADD CONSTRAINT sos_alerts_trip_type_check CHECK (trip_type IN ('ride','delivery','gas'));`);
 }
 
 module.exports = { pool, initSchema };
