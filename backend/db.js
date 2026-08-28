@@ -682,12 +682,16 @@ async function initSchema() {
       customer_id TEXT NOT NULL REFERENCES users(id),
       agent_id TEXT REFERENCES users(id),
       address TEXT NOT NULL,
+      city TEXT NOT NULL,
       address_lat REAL,
       address_lng REAL,
       landmark TEXT,
       contact_phone TEXT NOT NULL,
       cylinder_size_kg REAL NOT NULL,
       price_per_kg REAL NOT NULL,
+      gas_cost REAL NOT NULL,
+      transport_fee REAL NOT NULL,
+      distance_km REAL,
       price REAL NOT NULL,
       note TEXT,
       tracking_code TEXT NOT NULL UNIQUE,
@@ -702,6 +706,13 @@ async function initSchema() {
       cancelled_at TIMESTAMPTZ
     );
   `);
+  // Additive columns for deployments where gas_orders already existed
+  // from before this pricing rework — CREATE TABLE above only applies on
+  // a truly first run.
+  await pool.query(`ALTER TABLE gas_orders ADD COLUMN IF NOT EXISTS city TEXT NOT NULL DEFAULT '';`);
+  await pool.query(`ALTER TABLE gas_orders ADD COLUMN IF NOT EXISTS gas_cost REAL NOT NULL DEFAULT 0;`);
+  await pool.query(`ALTER TABLE gas_orders ADD COLUMN IF NOT EXISTS transport_fee REAL NOT NULL DEFAULT 0;`);
+  await pool.query(`ALTER TABLE gas_orders ADD COLUMN IF NOT EXISTS distance_km REAL;`);
   await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS gas_orders_paystack_reference_idx
     ON gas_orders(paystack_reference) WHERE paystack_reference IS NOT NULL;

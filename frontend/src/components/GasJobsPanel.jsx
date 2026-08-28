@@ -133,9 +133,15 @@ export default function GasJobsPanel({ token }) {
                     <div className="font-mono text-xs text-slate dark:text-slate-light mb-1">{o.tracking_code}</div>
                     <div className="font-display font-semibold text-ink dark:text-paper">{o.cylinder_size_kg}kg refill · ₦{o.price.toLocaleString()}</div>
                   </div>
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-route/20 text-route-dark">₦{(o.price * 0.8).toLocaleString()} for you</span>
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-route/20 text-route-dark">
+                    ₦{(o.gas_cost + o.transport_fee * 0.8).toLocaleString()} for you
+                  </span>
                 </div>
-                <div className="text-sm text-ink dark:text-paper mb-1">{o.address}{o.landmark && ` (${o.landmark})`}</div>
+                <div className="text-sm text-ink dark:text-paper mb-1">{o.address}{o.landmark && ` (${o.landmark})`}, {o.city}</div>
+                <div className="text-xs text-slate dark:text-slate-light mb-2">
+                  ₦{o.gas_cost.toLocaleString()} gas cost (reimbursed in full) + ₦{o.transport_fee.toLocaleString()} transport (you keep 80%)
+                  {o.distance_km != null && ` · ~${o.distance_km}km`}
+                </div>
                 {o.note && <div className="text-xs text-slate dark:text-slate-light mb-3">Note: {o.note}</div>}
                 <button
                   disabled={busyId === o.id}

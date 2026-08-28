@@ -9,6 +9,7 @@ import EmptyState from "../components/EmptyState";
 import { Flame, MessageCircle } from "lucide-react";
 
 const STAGE_ORDER = ["pending", "accepted", "en_route", "filling", "completed"];
+const CITIES = ["Lagos", "Ota", "Ogun", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City"];
 const STAGE_LABELS = {
   pending: "Order placed",
   accepted: "Agent assigned",
@@ -25,6 +26,7 @@ export default function RequestGas() {
 
   const [sizes, setSizes] = useState([]);
   const [cylinderSize, setCylinderSize] = useState(null);
+  const [city, setCity] = useState(CITIES[0]);
   const [address, setAddress] = useState("");
   const [landmark, setLandmark] = useState("");
   const [contactPhone, setContactPhone] = useState("");
@@ -73,13 +75,16 @@ export default function RequestGas() {
   }, [tab, hasActiveOrder, loadOrders]);
 
   useEffect(() => {
-    if (!cylinderSize) return;
+    if (!cylinderSize || !city) return;
     setEstimating(true);
     const t = setTimeout(() => {
-      api.gasEstimate(token, cylinderSize).then(setQuote).catch(() => setQuote(null)).finally(() => setEstimating(false));
-    }, 200);
+      api.gasEstimate(token, { city, address, cylinder_size_kg: cylinderSize })
+        .then(setQuote)
+        .catch(() => setQuote(null))
+        .finally(() => setEstimating(false));
+    }, 500);
     return () => clearTimeout(t);
-  }, [cylinderSize, token]);
+  }, [cylinderSize, city, address, token]);
 
   async function handleRequest(payment_method) {
     if (!address.trim() || !contactPhone.trim()) {
@@ -94,7 +99,7 @@ export default function RequestGas() {
     setRequesting(true);
     try {
       const data = await api.createGasOrder(token, {
-        address, landmark, contact_phone: contactPhone, cylinder_size_kg: cylinderSize, note, payment_method,
+        address, city, landmark, contact_phone: contactPhone, cylinder_size_kg: cylinderSize, note, payment_method,
       });
       if (data.authorization_url) {
         window.location.href = data.authorization_url;
@@ -159,6 +164,16 @@ export default function RequestGas() {
           </div>
 
           <div className="mb-4">
+            <label className="block text-sm font-medium text-ink dark:text-paper mb-1.5">City</label>
+            <select
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              className="w-full border border-slate-300 dark:border-line rounded-lg px-3.5 py-2.5 text-sm bg-white dark:bg-ink outline-none"
+            >
+              {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div className="mb-4">
             <label className="block text-sm font-medium text-ink dark:text-paper mb-1.5">Your address</label>
             <input
               value={address}
@@ -198,17 +213,24 @@ export default function RequestGas() {
           {quote && (
             <div className="border border-slate-200 dark:border-line rounded-xl p-4 mb-4 bg-paper dark:bg-white/5">
               <div className="flex items-center justify-between text-sm mb-1">
-                <span className="text-slate dark:text-slate-light">{cylinderSize}kg × ₦{quote.pricePerKg.toLocaleString()}/kg</span>
-                <span className="font-mono text-ink dark:text-paper">₦{(cylinderSize * quote.pricePerKg).toLocaleString()}</span>
+                <span className="text-slate dark:text-slate-light">{cylinderSize}kg gas · ₦{quote.pricePerKg.toLocaleString()}/kg</span>
+                <span className="font-mono text-ink dark:text-paper">₦{quote.gasCost.toLocaleString()}</span>
               </div>
               <div className="flex items-center justify-between text-sm mb-2">
-                <span className="text-slate dark:text-slate-light">Callout fee</span>
-                <span className="font-mono text-ink dark:text-paper">₦{quote.calloutFee.toLocaleString()}</span>
+                <span className="text-slate dark:text-slate-light">
+                  Transportation{quote.distanceKm != null && ` · ${quote.distanceKm}km`}
+                </span>
+                <span className="font-mono text-ink dark:text-paper">₦{quote.transportFee.toLocaleString()}</span>
               </div>
               <div className="flex items-center justify-between text-base font-semibold border-t border-slate-200 dark:border-line pt-2">
                 <span className="text-ink dark:text-paper">Total</span>
                 <span className="font-mono text-ink dark:text-paper">₦{quote.price.toLocaleString()}</span>
               </div>
+              {quote.usedFallbackDistance && (
+                <p className="text-[11px] text-slate dark:text-slate-light mt-2">
+                  Estimated — enter a more specific address for an exact transport fee.
+                </p>
+              )}
             </div>
           )}
 

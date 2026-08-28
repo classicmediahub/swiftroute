@@ -108,7 +108,7 @@ export const api = {
 
   // Gas orders
   gasCylinderSizes: (token) => request("/gas/cylinder-sizes", { token }),
-  gasEstimate: (token, cylinder_size_kg) => request("/gas/estimate", { method: "POST", body: { cylinder_size_kg }, token }),
+  gasEstimate: (token, payload) => request("/gas/estimate", { method: "POST", body: payload, token }),
   createGasOrder: (token, payload) => request("/gas", { method: "POST", body: payload, token }),
   myGasOrders: (token) => request("/gas/mine", { token }),
   cancelGasOrder: (token, id) => request(`/gas/${id}/cancel`, { method: "PATCH", token }),

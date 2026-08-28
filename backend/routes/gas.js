@@ -2,7 +2,8 @@ const express = require("express");
 const { v4: uuidv4 } = require("uuid");
 const { pool } = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
-const { priceForGasOrder, STANDARD_CYLINDER_SIZES_KG } = require("../gas-pricing");
+const { getGasQuote } = require("../gas-quote");
+const { STANDARD_CYLINDER_SIZES_KG } = require("../gas-pricing");
 const { initializeTransaction, verifyTransaction } = require("../paystack");
 const { trackingCode } = require("../pricing");
 const { checkReferralReward } = require("../referrals");
@@ -45,7 +46,10 @@ async function requireApprovedGasAgent(req, res) {
 // ---------- ESTIMATE (customer) ----------
 router.post("/estimate", requireAuth, async (req, res) => {
   try {
-    const quote = priceForGasOrder(req.body.cylinder_size_kg);
+    const { city, address, address_lat, address_lng, cylinder_size_kg } = req.body;
+    if (!city) return res.status(400).json({ error: "City is required for an estimate" });
+    const address_coords = address_lat != null && address_lng != null ? { lat: address_lat, lng: address_lng } : null;
+    const quote = await getGasQuote({ city, address, address_coords, cylinder_size_kg });
     res.json(quote);
   } catch (err) {
     res.status(400).json({ error: "Enter a valid cylinder size" });
@@ -62,9 +66,9 @@ router.get("/cylinder-sizes", requireAuth, (req, res) => {
 // after the job. ----------
 router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
   try {
-    const { address, address_lat, address_lng, landmark, contact_phone, cylinder_size_kg, note, payment_method } = req.body;
-    if (!address || !contact_phone) {
-      return res.status(400).json({ error: "Address and a contact phone number are required" });
+    const { address, city, address_lat, address_lng, landmark, contact_phone, cylinder_size_kg, note, payment_method } = req.body;
+    if (!address || !city || !contact_phone) {
+      return res.status(400).json({ error: "Address, city, and a contact phone number are required" });
     }
     if (payment_method !== "wallet" && payment_method !== "paystack") {
       return res.status(400).json({ error: "Choose a payment method" });
@@ -72,10 +76,17 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
 
     let quote;
     try {
-      quote = priceForGasOrder(cylinder_size_kg);
+      const address_coords = address_lat != null && address_lng != null ? { lat: address_lat, lng: address_lng } : null;
+      quote = await getGasQuote({ city, address, address_coords, cylinder_size_kg });
     } catch {
       return res.status(400).json({ error: "Enter a valid cylinder size" });
     }
+    // getGasQuote's destination is the best coordinate we have for this
+    // order (either the customer-confirmed pin, or what geocoding
+    // resolved) — stored so the agent's map/notes have something useful
+    // even though the customer only typed a free-text address.
+    const resolvedLat = quote.destination?.lat ?? address_lat ?? null;
+    const resolvedLng = quote.destination?.lng ?? address_lng ?? null;
 
     const id = uuidv4();
     const code = trackingCode();
@@ -95,11 +106,11 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
 
         await client.query(
           `INSERT INTO gas_orders (
-            id, customer_id, address, address_lat, address_lng, landmark, contact_phone,
-            cylinder_size_kg, price_per_kg, price, note, tracking_code, payment_status, payment_method
-          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'paid','wallet')`,
-          [id, req.user.id, address, address_lat ?? null, address_lng ?? null, landmark ?? null, contact_phone,
-           quote.cylinderSizeKg, quote.pricePerKg, quote.price, note ?? null, code]
+            id, customer_id, address, city, address_lat, address_lng, landmark, contact_phone,
+            cylinder_size_kg, price_per_kg, gas_cost, transport_fee, distance_km, price, note, tracking_code, payment_status, payment_method
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'paid','wallet')`,
+          [id, req.user.id, address, city, resolvedLat, resolvedLng, landmark ?? null, contact_phone,
+           quote.cylinderSizeKg, quote.pricePerKg, quote.gasCost, quote.transportFee, quote.distanceKm, quote.price, note ?? null, code]
         );
 
         const newBalance = balance - quote.price;
@@ -126,11 +137,11 @@ router.post("/", requireAuth, requireRole("customer"), async (req, res) => {
     const reference = paymentReference();
     await pool.query(
       `INSERT INTO gas_orders (
-        id, customer_id, address, address_lat, address_lng, landmark, contact_phone,
-        cylinder_size_kg, price_per_kg, price, note, tracking_code, payment_status, payment_method, paystack_reference
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'unpaid','paystack',$13)`,
-      [id, req.user.id, address, address_lat ?? null, address_lng ?? null, landmark ?? null, contact_phone,
-       quote.cylinderSizeKg, quote.pricePerKg, quote.price, note ?? null, code, reference]
+        id, customer_id, address, city, address_lat, address_lng, landmark, contact_phone,
+        cylinder_size_kg, price_per_kg, gas_cost, transport_fee, distance_km, price, note, tracking_code, payment_status, payment_method, paystack_reference
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'unpaid','paystack',$17)`,
+      [id, req.user.id, address, city, resolvedLat, resolvedLng, landmark ?? null, contact_phone,
+       quote.cylinderSizeKg, quote.pricePerKg, quote.gasCost, quote.transportFee, quote.distanceKm, quote.price, note ?? null, code, reference]
     );
 
     const paystackData = await initializeTransaction({
@@ -320,9 +331,16 @@ router.patch("/:id/advance", requireAuth, requireRole("agent"), async (req, res)
         "UPDATE gas_orders SET status = 'completed', completed_at = now(), proof_photo = COALESCE($1, proof_photo) WHERE id = $2",
         [proof_photo ?? null, order.id]
       );
+      // Agent keeps the FULL gas cost — they bought and carried that gas
+      // themselves, so this is reimbursement, not earnings — plus 80% of
+      // the transport fee, which is the actual service/labor portion
+      // (matching the 80/20 split used everywhere else in the app). See
+      // the note at the top of gas-pricing.js for why these two portions
+      // are treated differently.
+      const agentPayout = Number(order.gas_cost) + Number(order.transport_fee) * 0.8;
       await pool.query(
         `UPDATE agent_profiles SET wallet_balance = wallet_balance + $1, total_gas_jobs = total_gas_jobs + 1 WHERE user_id = $2`,
-        [order.price * 0.8, req.user.id]
+        [agentPayout, req.user.id]
       );
       await checkReferralReward(req.user.id, "agent").catch(() => {});
       await checkReferralReward(order.customer_id, "customer").catch(() => {});
