@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import StatusBadge from "../components/StatusBadge";
-import { Users, UserCheck, Package, Car, Lock, Landmark, AlertTriangle } from "lucide-react";
+import { Users, UserCheck, Package, Car, Lock, Landmark, AlertTriangle, Store } from "lucide-react";
 import { SkeletonStatGrid, SkeletonTable } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
 import CountUp from "../components/CountUp";
@@ -16,6 +16,7 @@ const SIDEBAR_ITEMS = [
   { key: "rides", label: "Rides", icon: Car },
   { key: "lockers", label: "Lockers", icon: Lock },
   { key: "withdrawals", label: "Withdrawals", icon: Landmark },
+  { key: "outlets", label: "Outlets", icon: Store },
   { key: "sos", label: "SOS Alerts", icon: AlertTriangle },
 ];
 
@@ -75,6 +76,7 @@ export default function AdminDashboard() {
   const [rides, setRides] = useState([]);
   const [lockers, setLockers] = useState([]);
   const [withdrawals, setWithdrawals] = useState([]);
+  const [outlets, setOutlets] = useState([]);
   const [sosAlerts, setSosAlerts] = useState([]);
   const [institutions, setInstitutions] = useState([]);
   const [busyId, setBusyId] = useState(null);
@@ -90,11 +92,11 @@ export default function AdminDashboard() {
 
   const loadAll = useCallback(async () => {
     try {
-      const [s, a, c, d, r, l, i, w, sos] = await Promise.all([
+      const [s, a, c, d, r, l, i, w, sos, o] = await Promise.all([
         api.adminStats(token), api.adminAgents(token), api.adminCustomers(token), api.adminDeliveries(token), api.adminRides(token),
-        api.adminLockers(token), api.listInstitutions(token), api.adminPendingWithdrawals(token), api.adminActiveSOS(token),
+        api.adminLockers(token), api.listInstitutions(token), api.adminPendingWithdrawals(token), api.adminActiveSOS(token), api.adminPendingOutlets(token),
       ]);
-      setStats(s); setAgents(a); setCustomers(c); setDeliveries(d); setRides(r); setLockers(l); setInstitutions(i); setWithdrawals(w); setSosAlerts(sos);
+      setStats(s); setAgents(a); setCustomers(c); setDeliveries(d); setRides(r); setLockers(l); setInstitutions(i); setWithdrawals(w); setSosAlerts(sos); setOutlets(o);
     } finally {
       setLoading(false);
     }
@@ -210,6 +212,31 @@ export default function AdminDashboard() {
     }
   }
 
+  async function handleApproveOutlet(id) {
+    setBusyId(id);
+    try {
+      await api.approveOutlet(token, id);
+      await loadAll();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleRejectOutlet(id) {
+    if (!confirm("Reject this outlet's application? They'll stay unable to receive orders.")) return;
+    setBusyId(id);
+    try {
+      await api.rejectOutlet(token, id);
+      await loadAll();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col md:flex-row min-h-screen">
@@ -265,7 +292,7 @@ export default function AdminDashboard() {
         <nav className="flex md:flex-col overflow-x-auto md:overflow-visible px-3 md:px-3 py-3 md:py-0 gap-1">
           {SIDEBAR_ITEMS.map(({ key, label, icon: Icon }) => {
             const active = tab === key;
-            const count = { agents, customers, deliveries, rides, lockers, withdrawals, sos: sosAlerts }[key].length;
+            const count = { agents, customers, deliveries, rides, lockers, withdrawals, outlets, sos: sosAlerts }[key].length;
             const isSosWithAlerts = key === "sos" && count > 0;
             return (
               <button
@@ -678,6 +705,44 @@ export default function AdminDashboard() {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+      {tab === "outlets" && (
+        <div className="space-y-4">
+          {outlets.map((o) => (
+            <div key={o.user_id} className="border border-slate-200 dark:border-line rounded-2xl p-5 bg-white dark:bg-ink-soft">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="flex items-start gap-3">
+                  {o.logo_photo ? (
+                    <img src={o.logo_photo} alt={o.business_name} className="w-12 h-12 rounded-xl object-cover border border-slate-200 dark:border-line shrink-0" />
+                  ) : (
+                    <div className="w-12 h-12 rounded-xl bg-ink dark:bg-paper text-paper dark:text-ink flex items-center justify-center shrink-0">
+                      <Store className="w-5 h-5" />
+                    </div>
+                  )}
+                  <div>
+                    <div className="font-display font-semibold text-ink dark:text-paper">{o.business_name}</div>
+                    <div className="text-xs text-slate dark:text-slate-light capitalize mb-1">{o.category} · {o.city}</div>
+                    <div className="text-sm text-ink dark:text-paper">{o.address}</div>
+                    {o.description && <div className="text-xs text-slate dark:text-slate-light mt-1">{o.description}</div>}
+                    <div className="text-xs text-slate dark:text-slate-light mt-2">
+                      Owner: {o.owner_name} · {o.email} · {o.owner_phone}
+                    </div>
+                    <div className="text-xs text-slate dark:text-slate-light">
+                      Hours: {o.open_time || "—"}–{o.close_time || "—"} · Applied {new Date(o.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2 flex-wrap shrink-0">
+                  <ActionBtn busy={busyId === o.user_id} onClick={() => handleApproveOutlet(o.user_id)} label="Approve" tone="positive" />
+                  <ActionBtn busy={busyId === o.user_id} onClick={() => handleRejectOutlet(o.user_id)} label="Reject" tone="negative" />
+                </div>
+              </div>
+            </div>
+          ))}
+          {outlets.length === 0 && (
+            <EmptyState icon={Store} title="No outlets awaiting review" description="New restaurant, eatery, and supermarket applications will show up here." />
+          )}
         </div>
       )}
       {tab === "sos" && (

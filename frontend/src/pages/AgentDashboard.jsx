@@ -22,6 +22,7 @@ import ChatPanel from "../components/ChatPanel";
 import EmergencyContactCard from "../components/EmergencyContactCard";
 import SOSButton from "../components/SOSButton";
 import GasJobsPanel from "../components/GasJobsPanel";
+import FoodJobsPanel from "../components/FoodJobsPanel";
 import { useUnreadMessages } from "../hooks/useUnreadMessages";
 
 // 'in_transit' branches two ways depending on whether this delivery has a
@@ -92,6 +93,7 @@ export default function AgentDashboard() {
   // with location permission granted IS being online. Bike/self agents
   // just don't run this at all yet.
   const isLiveRideCandidate = isApproved && agentProfile?.vehicle_type === "cab";
+  const isFoodCandidate = isApproved && ["bike", "self"].includes(agentProfile?.vehicle_type);
   const isGasAgent = agentProfile?.vehicle_type === "gas";
   useLiveLocation(token, isLiveRideCandidate);
 
@@ -326,15 +328,26 @@ export default function AgentDashboard() {
         <GasJobsPanel token={token} />
       ) : (
         <>
-          {/* Deliveries vs Rides — only cab agents get a Rides section at all */}
-          {isLiveRideCandidate && (
+          {/* Deliveries vs Rides vs Food — Rides only for cab agents, Food
+              only for bike/self agents (see decision to reuse the
+              delivery agent pool rather than a dedicated food agent
+              type). A cab agent never sees Food; a bike/self agent
+              never sees Rides. */}
+          {(isLiveRideCandidate || isFoodCandidate) && (
             <div className="flex gap-2 mb-4">
               <SectionButton active={section === "deliveries"} onClick={() => setSection("deliveries")}>
                 Deliveries
               </SectionButton>
-              <SectionButton active={section === "rides"} onClick={() => setSection("rides")}>
-                Rides ({availableRides.length})
-              </SectionButton>
+              {isLiveRideCandidate && (
+                <SectionButton active={section === "rides"} onClick={() => setSection("rides")}>
+                  Rides ({availableRides.length})
+                </SectionButton>
+              )}
+              {isFoodCandidate && (
+                <SectionButton active={section === "food"} onClick={() => setSection("food")}>
+                  Food
+                </SectionButton>
+              )}
             </div>
           )}
 
@@ -534,7 +547,7 @@ export default function AgentDashboard() {
                 </div>
               )}
             </>
-          ) : (
+          ) : section === "rides" ? (
             <>
               <div className="flex gap-2 mb-6 border-b border-slate-200 dark:border-line">
                 <TabButton active={rideTab === "available"} onClick={() => setRideTab("available")}>
@@ -665,6 +678,8 @@ export default function AgentDashboard() {
                 </div>
               )}
             </>
+          ) : (
+            <FoodJobsPanel token={token} />
           )}
         </>
       )}

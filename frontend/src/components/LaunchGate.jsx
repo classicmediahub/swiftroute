@@ -54,13 +54,14 @@ export default function LaunchGate({ children }) {
       return;
     }
 
-    // AGENT-ONLY SOFT LAUNCH: /signup (the role-choice screen) and
-    // /signup/agent stay reachable so agents can register over the
-    // weekend ahead of Monday's public launch — every other route,
-    // including /signup/customer and /signup/admin, stays gated exactly
-    // as before. Remove this block once the full site opens (or just let
-    // VITE_LAUNCH_DATE flip `unlocked` for everyone automatically).
-    if (location.pathname === "/signup" || location.pathname === "/signup/agent") {
+    // AGENT + OUTLET SOFT LAUNCH: /signup (the role-choice screen),
+    // /signup/agent, and /signup/outlet stay reachable so both agents and
+    // restaurant/shop partners can register before the full public
+    // launch — every other route, including /signup/customer and
+    // /signup/admin, stays gated exactly as before. Remove this block
+    // once the full site opens (or just let VITE_LAUNCH_DATE flip
+    // `unlocked` for everyone automatically).
+    if (["/signup", "/signup/agent", "/signup/outlet"].includes(location.pathname)) {
       setUnlocked(true);
       return;
     }
