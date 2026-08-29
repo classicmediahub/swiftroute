@@ -248,6 +248,73 @@ router.post("/signup/admin", async (req, res) => {
   }
 });
 
+// ---------- OUTLET SIGNUP — self-registers like an agent, but with none
+// of the liveness/NIN identity checks (this verifies a BUSINESS, not a
+// person physically presenting for work) and starts in the SAME kind of
+// 'pending' approval gate as agent_profiles — see outlet_profiles in
+// db.js. An outlet never appears in public browsing or can receive
+// orders until an admin approves them (routes/outlets.js's /admin/*
+// endpoints). ----------
+router.post("/signup/outlet", async (req, res) => {
+  try {
+    const {
+      full_name, email, phone, password,
+      business_name, category, description, address, city, open_time, close_time,
+      logo_photo, referral_code,
+    } = req.body;
+
+    if (!full_name || !email || !phone || !password || !business_name || !category || !address || !city) {
+      return res.status(400).json({ error: "All required fields must be filled" });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters" });
+    }
+    if (!["restaurant", "eatery", "supermarket", "pharmacy", "other"].includes(category)) {
+      return res.status(400).json({ error: "Invalid business category" });
+    }
+
+    const existing = await pool.query("SELECT id FROM users WHERE email = $1", [email.toLowerCase()]);
+    if (existing.rows.length) return res.status(409).json({ error: "An account with this email already exists" });
+
+    const id = uuidv4();
+    const hash = bcrypt.hashSync(password, 10);
+
+    let insertedRow = false;
+    for (let attempt = 0; attempt < 5 && !insertedRow; attempt++) {
+      const code = generateReferralCode();
+      try {
+        await pool.query(
+          `INSERT INTO users (id, role, full_name, email, phone, password_hash, referral_code)
+           VALUES ($1, 'outlet', $2, $3, $4, $5, $6)`,
+          [id, full_name, email.toLowerCase(), phone, hash, code]
+        );
+        insertedRow = true;
+      } catch (err) {
+        if (err.code === "23505" && attempt < 4) continue;
+        throw err;
+      }
+    }
+
+    await pool.query(
+      `INSERT INTO outlet_profiles (user_id, business_name, category, description, address, city, open_time, close_time, logo_photo)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [id, business_name, category, description || null, address, city, open_time || null, close_time || null, logo_photo || null]
+    );
+    await attachReferrer(id, referral_code); // metadata only for now — see routes/food.js, referral REWARDS are only paid on customer/agent roles today
+
+    const { rows: userRows } = await pool.query("SELECT * FROM users WHERE id = $1", [id]);
+    const { rows: profileRows } = await pool.query("SELECT * FROM outlet_profiles WHERE user_id = $1", [id]);
+
+    const user = userRows[0];
+    sendVerificationEmail(user);
+    const token = signToken(user);
+    res.status(201).json({ token, user: publicUser(user), outlet_profile: profileRows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong creating your account" });
+  }
+});
+
 // ---------- LOGIN ---------- (unchanged — agents still get the two-step
 // password + Face++ selfie-match flow. See face.js top comment for why.)
 router.post("/login", async (req, res) => {
@@ -273,8 +340,14 @@ router.post("/login", async (req, res) => {
       return res.json({ require_face_verification: true, pending_token: pendingToken });
     }
 
+    let outlet_profile = null;
+    if (user.role === "outlet") {
+      const { rows: profileRows } = await pool.query("SELECT * FROM outlet_profiles WHERE user_id = $1", [user.id]);
+      outlet_profile = profileRows[0] || null;
+    }
+
     const token = signToken(user);
-    res.json({ token, user: publicUser(user), agent_profile: null });
+    res.json({ token, user: publicUser(user), agent_profile: null, outlet_profile });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong logging in" });
@@ -389,7 +462,12 @@ router.get("/me", async (req, res) => {
       const { rows: profileRows } = await pool.query("SELECT * FROM agent_profiles WHERE user_id = $1", [user.id]);
       agent_profile = profileRows[0] || null;
     }
-    res.json({ user: publicUser(user), agent_profile });
+    let outlet_profile = null;
+    if (user.role === "outlet") {
+      const { rows: profileRows } = await pool.query("SELECT * FROM outlet_profiles WHERE user_id = $1", [user.id]);
+      outlet_profile = profileRows[0] || null;
+    }
+    res.json({ user: publicUser(user), agent_profile, outlet_profile });
   } catch (err) {
     res.status(401).json({ error: "Invalid or expired token" });
   }

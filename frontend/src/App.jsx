@@ -8,6 +8,8 @@ import SignupChoice from "./pages/SignupChoice";
 import SignupCustomer from "./pages/SignupCustomer";
 import SignupAgent from "./pages/SignupAgent";
 import SignupAdmin from "./pages/SignupAdmin";
+import SignupOutlet from "./pages/SignupOutlet";
+import OutletDashboard from "./pages/OutletDashboard";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import AgentDashboard from "./pages/AgentDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -17,6 +19,9 @@ import RequestRide from "./pages/RequestRide";
 import RideCallback from "./pages/RideCallback";
 import RequestGas from "./pages/RequestGas";
 import GasCallback from "./pages/GasCallback";
+import FoodHome from "./pages/FoodHome";
+import OutletMenu from "./pages/OutletMenu";
+import FoodCallback from "./pages/FoodCallback";
 import TrackPublic from "./pages/TrackPublic";
 import RedeemLocker from "./pages/RedeemLocker";
 import About from "./pages/About";
@@ -52,6 +57,7 @@ const routes = [
       { path: "signup/customer", Component: SignupCustomer },
       { path: "signup/agent", Component: SignupAgent },
       { path: "signup/admin", Component: SignupAdmin },
+      { path: "signup/outlet", Component: SignupOutlet },
       { path: "track", Component: TrackPublic },
       { path: "redeem-locker", Component: RedeemLocker },
       { path: "about", Component: About },
@@ -120,6 +126,30 @@ const routes = [
         ),
       },
       {
+        path: "food",
+        element: (
+          <ProtectedRoute role="customer">
+            <FoodHome />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "food/payment/callback",
+        element: (
+          <ProtectedRoute role="customer">
+            <FoodCallback />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "food/:id",
+        element: (
+          <ProtectedRoute role="customer">
+            <OutletMenu />
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: "agent/dashboard",
         element: (
           <ProtectedRoute role="agent">
@@ -132,6 +162,14 @@ const routes = [
         element: (
           <ProtectedRoute role="admin">
             <AdminDashboard />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "outlet/dashboard",
+        element: (
+          <ProtectedRoute role="outlet">
+            <OutletDashboard />
           </ProtectedRoute>
         ),
       },

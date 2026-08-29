@@ -4,11 +4,15 @@
     { "source": "/customer/dashboard", "destination": "/" },
     { "source": "/agent/dashboard", "destination": "/" },
     { "source": "/admin/dashboard", "destination": "/" },
+    { "source": "/outlet/dashboard", "destination": "/" },
     { "source": "/payment/callback", "destination": "/" },
     { "source": "/wallet/callback", "destination": "/" },
     { "source": "/rides", "destination": "/" },
     { "source": "/ride/payment/callback", "destination": "/" },
     { "source": "/gas", "destination": "/" },
-    { "source": "/gas/payment/callback", "destination": "/" }
+    { "source": "/gas/payment/callback", "destination": "/" },
+    { "source": "/food", "destination": "/" },
+    { "source": "/food/payment/callback", "destination": "/" },
+    { "source": "/food/:id", "destination": "/" }
   ]
 }

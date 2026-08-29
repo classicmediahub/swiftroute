@@ -13,7 +13,7 @@ const MAX_MESSAGE_LENGTH = 1000;
 // exact same rule — a chat is only ever visible to the two people on it
 // (plus admins), never guessable by trip id alone.
 async function loadAuthorizedTrip(tripType, tripId, user) {
-  const table = tripType === "ride" ? "rides" : "deliveries";
+  const table = tripType === "ride" ? "rides" : tripType === "gas" ? "gas_orders" : tripType === "food" ? "food_orders" : "deliveries";
   const { rows } = await pool.query(`SELECT id, customer_id, agent_id, status FROM ${table} WHERE id = $1`, [tripId]);
   const trip = rows[0];
   if (!trip) return { trip: null, allowed: false, senderRole: null };
@@ -25,7 +25,7 @@ async function loadAuthorizedTrip(tripType, tripId, user) {
 }
 
 function validTripType(tripType) {
-  return tripType === "ride" || tripType === "delivery";
+  return tripType === "ride" || tripType === "delivery" || tripType === "gas" || tripType === "food";
 }
 
 // ---------- POLL MESSAGES ----------
@@ -124,6 +124,8 @@ router.get("/unread-count", requireAuth, async (req, res) => {
          WHERE m.sender_id != $1 AND m.read_at IS NULL AND (
            (m.trip_type = 'ride' AND m.trip_id IN (SELECT id::text FROM rides WHERE customer_id = $1))
            OR (m.trip_type = 'delivery' AND m.trip_id IN (SELECT id::text FROM deliveries WHERE customer_id = $1))
+           OR (m.trip_type = 'gas' AND m.trip_id IN (SELECT id::text FROM gas_orders WHERE customer_id = $1))
+           OR (m.trip_type = 'food' AND m.trip_id IN (SELECT id::text FROM food_orders WHERE customer_id = $1))
          )`,
         [req.user.id]
       );
@@ -135,6 +137,8 @@ router.get("/unread-count", requireAuth, async (req, res) => {
          WHERE m.sender_id != $1 AND m.read_at IS NULL AND (
            (m.trip_type = 'ride' AND m.trip_id IN (SELECT id::text FROM rides WHERE agent_id = $1))
            OR (m.trip_type = 'delivery' AND m.trip_id IN (SELECT id::text FROM deliveries WHERE agent_id = $1))
+           OR (m.trip_type = 'gas' AND m.trip_id IN (SELECT id::text FROM gas_orders WHERE agent_id = $1))
+           OR (m.trip_type = 'food' AND m.trip_id IN (SELECT id::text FROM food_orders WHERE agent_id = $1))
          )`,
         [req.user.id]
       );

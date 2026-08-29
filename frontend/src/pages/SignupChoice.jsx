@@ -9,6 +9,7 @@ const OPTIONS = [
   { to: "/signup/customer", code: "WB-01", title: "I want to send deliveries", desc: "Create requests, get matched with agents, track every parcel.", comingSoon: true },
   { to: "/signup/agent", code: "WB-02", title: "I want to deliver & earn", desc: "Register as a self, bike, or cab agent and start accepting jobs." },
   { to: "/signup/admin", code: "WB-03", title: "I'm an admin", desc: "Requires an invite code from an existing PickAndEarn admin.", comingSoon: true },
+  { to: "/signup/outlet", code: "WB-04", title: "I own a restaurant or shop", desc: "Partner with us to sell food and groceries through the app.", comingSoon: true },
 ];
 
 export default function SignupChoice() {

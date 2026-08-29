@@ -27,6 +27,7 @@ export const api = {
   signupCustomer: (payload) => request("/auth/signup/customer", { method: "POST", body: payload }),
   signupAgent: (payload) => request("/auth/signup/agent", { method: "POST", body: payload }),
   signupAdmin: (payload) => request("/auth/signup/admin", { method: "POST", body: payload }),
+  signupOutlet: (payload) => request("/auth/signup/outlet", { method: "POST", body: payload }),
   login: (payload) => request("/auth/login", { method: "POST", body: payload }),
   verifyLoginFace: (pending_token, selfie) => request("/auth/login/verify-face", { method: "POST", body: { pending_token, selfie } }),
   me: (token) => request("/auth/me", { token }),
@@ -118,6 +119,53 @@ export const api = {
   acceptGasOrder: (token, id) => request(`/gas/${id}/accept`, { method: "POST", token }),
   agentCancelGasOrder: (token, id) => request(`/gas/${id}/agent-cancel`, { method: "PATCH", token }),
   advanceGasOrder: (token, id, payload) => request(`/gas/${id}/advance`, { method: "PATCH", body: payload, token }),
+
+  // Outlets — public browsing
+  listOutlets: ({ city, category } = {}) => {
+    const params = new URLSearchParams();
+    if (city) params.set("city", city);
+    if (category) params.set("category", category);
+    const qs = params.toString();
+    return request(`/outlets${qs ? `?${qs}` : ""}`);
+  },
+  getOutlet: (id) => request(`/outlets/${id}`),
+
+  // Outlet's own profile + menu management
+  getMyOutletProfile: (token) => request("/outlets/me/profile", { token }),
+  updateMyOutletProfile: (token, payload) => request("/outlets/me/profile", { method: "PATCH", body: payload, token }),
+  toggleOutletOpen: (token) => request("/outlets/me/toggle-open", { method: "PATCH", token }),
+  getMyMenu: (token) => request("/outlets/me/menu", { token }),
+  addMenuItem: (token, payload) => request("/outlets/me/menu", { method: "POST", body: payload, token }),
+  updateMenuItem: (token, id, payload) => request(`/outlets/me/menu/${id}`, { method: "PATCH", body: payload, token }),
+  toggleMenuItem: (token, id) => request(`/outlets/me/menu/${id}/toggle`, { method: "PATCH", token }),
+  deleteMenuItem: (token, id) => request(`/outlets/me/menu/${id}`, { method: "DELETE", token }),
+
+  // Admin: outlet approval
+  adminPendingOutlets: (token) => request("/outlets/admin/pending", { token }),
+  approveOutlet: (token, id) => request(`/outlets/admin/${id}/approve`, { method: "PATCH", token }),
+  rejectOutlet: (token, id) => request(`/outlets/admin/${id}/reject`, { method: "PATCH", token }),
+
+  // Food orders — customer
+  foodEstimate: (token, payload) => request("/food/estimate", { method: "POST", body: payload, token }),
+  createFoodOrder: (token, payload) => request("/food", { method: "POST", body: payload, token }),
+  myFoodOrders: (token) => request("/food/mine", { token }),
+  cancelFoodOrder: (token, id) => request(`/food/${id}/cancel`, { method: "PATCH", token }),
+  verifyFoodPayment: (token, reference) => request(`/food/verify/${reference}`, { token }),
+
+  // Food orders — outlet
+  incomingFoodOrders: (token) => request("/food/outlet/incoming", { token }),
+  foodOrderHistory: (token) => request("/food/outlet/history", { token }),
+  acceptFoodOrder: (token, id) => request(`/food/${id}/accept`, { method: "PATCH", token }),
+  rejectFoodOrder: (token, id, reason) => request(`/food/${id}/reject`, { method: "PATCH", body: { reason }, token }),
+  markFoodOrderReady: (token, id) => request(`/food/${id}/ready`, { method: "PATCH", token }),
+
+  // Food orders — agent
+  availableFoodOrders: (token) => request("/food/available", { token }),
+  assignedFoodOrders: (token) => request("/food/assigned", { token }),
+  acceptFoodDelivery: (token, id) => request(`/food/${id}/accept-delivery`, { method: "POST", token }),
+  agentCancelFoodOrder: (token, id) => request(`/food/${id}/agent-cancel`, { method: "PATCH", token }),
+  markFoodPickedUp: (token, id) => request(`/food/${id}/picked-up`, { method: "PATCH", token }),
+  markFoodDelivered: (token, id) => request(`/food/${id}/delivered`, { method: "PATCH", token }),
 
   listApiKeys: (token) => request("/keys", { token }),
   createApiKey: (token, label) => request("/keys", { method: "POST", body: { label }, token }),

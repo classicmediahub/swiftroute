@@ -13,12 +13,14 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [user, setUser] = useState(null);
   const [agentProfile, setAgentProfile] = useState(null);
+  const [outletProfile, setOutletProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const loadMe = useCallback(async (t) => {
     if (!t) {
       setUser(null);
       setAgentProfile(null);
+      setOutletProfile(null);
       setLoading(false);
       return;
     }
@@ -26,6 +28,7 @@ export function AuthProvider({ children }) {
       const data = await api.me(t);
       setUser(data.user);
       setAgentProfile(data.agent_profile || null);
+      setOutletProfile(data.outlet_profile || null);
     } catch {
       localStorage.removeItem("pickandearn_token");
       setToken(null);
@@ -42,11 +45,12 @@ export function AuthProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function login(newToken, newUser, newAgentProfile) {
+  function login(newToken, newUser, newAgentProfile, newOutletProfile) {
     localStorage.setItem("pickandearn_token", newToken);
     setToken(newToken);
     setUser(newUser);
     setAgentProfile(newAgentProfile || null);
+    setOutletProfile(newOutletProfile || null);
   }
 
   function logout() {
@@ -54,10 +58,11 @@ export function AuthProvider({ children }) {
     setToken(null);
     setUser(null);
     setAgentProfile(null);
+    setOutletProfile(null);
   }
 
   return (
-    <AuthContext.Provider value={{ token, user, agentProfile, loading, login, logout, refresh: () => loadMe(token) }}>
+    <AuthContext.Provider value={{ token, user, agentProfile, outletProfile, loading, login, logout, refresh: () => loadMe(token) }}>
       {children}
     </AuthContext.Provider>
   );

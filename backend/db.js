@@ -730,6 +730,118 @@ async function initSchema() {
   await pool.query(`ALTER TABLE trip_messages ADD CONSTRAINT trip_messages_trip_type_check CHECK (trip_type IN ('ride','delivery','gas'));`);
   await pool.query(`ALTER TABLE sos_alerts DROP CONSTRAINT IF EXISTS sos_alerts_trip_type_check;`);
   await pool.query(`ALTER TABLE sos_alerts ADD CONSTRAINT sos_alerts_trip_type_check CHECK (trip_type IN ('ride','delivery','gas'));`);
+
+  // --- FOOD ORDERING — outlets (restaurants/eateries/supermarkets)
+  // self-register like agents do, but always start 'pending' and need
+  // admin approval before showing up anywhere public — same trust gate
+  // as agent_profiles.approval_status, for the same reason (this is a
+  // business relationship, not a self-serve free-for-all).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS outlet_profiles (
+      user_id TEXT PRIMARY KEY REFERENCES users(id),
+      business_name TEXT NOT NULL,
+      category TEXT NOT NULL CHECK (category IN ('restaurant','eatery','supermarket','pharmacy','other')),
+      description TEXT,
+      address TEXT NOT NULL,
+      city TEXT NOT NULL,
+      address_lat REAL,
+      address_lng REAL,
+      logo_photo TEXT,
+      cover_photo TEXT,
+      open_time TEXT,
+      close_time TEXT,
+      is_open BOOLEAN NOT NULL DEFAULT true,
+      approval_status TEXT NOT NULL DEFAULT 'pending' CHECK (approval_status IN ('pending','approved','rejected')),
+      wallet_balance REAL NOT NULL DEFAULT 0,
+      total_orders INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
+  // is_available is the outlet's own "86 this item" toggle — separate
+  // from is_open on the outlet itself, since a restaurant can be open
+  // with one dish sold out, not the whole menu.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS menu_items (
+      id TEXT PRIMARY KEY,
+      outlet_id TEXT NOT NULL REFERENCES users(id),
+      name TEXT NOT NULL,
+      description TEXT,
+      price REAL NOT NULL,
+      category TEXT,
+      photo TEXT,
+      is_available BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_menu_items_outlet ON menu_items (outlet_id);`);
+
+  // items is a JSON snapshot of what was ordered (name, price, qty) at
+  // the moment of purchase — deliberately NOT a live join against
+  // menu_items, so a later price change or deleted item never rewrites
+  // the history of what someone actually paid for.
+  //
+  // subtotal is the outlet's revenue portion (sum of item prices — the
+  // outlet set these, they keep them in full minus platform_commission).
+  // delivery_fee is separate and follows the same 80/20 agent split used
+  // everywhere else in the app. See food-pricing.js for the full split
+  // logic and why outlet/agent payouts are computed differently, same
+  // reasoning as gas orders' gas_cost/transport_fee split.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS food_orders (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT NOT NULL REFERENCES users(id),
+      outlet_id TEXT NOT NULL REFERENCES users(id),
+      agent_id TEXT REFERENCES users(id),
+      items JSONB NOT NULL,
+      subtotal REAL NOT NULL,
+      platform_commission REAL NOT NULL,
+      delivery_fee REAL NOT NULL,
+      distance_km REAL,
+      price REAL NOT NULL,
+      delivery_address TEXT NOT NULL,
+      city TEXT NOT NULL,
+      address_lat REAL,
+      address_lng REAL,
+      landmark TEXT,
+      contact_phone TEXT NOT NULL,
+      note TEXT,
+      tracking_code TEXT NOT NULL UNIQUE,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN (
+        'pending','placed','preparing','ready_for_pickup','picked_up','delivered','cancelled','rejected'
+      )),
+      payment_status TEXT NOT NULL DEFAULT 'unpaid',
+      payment_method TEXT,
+      paystack_reference TEXT,
+      rejection_reason TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      placed_at TIMESTAMPTZ,
+      accepted_at TIMESTAMPTZ,
+      ready_at TIMESTAMPTZ,
+      picked_up_at TIMESTAMPTZ,
+      delivered_at TIMESTAMPTZ,
+      cancelled_at TIMESTAMPTZ
+    );
+  `);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS food_orders_paystack_reference_idx
+    ON food_orders(paystack_reference) WHERE paystack_reference IS NOT NULL;
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_food_orders_outlet ON food_orders (outlet_id, status);`);
+  await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS total_food_jobs INTEGER NOT NULL DEFAULT 0;`);
+
+  // Food orders join the same chat/SOS/wallet-transaction systems as
+  // rides/deliveries/gas — extending each constraint the same way gas
+  // orders did earlier.
+  await pool.query(`ALTER TABLE trip_messages DROP CONSTRAINT IF EXISTS trip_messages_trip_type_check;`);
+  await pool.query(`ALTER TABLE trip_messages ADD CONSTRAINT trip_messages_trip_type_check CHECK (trip_type IN ('ride','delivery','gas','food'));`);
+  await pool.query(`ALTER TABLE sos_alerts DROP CONSTRAINT IF EXISTS sos_alerts_trip_type_check;`);
+  await pool.query(`ALTER TABLE sos_alerts ADD CONSTRAINT sos_alerts_trip_type_check CHECK (trip_type IN ('ride','delivery','gas','food'));`);
+  await pool.query(`ALTER TABLE wallet_transactions DROP CONSTRAINT IF EXISTS wallet_transactions_type_check;`);
+  await pool.query(`
+    ALTER TABLE wallet_transactions ADD CONSTRAINT wallet_transactions_type_check
+    CHECK (type IN ('topup','delivery_payment','ride_payment','gas_payment','food_payment','refund','streak_reward','referral_reward','landmark_reward','withdrawal','withdrawal_refund'));
+  `);
 }
 
 module.exports = { pool, initSchema };

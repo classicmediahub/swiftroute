@@ -23,6 +23,8 @@ const referralRoutes = require("./routes/referrals");
 const messageRoutes = require("./routes/messages");
 const sosRoutes = require("./routes/sos");
 const gasRoutes = require("./routes/gas");
+const outletRoutes = require("./routes/outlets");
+const foodRoutes = require("./routes/food");
 
 const app = express();
 
@@ -65,6 +67,8 @@ app.use("/api/referrals", referralRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/sos", sosRoutes);
 app.use("/api/gas", gasRoutes);
+app.use("/api/outlets", outletRoutes);
+app.use("/api/food", foodRoutes);
 
 app.use((req, res) => res.status(404).json({ error: "Not found" }));
 // eslint-disable-next-line no-unused-vars
