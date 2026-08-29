@@ -1,5 +1,6 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { api } from "../api";
 import HeroLiveMap from "../components/HeroLiveMap";
 import HeroQuoteWidget from "../components/HeroQuoteWidget";
 import StatsBar from "../components/StatsBar";
@@ -9,7 +10,7 @@ import ReviewsSection from "../components/ReviewsSection";
 import BusinessSection from "../components/BusinessSection";
 import EarningsCalculator from "../components/EarningsCalculator";
 import Reveal from "../components/Reveal";
-import { Flame } from "lucide-react";
+import { Flame, Store } from "lucide-react";
 
 // Lazy-loaded on purpose: this pulls in mapbox-gl, a large dependency.
 // Without this, it would ship inside the main homepage bundle and
@@ -45,6 +46,15 @@ const VEHICLES = [
 ];
 
 export default function Landing() {
+  // Fetched client-side only (not part of the SSG prerender) — this is a
+  // small, frequently-changing live preview, same reasoning as
+  // NearbyDriversMap being lazy/client-only below. Public endpoint, no
+  // login needed, same as browsing /food itself before signing in.
+  const [featuredOutlets, setFeaturedOutlets] = useState([]);
+  useEffect(() => {
+    api.listOutlets().then((list) => setFeaturedOutlets(list.slice(0, 3))).catch(() => {});
+  }, []);
+
   return (
     <div>
       {/* HERO — one primary audience: someone who needs to send something.
@@ -193,6 +203,63 @@ export default function Landing() {
           </div>
           <div className="card-tactile rounded-2xl p-10 bg-white dark:bg-ink-soft border border-slate-200 dark:border-line flex items-center justify-center">
             <Flame className="w-24 h-24 text-route" strokeWidth={1.25} />
+          </div>
+        </Reveal>
+      </section>
+
+      {/* FOOD PREVIEW — same treatment as Rides/Gas above. Shows a live
+          preview of real approved outlets when there are any (matches
+          Rides' "real live drivers" spirit more closely than Gas' static
+          icon could, since GET /outlets is public data we already have),
+          and falls back to a simple empty state otherwise rather than
+          showing broken/empty cards while the outlet network is still
+          small. */}
+      <section>
+        <Reveal className="max-w-6xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-10 items-center">
+          <div className="order-2 md:order-1">
+            {featuredOutlets.length > 0 ? (
+              <div className="space-y-3">
+                {featuredOutlets.map((o) => (
+                  <Link
+                    key={o.user_id}
+                    to={`/food/${o.user_id}`}
+                    className="flex items-center gap-3 border border-slate-200 dark:border-line rounded-2xl p-4 bg-white dark:bg-ink-soft hover:border-ink dark:hover:border-paper transition-colors"
+                  >
+                    {o.logo_photo ? (
+                      <img src={o.logo_photo} alt={o.business_name} className="w-12 h-12 rounded-xl object-cover border border-slate-200 dark:border-line shrink-0" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-xl bg-ink dark:bg-paper text-paper dark:text-ink flex items-center justify-center shrink-0">
+                        <Store className="w-5 h-5" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <div className="font-display font-semibold text-sm text-ink dark:text-paper truncate">{o.business_name}</div>
+                      <div className="text-xs text-slate dark:text-slate-light capitalize">{o.category} · {o.city}</div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="card-tactile rounded-2xl p-10 bg-white dark:bg-ink-soft border border-slate-200 dark:border-line flex items-center justify-center">
+                <Store className="w-24 h-24 text-route" strokeWidth={1.25} />
+              </div>
+            )}
+          </div>
+          <div className="order-1 md:order-2">
+            <div className="font-mono text-xs text-slate dark:text-slate-light mb-2">FOOD & GROCERIES</div>
+            <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-4 text-ink dark:text-paper">Order from local restaurants and shops</h2>
+            <p className="text-slate dark:text-slate-light text-sm mb-6 max-w-md">
+              Browse menus from real restaurants, eateries, and supermarkets near you, pay in the app, and
+              a rider brings it straight to your door — live tracked, start to finish.
+            </p>
+            <div className="flex flex-wrap gap-x-5 gap-y-2">
+              <Link to="/food" className="text-sm font-semibold text-ink dark:text-paper border-b-2 border-route w-fit pb-0.5 hover:border-signal transition-colors">
+                Browse food & groceries →
+              </Link>
+              <Link to="/signup/outlet" className="text-sm font-semibold text-ink dark:text-paper border-b-2 border-route w-fit pb-0.5 hover:border-signal transition-colors">
+                Partner your business →
+              </Link>
+            </div>
           </div>
         </Reveal>
       </section>
