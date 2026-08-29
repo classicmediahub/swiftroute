@@ -18,7 +18,7 @@ async function initSchema() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
-      role TEXT NOT NULL CHECK (role IN ('customer','agent','admin')),
+      role TEXT NOT NULL CHECK (role IN ('customer','agent','admin','outlet')),
       full_name TEXT NOT NULL,
       email TEXT NOT NULL UNIQUE,
       phone TEXT NOT NULL,
@@ -730,6 +730,15 @@ async function initSchema() {
   await pool.query(`ALTER TABLE trip_messages ADD CONSTRAINT trip_messages_trip_type_check CHECK (trip_type IN ('ride','delivery','gas'));`);
   await pool.query(`ALTER TABLE sos_alerts DROP CONSTRAINT IF EXISTS sos_alerts_trip_type_check;`);
   await pool.query(`ALTER TABLE sos_alerts ADD CONSTRAINT sos_alerts_trip_type_check CHECK (trip_type IN ('ride','delivery','gas'));`);
+
+  // The users.role CHECK constraint was created before 'outlet' existed
+  // as a role — this fixes it on a database that's already running
+  // (CREATE TABLE above only sets the right constraint on a truly fresh
+  // install). Without this, every outlet signup fails with a
+  // users_role_check violation on any database created before this line
+  // was added.
+  await pool.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;`);
+  await pool.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('customer','agent','admin','outlet'));`);
 
   // --- FOOD ORDERING — outlets (restaurants/eateries/supermarkets)
   // self-register like agents do, but always start 'pending' and need
