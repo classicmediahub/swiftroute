@@ -167,6 +167,12 @@ export const api = {
   markFoodPickedUp: (token, id) => request(`/food/${id}/picked-up`, { method: "PATCH", token }),
   markFoodDelivered: (token, id) => request(`/food/${id}/delivered`, { method: "PATCH", token }),
 
+  // Saved addresses — generic, reusable across gas/food checkout
+  listSavedAddresses: (token) => request("/addresses", { token }),
+  saveAddress: (token, payload) => request("/addresses", { method: "POST", body: payload, token }),
+  updateSavedAddress: (token, id, payload) => request(`/addresses/${id}`, { method: "PATCH", body: payload, token }),
+  deleteSavedAddress: (token, id) => request(`/addresses/${id}`, { method: "DELETE", token }),
+
   listApiKeys: (token) => request("/keys", { token }),
   createApiKey: (token, label) => request("/keys", { method: "POST", body: { label }, token }),
   revokeApiKey: (token, id) => request(`/keys/${id}`, { method: "DELETE", token }),

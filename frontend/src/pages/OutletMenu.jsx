@@ -4,6 +4,7 @@ import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { SkeletonCardList } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
+import SavedAddressPicker from "../components/SavedAddressPicker";
 import { Store, Plus, Minus, ShoppingCart, X } from "lucide-react";
 
 const CITIES = ["Lagos", "Ota", "Ogun", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City"];
@@ -197,6 +198,14 @@ export default function OutletMenu() {
                 </div>
               ))}
             </div>
+
+            <SavedAddressPicker
+              token={token}
+              currentAddress={address}
+              currentCity={city}
+              currentLandmark={landmark}
+              onSelect={(a) => { setCity(a.city); setAddress(a.address); setLandmark(a.landmark || ""); }}
+            />
 
             <div className="mb-3">
               <label className="block text-xs font-medium text-ink dark:text-paper mb-1">City</label>

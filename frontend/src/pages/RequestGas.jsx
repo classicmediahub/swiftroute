@@ -5,6 +5,7 @@ import ChatPanel from "../components/ChatPanel";
 import SOSButton from "../components/SOSButton";
 import { useUnreadMessages } from "../hooks/useUnreadMessages";
 import { SkeletonCardList } from "../components/Skeleton";
+import SavedAddressPicker from "../components/SavedAddressPicker";
 import EmptyState from "../components/EmptyState";
 import { Flame, MessageCircle } from "lucide-react";
 
@@ -162,6 +163,14 @@ export default function RequestGas() {
               ))}
             </div>
           </div>
+
+          <SavedAddressPicker
+            token={token}
+            currentAddress={address}
+            currentCity={city}
+            currentLandmark={landmark}
+            onSelect={(a) => { setCity(a.city); setAddress(a.address); setLandmark(a.landmark || ""); }}
+          />
 
           <div className="mb-4">
             <label className="block text-sm font-medium text-ink dark:text-paper mb-1.5">City</label>

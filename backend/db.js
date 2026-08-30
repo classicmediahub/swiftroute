@@ -851,6 +851,30 @@ async function initSchema() {
     ALTER TABLE wallet_transactions ADD CONSTRAINT wallet_transactions_type_check
     CHECK (type IN ('topup','delivery_payment','ride_payment','gas_payment','food_payment','refund','streak_reward','referral_reward','landmark_reward','withdrawal','withdrawal_refund'));
   `);
+
+  // --- SAVED ADDRESSES — a reusable label ("Home", "Work", "Hostel") for
+  // an address a customer types once and picks again later, rather than
+  // retyping it on every gas/food order. Deliberately generic (not tied
+  // to any one order type) so it can be reused anywhere a plain
+  // address+city+landmark text flow exists — currently gas and food
+  // orders; rides/deliveries use precise map-pin coordinates via PinMap
+  // instead of free-text address, a different input model this table
+  // doesn't attempt to cover.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS saved_addresses (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      label TEXT NOT NULL,
+      address TEXT NOT NULL,
+      city TEXT NOT NULL,
+      landmark TEXT,
+      lat REAL,
+      lng REAL,
+      is_default BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_saved_addresses_user ON saved_addresses (user_id);`);
 }
 
 module.exports = { pool, initSchema };

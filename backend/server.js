@@ -25,6 +25,7 @@ const sosRoutes = require("./routes/sos");
 const gasRoutes = require("./routes/gas");
 const outletRoutes = require("./routes/outlets");
 const foodRoutes = require("./routes/food");
+const addressRoutes = require("./routes/addresses");
 
 const app = express();
 
@@ -69,6 +70,7 @@ app.use("/api/sos", sosRoutes);
 app.use("/api/gas", gasRoutes);
 app.use("/api/outlets", outletRoutes);
 app.use("/api/food", foodRoutes);
+app.use("/api/addresses", addressRoutes);
 
 app.use((req, res) => res.status(404).json({ error: "Not found" }));
 // eslint-disable-next-line no-unused-vars
