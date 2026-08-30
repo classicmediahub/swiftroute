@@ -446,6 +446,78 @@ router.post("/verify-email/resend", async (req, res) => {
   }
 });
 
+// ---------- UPDATE PROFILE (full name, phone — NOT email) — email is
+// left read-only deliberately: it's tied to login and the existing
+// verify-email flow, and changing it would need to re-trigger
+// verification and risk account-lockout edge cases that are out of scope
+// for a simple settings page. Same manual JWT check as /me below, for
+// consistency with this file's own established pattern rather than
+// introducing the requireAuth middleware used elsewhere in the app. ----------
+router.patch("/me", async (req, res) => {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith("Bearer ")) return res.status(401).json({ error: "No token" });
+  const token = header.split(" ")[1];
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    const { full_name, phone } = req.body;
+    if (full_name !== undefined && !full_name.trim()) {
+      return res.status(400).json({ error: "Full name can't be empty" });
+    }
+    if (phone !== undefined && !phone.trim()) {
+      return res.status(400).json({ error: "Phone number can't be empty" });
+    }
+
+    const { rows } = await pool.query(
+      `UPDATE users SET full_name = COALESCE($1, full_name), phone = COALESCE($2, phone) WHERE id = $3 RETURNING *`,
+      [full_name?.trim(), phone?.trim(), payload.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "User not found" });
+    res.json({ user: publicUser(rows[0]) });
+  } catch (err) {
+    if (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError") {
+      return res.status(401).json({ error: "Invalid or expired token" });
+    }
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong updating your profile" });
+  }
+});
+
+// ---------- CHANGE PASSWORD — requires the current password, same
+// standard as any settings page; a stolen/left-open session shouldn't be
+// enough on its own to lock the real owner out by changing it. ----------
+router.post("/change-password", async (req, res) => {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith("Bearer ")) return res.status(401).json({ error: "No token" });
+  const token = header.split(" ")[1];
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    const { current_password, new_password } = req.body;
+    if (!current_password || !new_password) {
+      return res.status(400).json({ error: "Current and new password are required" });
+    }
+    if (new_password.length < 6) {
+      return res.status(400).json({ error: "New password must be at least 6 characters" });
+    }
+
+    const { rows } = await pool.query("SELECT * FROM users WHERE id = $1", [payload.id]);
+    const user = rows[0];
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const matches = bcrypt.compareSync(current_password, user.password_hash);
+    if (!matches) return res.status(401).json({ error: "Current password is incorrect" });
+
+    const newHash = bcrypt.hashSync(new_password, 10);
+    await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [newHash, user.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    if (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError") {
+      return res.status(401).json({ error: "Invalid or expired token" });
+    }
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong changing your password" });
+  }
+});
+
 // ---------- CURRENT USER ---------- (unchanged)
 router.get("/me", async (req, res) => {
   const header = req.headers.authorization;

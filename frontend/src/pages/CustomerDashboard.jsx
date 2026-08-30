@@ -23,6 +23,7 @@ import Button from "../components/Button";
 import ChatPanel from "../components/ChatPanel";
 import EmergencyContactCard from "../components/EmergencyContactCard";
 import SOSButton from "../components/SOSButton";
+import SettingsPanel from "../components/SettingsPanel";
 import { useUnreadMessages } from "../hooks/useUnreadMessages";
 import { lazy, Suspense } from "react";
 const DeliveryMap = lazy(() => import("../components/DeliveryMap"));
@@ -53,7 +54,7 @@ const emptyForm = {
 };
 
 export default function CustomerDashboard() {
-  const { token, user } = useAuth();
+  const { token, user, refresh } = useAuth();
   const isBusiness = user?.account_type === "business";
   const [tab, setTab] = useState("send");
 
@@ -1084,30 +1085,31 @@ export default function CustomerDashboard() {
         />
       )}
       <h1 className="font-display text-3xl font-semibold mb-8">
-        {tab === "send" ? "Send a new delivery" : tab === "bulk" ? "Bulk upload" : tab === "invoices" ? "Invoices" : tab === "reports" ? "Reports" : "API access"}
+        {tab === "send" ? "Send a new delivery" : tab === "bulk" ? "Bulk upload" : tab === "invoices" ? "Invoices" : tab === "reports" ? "Reports" : tab === "settings" ? "Settings" : "API access"}
       </h1>
 
-      {isBusiness && (
-        <div className="flex gap-2 mb-8 border-b border-slate-200 dark:border-line">
-          {[
-            { id: "send", label: "Send a delivery" },
+      <div className="flex gap-2 mb-8 border-b border-slate-200 dark:border-line overflow-x-auto">
+        {[
+          { id: "send", label: "Send a delivery" },
+          ...(isBusiness ? [
             { id: "bulk", label: "Bulk upload" },
             { id: "invoices", label: "Invoices" },
             { id: "reports", label: "Reports" },
             { id: "api", label: "API" },
-          ].map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                tab === t.id ? "border-ink text-ink dark:text-paper" : "border-transparent text-slate dark:text-slate-light hover:text-ink dark:hover:text-paper dark:text-paper"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      )}
+          ] : []),
+          { id: "settings", label: "Settings" },
+        ].map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              tab === t.id ? "border-ink text-ink dark:text-paper" : "border-transparent text-slate dark:text-slate-light hover:text-ink dark:hover:text-paper dark:text-paper"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
       {tab === "send" && sendDeliveryView}
       {tab === "bulk" && isBusiness && (
@@ -1120,6 +1122,7 @@ export default function CustomerDashboard() {
       {tab === "invoices" && isBusiness && <Invoices deliveries={deliveries} />}
       {tab === "reports" && isBusiness && <Reports deliveries={deliveries} />}
       {tab === "api" && isBusiness && <ApiSettings token={token} />}
+      {tab === "settings" && <SettingsPanel token={token} user={user} onUpdated={refresh} />}
     </div>
   );
 }
