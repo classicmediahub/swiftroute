@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import WhatsAppButton from "./components/WhatsAppButton";
+import InstallPrompt from "./components/InstallPrompt";
 import RouteProgressBar from "./components/RouteProgressBar";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { ThemeProvider } from "./context/ThemeContext.jsx";
@@ -43,6 +44,7 @@ export default function Layout() {
             </main>
             <Footer />
             <WhatsAppButton />
+            <InstallPrompt />
           </div>
         </LaunchGate>
       </AuthProvider>
