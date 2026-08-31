@@ -13,7 +13,7 @@ import Reports from "../components/Reports";
 import ApiSettings from "../components/ApiSettings";
 import { SkeletonCardList } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
-import { Package, MessageCircle } from "lucide-react";
+import { Package, MessageCircle, MapPin } from "lucide-react";
 import DashboardGreeting from "../components/DashboardGreeting";
 import StreakCalendar, { buildStreakDays, nextMilestone } from "../components/StreakCalendar";
 import { useStreakMilestone } from "../hooks/useStreakMilestone";
@@ -23,6 +23,7 @@ import Button from "../components/Button";
 import ChatPanel from "../components/ChatPanel";
 import EmergencyContactCard from "../components/EmergencyContactCard";
 import SOSButton from "../components/SOSButton";
+import AddressAutocomplete from "../components/AddressAutocomplete";
 import SettingsPanel from "../components/SettingsPanel";
 import { useUnreadMessages } from "../hooks/useUnreadMessages";
 import { lazy, Suspense } from "react";
@@ -346,6 +347,14 @@ export default function CustomerDashboard() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    if (!form.pickup_address.trim()) {
+      setError("Enter a pickup address");
+      return;
+    }
+    if (!lockerMode && !form.dropoff_address.trim()) {
+      setError("Enter a drop-off address");
+      return;
+    }
     setSubmitting(true);
     try {
       const data = await api.createDelivery(token, form);
@@ -612,7 +621,13 @@ export default function CustomerDashboard() {
             <>
               <div className="grid grid-cols-2 gap-x-3">
                 <Field label="Pickup address">
-                  <input required className={inputClass} value={form.pickup_address} onChange={(e) => update("pickup_address", e.target.value)} placeholder="12 Allen Ave" />
+                  <AddressAutocomplete
+                    value={form.pickup_address ? { label: form.pickup_address } : null}
+                    onTextChange={(t) => { update("pickup_address", t); update("pickup_coords", null); }}
+                    onSelect={(s) => { if (s) { update("pickup_address", s.label); update("pickup_coords", { lat: s.lat, lng: s.lng }); } }}
+                    placeholder="Search for the pickup address"
+                    icon={<MapPin className="w-4 h-4 text-slate shrink-0" />}
+                  />
                 </Field>
                 <Field label="Pickup city">
                   <select className={inputClass} value={form.pickup_city} onChange={(e) => update("pickup_city", e.target.value)}>
@@ -700,7 +715,13 @@ export default function CustomerDashboard() {
                 <>
                   <div className="grid grid-cols-2 gap-x-3">
                     <Field label="Drop-off address">
-                      <input required className={inputClass} value={form.dropoff_address} onChange={(e) => update("dropoff_address", e.target.value)} placeholder="5 Admiralty Way" />
+                      <AddressAutocomplete
+                        value={form.dropoff_address ? { label: form.dropoff_address } : null}
+                        onTextChange={(t) => { update("dropoff_address", t); update("dropoff_coords", null); }}
+                        onSelect={(s) => { if (s) { update("dropoff_address", s.label); update("dropoff_coords", { lat: s.lat, lng: s.lng }); } }}
+                        placeholder="Search for the drop-off address"
+                        icon={<MapPin className="w-4 h-4 text-slate shrink-0" />}
+                      />
                     </Field>
                     <Field label="Drop-off city">
                       <select className={inputClass} value={form.dropoff_city} onChange={(e) => update("dropoff_city", e.target.value)}>
