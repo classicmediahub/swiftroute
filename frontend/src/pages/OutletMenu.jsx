@@ -5,7 +5,8 @@ import { useAuth } from "../context/AuthContext";
 import { SkeletonCardList } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
 import SavedAddressPicker from "../components/SavedAddressPicker";
-import { Store, Plus, Minus, ShoppingCart, X } from "lucide-react";
+import AddressAutocomplete from "../components/AddressAutocomplete";
+import { Store, Plus, Minus, ShoppingCart, X, MapPin } from "lucide-react";
 
 const CITIES = ["Lagos", "Ota", "Ogun", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City"];
 
@@ -21,6 +22,8 @@ export default function OutletMenu() {
 
   const [city, setCity] = useState("");
   const [address, setAddress] = useState("");
+  const [addressLat, setAddressLat] = useState(null);
+  const [addressLng, setAddressLng] = useState(null);
   const [landmark, setLandmark] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [note, setNote] = useState("");
@@ -55,12 +58,12 @@ export default function OutletMenu() {
   const getQuote = useCallback(() => {
     if (cartItems.length === 0 || !city) { setQuote(null); return; }
     setEstimating(true);
-    api.foodEstimate(token, { outlet_id: id, items: cartItems, delivery_address: address, city })
+    api.foodEstimate(token, { outlet_id: id, items: cartItems, delivery_address: address, city, address_lat: addressLat, address_lng: addressLng })
       .then(setQuote)
       .catch(() => setQuote(null))
       .finally(() => setEstimating(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cartItems.map((i) => `${i.id}:${i.quantity}`).join(","), city, address, token, id]);
+  }, [cartItems.map((i) => `${i.id}:${i.quantity}`).join(","), city, address, addressLat, addressLng, token, id]);
 
   useEffect(() => {
     if (!showCheckout) return;
@@ -81,7 +84,7 @@ export default function OutletMenu() {
     setPlacing(true);
     try {
       const data = await api.createFoodOrder(token, {
-        outlet_id: id, items: cartItems, delivery_address: address, city, landmark, contact_phone: contactPhone, note, payment_method,
+        outlet_id: id, items: cartItems, delivery_address: address, city, address_lat: addressLat, address_lng: addressLng, landmark, contact_phone: contactPhone, note, payment_method,
       });
       if (data.authorization_url) {
         window.location.href = data.authorization_url;
@@ -204,7 +207,9 @@ export default function OutletMenu() {
               currentAddress={address}
               currentCity={city}
               currentLandmark={landmark}
-              onSelect={(a) => { setCity(a.city); setAddress(a.address); setLandmark(a.landmark || ""); }}
+              currentLat={addressLat}
+              currentLng={addressLng}
+              onSelect={(a) => { setCity(a.city); setAddress(a.address); setAddressLat(a.lat); setAddressLng(a.lng); setLandmark(a.landmark || ""); }}
             />
 
             <div className="mb-3">
@@ -215,7 +220,13 @@ export default function OutletMenu() {
             </div>
             <div className="mb-3">
               <label className="block text-xs font-medium text-ink dark:text-paper mb-1">Delivery address</label>
-              <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="House number, street, area" className="w-full border border-slate-300 dark:border-line rounded-lg px-3 py-2 text-sm bg-white dark:bg-ink outline-none" />
+              <AddressAutocomplete
+                value={address ? { label: address } : null}
+                onTextChange={(t) => { setAddress(t); setAddressLat(null); setAddressLng(null); }}
+                onSelect={(s) => { if (s) { setAddress(s.label); setAddressLat(s.lat); setAddressLng(s.lng); } }}
+                placeholder="Search for your address"
+                icon={<MapPin className="w-4 h-4 text-slate shrink-0" />}
+              />
             </div>
             <div className="mb-3">
               <label className="block text-xs font-medium text-ink dark:text-paper mb-1">Landmark (optional)</label>

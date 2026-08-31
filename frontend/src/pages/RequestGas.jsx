@@ -6,8 +6,9 @@ import SOSButton from "../components/SOSButton";
 import { useUnreadMessages } from "../hooks/useUnreadMessages";
 import { SkeletonCardList } from "../components/Skeleton";
 import SavedAddressPicker from "../components/SavedAddressPicker";
+import AddressAutocomplete from "../components/AddressAutocomplete";
 import EmptyState from "../components/EmptyState";
-import { Flame, MessageCircle } from "lucide-react";
+import { Flame, MessageCircle, MapPin } from "lucide-react";
 
 const STAGE_ORDER = ["pending", "accepted", "en_route", "filling", "completed"];
 const CITIES = ["Lagos", "Ota", "Ogun", "Abuja", "Port Harcourt", "Ibadan", "Kano", "Enugu", "Benin City"];
@@ -29,6 +30,8 @@ export default function RequestGas() {
   const [cylinderSize, setCylinderSize] = useState(null);
   const [city, setCity] = useState(CITIES[0]);
   const [address, setAddress] = useState("");
+  const [addressLat, setAddressLat] = useState(null);
+  const [addressLng, setAddressLng] = useState(null);
   const [landmark, setLandmark] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [note, setNote] = useState("");
@@ -79,13 +82,13 @@ export default function RequestGas() {
     if (!cylinderSize || !city) return;
     setEstimating(true);
     const t = setTimeout(() => {
-      api.gasEstimate(token, { city, address, cylinder_size_kg: cylinderSize })
+      api.gasEstimate(token, { city, address, address_lat: addressLat, address_lng: addressLng, cylinder_size_kg: cylinderSize })
         .then(setQuote)
         .catch(() => setQuote(null))
         .finally(() => setEstimating(false));
     }, 500);
     return () => clearTimeout(t);
-  }, [cylinderSize, city, address, token]);
+  }, [cylinderSize, city, address, addressLat, addressLng, token]);
 
   async function handleRequest(payment_method) {
     if (!address.trim() || !contactPhone.trim()) {
@@ -100,13 +103,13 @@ export default function RequestGas() {
     setRequesting(true);
     try {
       const data = await api.createGasOrder(token, {
-        address, city, landmark, contact_phone: contactPhone, cylinder_size_kg: cylinderSize, note, payment_method,
+        address, city, address_lat: addressLat, address_lng: addressLng, landmark, contact_phone: contactPhone, cylinder_size_kg: cylinderSize, note, payment_method,
       });
       if (data.authorization_url) {
         window.location.href = data.authorization_url;
         return;
       }
-      setAddress(""); setLandmark(""); setContactPhone(""); setNote("");
+      setAddress(""); setAddressLat(null); setAddressLng(null); setLandmark(""); setContactPhone(""); setNote("");
       await loadOrders();
       api.getWallet(token).then((w) => setWalletBalance(w.balance)).catch(() => {});
       setTab("mine");
@@ -169,7 +172,9 @@ export default function RequestGas() {
             currentAddress={address}
             currentCity={city}
             currentLandmark={landmark}
-            onSelect={(a) => { setCity(a.city); setAddress(a.address); setLandmark(a.landmark || ""); }}
+            currentLat={addressLat}
+            currentLng={addressLng}
+            onSelect={(a) => { setCity(a.city); setAddress(a.address); setAddressLat(a.lat); setAddressLng(a.lng); setLandmark(a.landmark || ""); }}
           />
 
           <div className="mb-4">
@@ -184,11 +189,12 @@ export default function RequestGas() {
           </div>
           <div className="mb-4">
             <label className="block text-sm font-medium text-ink dark:text-paper mb-1.5">Your address</label>
-            <input
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="House number, street, area"
-              className="w-full border border-slate-300 dark:border-line rounded-lg px-3.5 py-2.5 text-sm bg-white dark:bg-ink outline-none"
+            <AddressAutocomplete
+              value={address ? { label: address } : null}
+              onTextChange={(t) => { setAddress(t); setAddressLat(null); setAddressLng(null); }}
+              onSelect={(s) => { if (s) { setAddress(s.label); setAddressLat(s.lat); setAddressLng(s.lng); } }}
+              placeholder="Search for your address"
+              icon={<MapPin className="w-4 h-4 text-slate shrink-0" />}
             />
           </div>
           <div className="mb-4">

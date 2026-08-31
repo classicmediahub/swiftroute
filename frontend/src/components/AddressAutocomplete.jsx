@@ -19,7 +19,16 @@ const THEMES = {
 // theme="light" (default) is the original styling, used everywhere this
 // component already appears. theme="dark" is additive, for use on dark
 // panels like the hero card — nothing existing changes unless it opts in.
-export default function AddressAutocomplete({ value, onSelect, placeholder, icon, theme = "light" }) {
+//
+// onTextChange (optional, additive): fires on every keystroke with the
+// raw typed text, separate from onSelect which only fires on a confirmed
+// suggestion. Existing call sites that don't pass this are completely
+// unaffected. Added for flows (gas/food checkout) where someone should
+// still be able to submit whatever they typed even if no suggestion
+// matched their address — common for informal Nigerian addresses that
+// geocoders don't always resolve — rather than forcing a real pick like
+// the original delivery-pickup flow does.
+export default function AddressAutocomplete({ value, onSelect, onTextChange, placeholder, icon, theme = "light" }) {
   const [text, setText] = useState(value?.label || "");
   const [suggestions, setSuggestions] = useState([]);
   const [open, setOpen] = useState(false);
@@ -64,6 +73,7 @@ export default function AddressAutocomplete({ value, onSelect, placeholder, icon
   function handleChange(e) {
     setText(e.target.value);
     if (value) onSelect(null); // typing again invalidates the previously confirmed selection
+    onTextChange?.(e.target.value);
   }
 
   return (

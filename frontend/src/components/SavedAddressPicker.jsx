@@ -7,7 +7,7 @@ import { MapPin, Plus, X } from "lucide-react";
 // CURRENT values (to offer "save this") and calls onSelect with a full
 // saved address object when one is picked, letting the parent form fill
 // its own fields however it already does.
-export default function SavedAddressPicker({ token, onSelect, currentAddress, currentCity, currentLandmark }) {
+export default function SavedAddressPicker({ token, onSelect, currentAddress, currentCity, currentLandmark, currentLat, currentLng }) {
   const [addresses, setAddresses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showSaveForm, setShowSaveForm] = useState(false);
@@ -25,7 +25,10 @@ export default function SavedAddressPicker({ token, onSelect, currentAddress, cu
     if (!label.trim() || !currentAddress?.trim() || !currentCity) return;
     setSaving(true);
     try {
-      await api.saveAddress(token, { label: label.trim(), address: currentAddress, city: currentCity, landmark: currentLandmark || null });
+      await api.saveAddress(token, {
+        label: label.trim(), address: currentAddress, city: currentCity, landmark: currentLandmark || null,
+        lat: currentLat ?? null, lng: currentLng ?? null,
+      });
       setLabel("");
       setShowSaveForm(false);
       await load();
