@@ -42,6 +42,11 @@ export const api = {
   confirmLandmark: (token, submissionId) => request(`/landmarks/${submissionId}/confirm`, { method: "POST", token }),
   adminListLandmarks: (token) => request("/landmarks/admin/all", { token }),
   adminCreateLandmark: (token, payload) => request("/landmarks/admin", { method: "POST", body: payload, token }),
+
+  // Local gazetteer — admin-pinned points for areas where Mapbox is unreliable
+  adminGazetteerPoints: (token) => request("/gazetteer/admin/all", { token }),
+  adminGazetteerQueue: (token) => request("/gazetteer/admin/queue", { token }),
+  adminCreateGazetteerPoint: (token, payload) => request("/gazetteer/admin", { method: "POST", body: payload, token }),
   listLockers: (token, { institutionId, city } = {}) => {
     const params = new URLSearchParams();
     if (institutionId) params.set("institution_id", institutionId);

@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import StatusBadge from "../components/StatusBadge";
-import { Users, UserCheck, Package, Car, Lock, Landmark, AlertTriangle, Store, MapPin } from "lucide-react";
+import { Users, UserCheck, Package, Car, Lock, Landmark, AlertTriangle, Store, MapPin, Compass } from "lucide-react";
 import { SkeletonStatGrid, SkeletonTable } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
 import CountUp from "../components/CountUp";
@@ -17,6 +17,7 @@ const SIDEBAR_ITEMS = [
   { key: "rides", label: "Rides", icon: Car },
   { key: "lockers", label: "Lockers", icon: Lock },
   { key: "landmarks", label: "Landmarks", icon: MapPin },
+  { key: "areas", label: "Areas", icon: Compass },
   { key: "withdrawals", label: "Withdrawals", icon: Landmark },
   { key: "outlets", label: "Outlets", icon: Store },
   { key: "sos", label: "SOS Alerts", icon: AlertTriangle },
@@ -98,15 +99,22 @@ export default function AdminDashboard() {
   });
   const [landmarkFormError, setLandmarkFormError] = useState("");
   const [landmarkSubmitting, setLandmarkSubmitting] = useState(false);
+  const [gazetteerPoints, setGazetteerPoints] = useState([]);
+  const [gazetteerQueue, setGazetteerQueue] = useState([]);
+  const [gazetteerForm, setGazetteerForm] = useState({
+    name: "", type: "area", city: "Ota", address: "", coords: null,
+  });
+  const [gazetteerFormError, setGazetteerFormError] = useState("");
+  const [gazetteerSubmitting, setGazetteerSubmitting] = useState(false);
 
   const loadAll = useCallback(async () => {
     try {
-      const [s, a, c, d, r, l, i, w, sos, o, lm] = await Promise.all([
+      const [s, a, c, d, r, l, i, w, sos, o, lm, gp, gq] = await Promise.all([
         api.adminStats(token), api.adminAgents(token), api.adminCustomers(token), api.adminDeliveries(token), api.adminRides(token),
         api.adminLockers(token), api.listInstitutions(token), api.adminPendingWithdrawals(token), api.adminActiveSOS(token), api.adminPendingOutlets(token),
-        api.adminListLandmarks(token),
+        api.adminListLandmarks(token), api.adminGazetteerPoints(token), api.adminGazetteerQueue(token),
       ]);
-      setStats(s); setAgents(a); setCustomers(c); setDeliveries(d); setRides(r); setLockers(l); setInstitutions(i); setWithdrawals(w); setSosAlerts(sos); setOutlets(o); setLandmarks(lm);
+      setStats(s); setAgents(a); setCustomers(c); setDeliveries(d); setRides(r); setLockers(l); setInstitutions(i); setWithdrawals(w); setSosAlerts(sos); setOutlets(o); setLandmarks(lm); setGazetteerPoints(gp); setGazetteerQueue(gq);
     } finally {
       setLoading(false);
     }
@@ -207,6 +215,40 @@ export default function AdminDashboard() {
       setLandmarkFormError(err.message);
     } finally {
       setLandmarkSubmitting(false);
+    }
+  }
+
+  // Clicking a name in the pinning queue loads it into the (shared) form
+  // below with a sensible default search query, so PinMap's "Find address
+  // on map" button has something reasonable to try before the admin drags
+  // the pin to the exact spot.
+  function handlePickQueueItem(name) {
+    setGazetteerForm({ name, type: "area", city: "Ota", address: `${name}, Ota, Ogun State, Nigeria`, coords: null });
+    setGazetteerFormError("");
+  }
+
+  async function handleSaveGazetteerPoint(e) {
+    e.preventDefault();
+    if (!gazetteerForm.name.trim() || !gazetteerForm.coords) {
+      setGazetteerFormError("Give it a name and set a location on the map below.");
+      return;
+    }
+    setGazetteerSubmitting(true);
+    setGazetteerFormError("");
+    try {
+      await api.adminCreateGazetteerPoint(token, {
+        name: gazetteerForm.name.trim(),
+        type: gazetteerForm.type,
+        city: gazetteerForm.city.trim() || "Ota",
+        latitude: gazetteerForm.coords.lat,
+        longitude: gazetteerForm.coords.lng,
+      });
+      setGazetteerForm({ name: "", type: "area", city: "Ota", address: "", coords: null });
+      await loadAll();
+    } catch (err) {
+      setGazetteerFormError(err.message);
+    } finally {
+      setGazetteerSubmitting(false);
     }
   }
 
@@ -328,7 +370,7 @@ export default function AdminDashboard() {
         <nav className="flex md:flex-col overflow-x-auto md:overflow-visible px-3 md:px-3 py-3 md:py-0 gap-1">
           {SIDEBAR_ITEMS.map(({ key, label, icon: Icon }) => {
             const active = tab === key;
-            const count = { agents, customers, deliveries, rides, lockers, landmarks, withdrawals, outlets, sos: sosAlerts }[key].length;
+            const count = { agents, customers, deliveries, rides, lockers, landmarks, areas: gazetteerQueue, withdrawals, outlets, sos: sosAlerts }[key].length;
             const isSosWithAlerts = key === "sos" && count > 0;
             return (
               <button
@@ -794,6 +836,133 @@ export default function AdminDashboard() {
                 ))}
                 {landmarks.length === 0 && (
                   <tr><td colSpan={5}><EmptyState icon={MapPin} title="No landmarks yet" description="Add one above, or wait for crowd-sourced submissions to get confirmed." /></td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+      {tab === "areas" && (
+        <div>
+          <p className="text-sm text-slate dark:text-slate-light mb-6 max-w-2xl">
+            Mapbox is unreliable across several Ogun State towns — pin them here once and every future
+            ride, delivery, food, and gas booking in that area will use this coordinate instead of a live
+            geocode. Pick a name from the queue below, or add a new one that isn't on the list yet
+            (e.g. Sango, Owode, Ketu Adie Owe).
+          </p>
+
+          {gazetteerQueue.length > 0 && (
+            <div className="mb-6">
+              <div className="text-xs font-mono text-slate dark:text-slate-light uppercase mb-2">
+                Still needs pinning ({gazetteerQueue.length})
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {gazetteerQueue.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => handlePickQueueItem(name)}
+                    className={`text-xs font-medium rounded-full px-3 py-1.5 border transition-colors ${
+                      gazetteerForm.name === name
+                        ? "bg-route text-ink border-route"
+                        : "border-slate-300 dark:border-line text-ink dark:text-paper hover:bg-paper dark:hover:bg-white/5"
+                    }`}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleSaveGazetteerPoint} className="border border-slate-200 dark:border-line rounded-xl p-5 mb-6 bg-white dark:bg-ink-soft grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-mono text-slate dark:text-slate-light uppercase mb-1.5">Name</label>
+              <input
+                required
+                className="w-full border border-slate-300 dark:border-line rounded-lg px-3 py-2 text-sm"
+                placeholder="Agbara"
+                value={gazetteerForm.name}
+                onChange={(e) => setGazetteerForm((f) => ({ ...f, name: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-mono text-slate dark:text-slate-light uppercase mb-1.5">Type</label>
+              <select
+                className="w-full border border-slate-300 dark:border-line rounded-lg px-3 py-2 text-sm"
+                value={gazetteerForm.type}
+                onChange={(e) => setGazetteerForm((f) => ({ ...f, type: e.target.value }))}
+              >
+                <option value="area">Area / town</option>
+                <option value="road">Road</option>
+                <option value="landmark">Landmark</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-mono text-slate dark:text-slate-light uppercase mb-1.5">City / town</label>
+              <input
+                className="w-full border border-slate-300 dark:border-line rounded-lg px-3 py-2 text-sm"
+                value={gazetteerForm.city}
+                onChange={(e) => setGazetteerForm((f) => ({ ...f, city: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-mono text-slate dark:text-slate-light uppercase mb-1.5">Address to search (optional — or just pin it below)</label>
+              <input
+                className="w-full border border-slate-300 dark:border-line rounded-lg px-3 py-2 text-sm"
+                placeholder="e.g. Agbara, Ota, Ogun State, Nigeria"
+                value={gazetteerForm.address}
+                onChange={(e) => setGazetteerForm((f) => ({ ...f, address: e.target.value }))}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <PinMap
+                token={token}
+                address={gazetteerForm.address}
+                city={gazetteerForm.city}
+                coords={gazetteerForm.coords}
+                onCoordsChange={(coords) => setGazetteerForm((f) => ({ ...f, coords }))}
+                suggestOpen
+              />
+            </div>
+            {gazetteerFormError && <p className="sm:col-span-2 text-sm text-red-600">{gazetteerFormError}</p>}
+            <div className="sm:col-span-2">
+              <button
+                disabled={gazetteerSubmitting}
+                className="text-sm font-semibold bg-route hover:bg-route-dark text-ink dark:text-paper rounded-lg px-4 py-2.5 disabled:opacity-60"
+              >
+                {gazetteerSubmitting ? "Saving…" : "Save point"}
+              </button>
+            </div>
+          </form>
+
+          <div className="overflow-x-auto border border-slate-200 dark:border-line rounded-xl">
+            <table className="w-full text-sm">
+              <thead className="bg-paper dark:bg-white/5 text-left text-xs text-slate dark:text-slate-light uppercase font-mono">
+                <tr>
+                  <th className="px-4 py-3">Name</th>
+                  <th className="px-4 py-3">Type</th>
+                  <th className="px-4 py-3">City</th>
+                  <th className="px-4 py-3">Coordinates</th>
+                  <th className="px-4 py-3">Added</th>
+                </tr>
+              </thead>
+              <tbody>
+                {gazetteerPoints.map((g) => (
+                  <tr key={g.id} className="border-t border-slate-100 dark:border-line">
+                    <td className="px-4 py-3 font-medium">{g.name}</td>
+                    <td className="px-4 py-3 capitalize">{g.type}</td>
+                    <td className="px-4 py-3">{g.city}</td>
+                    <td className="px-4 py-3 font-mono text-xs">
+                      {Number(g.latitude).toFixed(5)}, {Number(g.longitude).toFixed(5)}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate dark:text-slate-light">
+                      {new Date(g.created_at).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
+                {gazetteerPoints.length === 0 && (
+                  <tr><td colSpan={5}><EmptyState icon={Compass} title="No points pinned yet" description="Pick a name from the queue above, or add a new one manually." /></td></tr>
                 )}
               </tbody>
             </table>

@@ -1,4 +1,5 @@
 const MAPBOX_TOKEN = process.env.MAPBOX_ACCESS_TOKEN;
+const { pool } = require("./db");
 
 // Verified 2026-07-25 through a manual audit: ran the full Ota-area street/
 // landmark list through Mapbox, then checked each match's actual place_name
@@ -59,12 +60,44 @@ function normalizeForMatch(s) {
   return s.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
 }
 
-// Checked before ever calling Mapbox — free, instant, and (for these 10)
-// more accurate than a live geocode, since we've already verified them by
-// hand against exactly this kind of false-match problem.
-function checkLocalGazetteer(query) {
+// Merges the hardcoded, pre-verified entries above with whatever admins
+// have pinned via the "Areas" tab (gazetteer_points table). Cached for a
+// short window so a normal geocode/suggest call — which can happen many
+// times a minute across live bookings — doesn't hit Postgres every time.
+// invalidateGazetteerCache() is called right after an admin saves a new
+// point, so it's usable in the very next booking rather than waiting out
+// the TTL.
+let gazetteerCache = null;
+let gazetteerCacheAt = 0;
+const GAZETTEER_CACHE_TTL_MS = 60_000;
+
+async function getGazetteerEntries() {
+  const now = Date.now();
+  if (gazetteerCache && now - gazetteerCacheAt < GAZETTEER_CACHE_TTL_MS) return gazetteerCache;
+  let dbEntries = [];
+  try {
+    const { rows } = await pool.query("SELECT name, latitude AS lat, longitude AS lng FROM gazetteer_points");
+    dbEntries = rows;
+  } catch (err) {
+    console.error("Couldn't load admin-pinned gazetteer points, falling back to hardcoded list only:", err.message);
+  }
+  gazetteerCache = [...LOCAL_GAZETTEER, ...dbEntries];
+  gazetteerCacheAt = now;
+  return gazetteerCache;
+}
+
+function invalidateGazetteerCache() {
+  gazetteerCache = null;
+}
+
+// Checked before ever calling Mapbox — free, near-instant (cached), and
+// for these entries more accurate than a live geocode, since each one was
+// either hand-verified in code or manually pinned by an admin standing at
+// the actual location.
+async function checkLocalGazetteer(query) {
   const normalizedQuery = normalizeForMatch(query);
-  for (const entry of LOCAL_GAZETTEER) {
+  const entries = await getGazetteerEntries();
+  for (const entry of entries) {
     if (normalizedQuery.includes(normalizeForMatch(entry.name))) {
       return { lat: entry.lat, lng: entry.lng };
     }
@@ -119,7 +152,7 @@ function buildParams({ proximity, bbox } = {}) {
 // `cityHint` is optional — pass a known city name (matching a key in
 // CITY_CENTERS) whenever the caller has one, to bias toward that city.
 async function geocode(query, cityHint) {
-  const localMatch = checkLocalGazetteer(query);
+  const localMatch = await checkLocalGazetteer(query);
   if (localMatch) return localMatch;
 
   if (!MAPBOX_TOKEN) throw new Error("MAPBOX_ACCESS_TOKEN is not set");
@@ -159,7 +192,8 @@ async function drivingDistanceKm(origin, destination) {
 // any flow, like PinMap, that does already know the city).
 async function suggest(query, cityHint) {
   const normalizedQuery = normalizeForMatch(query);
-  const localSuggestions = LOCAL_GAZETTEER.filter((entry) =>
+  const entries = await getGazetteerEntries();
+  const localSuggestions = entries.filter((entry) =>
     normalizeForMatch(entry.name).includes(normalizedQuery)
   ).map((entry) => ({ label: entry.name, city: "Ota", lat: entry.lat, lng: entry.lng }));
 
@@ -193,4 +227,7 @@ async function suggest(query, cityHint) {
   return [...localSuggestions, ...mapboxSuggestions].slice(0, 5);
 }
 
-module.exports = { geocode, drivingDistanceKm, suggest, CITY_CENTERS, LOCAL_GAZETTEER, NEEDS_MANUAL_PIN };
+module.exports = {
+  geocode, drivingDistanceKm, suggest, CITY_CENTERS, LOCAL_GAZETTEER, NEEDS_MANUAL_PIN,
+  invalidateGazetteerCache,
+};

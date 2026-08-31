@@ -875,6 +875,30 @@ async function initSchema() {
     );
   `);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_saved_addresses_user ON saved_addresses (user_id);`);
+
+  // --- Local gazetteer — admin-pinned points for areas where Mapbox's own
+  // geocoding is unreliable (see check-gazetteer.js's audit: only 17/106
+  // known Ota-area names came back trustworthy). Deliberately NOT tied to
+  // institutions — this covers general ride/delivery/food/gas address
+  // entry across whole towns (Agbara, Lusada, Igbesa, etc.), not one
+  // campus. maps.js reads from this table (merged with its own hardcoded
+  // LOCAL_GAZETTEER array) before ever calling Mapbox for a query that
+  // matches a pinned name. UNIQUE (name, city) so re-pinning the same
+  // place just updates its coordinates instead of duplicating it.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS gazetteer_points (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'area' CHECK (type IN ('road','area','landmark')),
+      city TEXT NOT NULL DEFAULT 'Ota',
+      latitude REAL NOT NULL,
+      longitude REAL NOT NULL,
+      source TEXT NOT NULL DEFAULT 'admin',
+      created_by TEXT REFERENCES users(id),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE (name, city)
+    );
+  `);
 }
 
 module.exports = { pool, initSchema };
