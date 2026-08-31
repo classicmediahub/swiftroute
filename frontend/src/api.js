@@ -40,6 +40,8 @@ export const api = {
   submitLandmark: (token, payload) => request("/landmarks/submit", { method: "POST", body: payload, token }),
   listPendingLandmarks: (token, institutionId) => request(`/landmarks/pending/${institutionId}`, { token }),
   confirmLandmark: (token, submissionId) => request(`/landmarks/${submissionId}/confirm`, { method: "POST", token }),
+  adminListLandmarks: (token) => request("/landmarks/admin/all", { token }),
+  adminCreateLandmark: (token, payload) => request("/landmarks/admin", { method: "POST", body: payload, token }),
   listLockers: (token, { institutionId, city } = {}) => {
     const params = new URLSearchParams();
     if (institutionId) params.set("institution_id", institutionId);

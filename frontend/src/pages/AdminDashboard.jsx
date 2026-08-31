@@ -2,11 +2,12 @@ import { useEffect, useState, useCallback } from "react";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import StatusBadge from "../components/StatusBadge";
-import { Users, UserCheck, Package, Car, Lock, Landmark, AlertTriangle, Store } from "lucide-react";
+import { Users, UserCheck, Package, Car, Lock, Landmark, AlertTriangle, Store, MapPin } from "lucide-react";
 import { SkeletonStatGrid, SkeletonTable } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
 import CountUp from "../components/CountUp";
 import CommandPalette from "../components/CommandPalette";
+import PinMap from "../components/PinMap";
 import { Search } from "lucide-react";
 
 const SIDEBAR_ITEMS = [
@@ -15,6 +16,7 @@ const SIDEBAR_ITEMS = [
   { key: "deliveries", label: "Deliveries", icon: Package },
   { key: "rides", label: "Rides", icon: Car },
   { key: "lockers", label: "Lockers", icon: Lock },
+  { key: "landmarks", label: "Landmarks", icon: MapPin },
   { key: "withdrawals", label: "Withdrawals", icon: Landmark },
   { key: "outlets", label: "Outlets", icon: Store },
   { key: "sos", label: "SOS Alerts", icon: AlertTriangle },
@@ -89,14 +91,22 @@ export default function AdminDashboard() {
   });
   const [lockerFormError, setLockerFormError] = useState("");
   const [lockerSubmitting, setLockerSubmitting] = useState(false);
+  const [landmarks, setLandmarks] = useState([]);
+  const [showLandmarkForm, setShowLandmarkForm] = useState(false);
+  const [landmarkForm, setLandmarkForm] = useState({
+    institution_id: "", name: "", zone: "", address: "", city: "Lagos", coords: null,
+  });
+  const [landmarkFormError, setLandmarkFormError] = useState("");
+  const [landmarkSubmitting, setLandmarkSubmitting] = useState(false);
 
   const loadAll = useCallback(async () => {
     try {
-      const [s, a, c, d, r, l, i, w, sos, o] = await Promise.all([
+      const [s, a, c, d, r, l, i, w, sos, o, lm] = await Promise.all([
         api.adminStats(token), api.adminAgents(token), api.adminCustomers(token), api.adminDeliveries(token), api.adminRides(token),
         api.adminLockers(token), api.listInstitutions(token), api.adminPendingWithdrawals(token), api.adminActiveSOS(token), api.adminPendingOutlets(token),
+        api.adminListLandmarks(token),
       ]);
-      setStats(s); setAgents(a); setCustomers(c); setDeliveries(d); setRides(r); setLockers(l); setInstitutions(i); setWithdrawals(w); setSosAlerts(sos); setOutlets(o);
+      setStats(s); setAgents(a); setCustomers(c); setDeliveries(d); setRides(r); setLockers(l); setInstitutions(i); setWithdrawals(w); setSosAlerts(sos); setOutlets(o); setLandmarks(lm);
     } finally {
       setLoading(false);
     }
@@ -171,6 +181,32 @@ export default function AdminDashboard() {
       setLockerFormError(err.message);
     } finally {
       setLockerSubmitting(false);
+    }
+  }
+
+  async function handleCreateLandmark(e) {
+    e.preventDefault();
+    if (!landmarkForm.institution_id || !landmarkForm.name.trim() || !landmarkForm.coords) {
+      setLandmarkFormError("Pick an institution, give it a name, and set a location on the map below.");
+      return;
+    }
+    setLandmarkSubmitting(true);
+    setLandmarkFormError("");
+    try {
+      await api.adminCreateLandmark(token, {
+        institution_id: landmarkForm.institution_id,
+        name: landmarkForm.name.trim(),
+        zone: landmarkForm.zone.trim() || undefined,
+        latitude: landmarkForm.coords.lat,
+        longitude: landmarkForm.coords.lng,
+      });
+      setLandmarkForm({ institution_id: "", name: "", zone: "", address: "", city: "Lagos", coords: null });
+      setShowLandmarkForm(false);
+      await loadAll();
+    } catch (err) {
+      setLandmarkFormError(err.message);
+    } finally {
+      setLandmarkSubmitting(false);
     }
   }
 
@@ -292,7 +328,7 @@ export default function AdminDashboard() {
         <nav className="flex md:flex-col overflow-x-auto md:overflow-visible px-3 md:px-3 py-3 md:py-0 gap-1">
           {SIDEBAR_ITEMS.map(({ key, label, icon: Icon }) => {
             const active = tab === key;
-            const count = { agents, customers, deliveries, rides, lockers, withdrawals, outlets, sos: sosAlerts }[key].length;
+            const count = { agents, customers, deliveries, rides, lockers, landmarks, withdrawals, outlets, sos: sosAlerts }[key].length;
             const isSosWithAlerts = key === "sos" && count > 0;
             return (
               <button
@@ -646,6 +682,124 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {tab === "landmarks" && (
+        <div>
+          <div className="mb-4">
+            <button
+              onClick={() => setShowLandmarkForm((v) => !v)}
+              className="text-sm font-semibold bg-ink text-paper rounded-lg px-4 py-2.5"
+            >
+              {showLandmarkForm ? "Cancel" : "+ Add a landmark"}
+            </button>
+          </div>
+
+          {showLandmarkForm && (
+            <form onSubmit={handleCreateLandmark} className="border border-slate-200 dark:border-line rounded-xl p-5 mb-6 bg-white dark:bg-ink-soft grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-mono text-slate dark:text-slate-light uppercase mb-1.5">Institution</label>
+                <select
+                  required
+                  className="w-full border border-slate-300 dark:border-line rounded-lg px-3 py-2 text-sm"
+                  value={landmarkForm.institution_id}
+                  onChange={(e) => setLandmarkForm((f) => ({ ...f, institution_id: e.target.value }))}
+                >
+                  <option value="">Select institution</option>
+                  {institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-mono text-slate dark:text-slate-light uppercase mb-1.5">Name</label>
+                <input
+                  required
+                  className="w-full border border-slate-300 dark:border-line rounded-lg px-3 py-2 text-sm"
+                  placeholder="Behind Faculty of Engineering"
+                  value={landmarkForm.name}
+                  onChange={(e) => setLandmarkForm((f) => ({ ...f, name: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-mono text-slate dark:text-slate-light uppercase mb-1.5">Zone (optional)</label>
+                <input
+                  className="w-full border border-slate-300 dark:border-line rounded-lg px-3 py-2 text-sm"
+                  placeholder="North campus"
+                  value={landmarkForm.zone}
+                  onChange={(e) => setLandmarkForm((f) => ({ ...f, zone: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-mono text-slate dark:text-slate-light uppercase mb-1.5">City (used for address search)</label>
+                <input
+                  className="w-full border border-slate-300 dark:border-line rounded-lg px-3 py-2 text-sm"
+                  value={landmarkForm.city}
+                  onChange={(e) => setLandmarkForm((f) => ({ ...f, city: e.target.value }))}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-mono text-slate dark:text-slate-light uppercase mb-1.5">Address to search (optional — or just click/drag the pin below)</label>
+                <input
+                  className="w-full border border-slate-300 dark:border-line rounded-lg px-3 py-2 text-sm"
+                  placeholder="e.g. Covenant University Main Gate"
+                  value={landmarkForm.address}
+                  onChange={(e) => setLandmarkForm((f) => ({ ...f, address: e.target.value }))}
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <PinMap
+                  token={token}
+                  address={landmarkForm.address}
+                  city={landmarkForm.city}
+                  coords={landmarkForm.coords}
+                  onCoordsChange={(coords) => setLandmarkForm((f) => ({ ...f, coords }))}
+                  suggestOpen
+                />
+              </div>
+              {landmarkFormError && <p className="sm:col-span-2 text-sm text-red-600">{landmarkFormError}</p>}
+              <div className="sm:col-span-2">
+                <button
+                  disabled={landmarkSubmitting}
+                  className="text-sm font-semibold bg-route hover:bg-route-dark text-ink dark:text-paper rounded-lg px-4 py-2.5 disabled:opacity-60"
+                >
+                  {landmarkSubmitting ? "Saving…" : "Save landmark"}
+                </button>
+              </div>
+            </form>
+          )}
+
+          <div className="overflow-x-auto border border-slate-200 dark:border-line rounded-xl">
+            <table className="w-full text-sm">
+              <thead className="bg-paper dark:bg-white/5 text-left text-xs text-slate dark:text-slate-light uppercase font-mono">
+                <tr>
+                  <th className="px-4 py-3">Landmark</th>
+                  <th className="px-4 py-3">Institution</th>
+                  <th className="px-4 py-3">Zone</th>
+                  <th className="px-4 py-3">Coordinates</th>
+                  <th className="px-4 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {landmarks.map((l) => (
+                  <tr key={l.id} className="border-t border-slate-100 dark:border-line">
+                    <td className="px-4 py-3 font-medium">{l.name}</td>
+                    <td className="px-4 py-3">{l.institution_name}</td>
+                    <td className="px-4 py-3">{l.zone || <span className="text-slate dark:text-slate-light">—</span>}</td>
+                    <td className="px-4 py-3 font-mono text-xs">
+                      {l.latitude != null ? `${Number(l.latitude).toFixed(5)}, ${Number(l.longitude).toFixed(5)}` : "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${l.is_verified ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate dark:text-slate-light-600"}`}>
+                        {l.is_verified ? "Verified" : "Unverified"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {landmarks.length === 0 && (
+                  <tr><td colSpan={5}><EmptyState icon={MapPin} title="No landmarks yet" description="Add one above, or wait for crowd-sourced submissions to get confirmed." /></td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
       {tab === "withdrawals" && (
         <div className="overflow-x-auto border border-slate-200 dark:border-line rounded-xl">
           <table className="w-full text-sm">

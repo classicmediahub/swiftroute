@@ -1,6 +1,9 @@
 const express = require("express");
 const { requireAuth, requireRole } = require("../middleware/auth");
-const { submitLandmark, listPendingSubmissions, confirmLandmark, reviewSubmission } = require("../landmarks");
+const {
+  submitLandmark, listPendingSubmissions, confirmLandmark, reviewSubmission,
+  adminCreateLandmark, listAllLandmarks,
+} = require("../landmarks");
 
 const router = express.Router();
 
@@ -42,6 +45,33 @@ router.patch("/:submissionId/review", requireAuth, requireRole("admin"), async (
   const ok = await reviewSubmission(req.params.submissionId, req.user.id, status);
   if (!ok) return res.status(400).json({ error: "Couldn't review this submission — check it's still pending" });
   res.json({ success: true });
+});
+
+// Admin: full list across every institution, for the "Landmarks" tab table.
+router.get("/admin/all", requireAuth, requireRole("admin"), async (req, res) => {
+  try {
+    res.json(await listAllLandmarks());
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Couldn't load landmarks right now" });
+  }
+});
+
+// Admin: place a landmark directly (map click or address search already
+// resolved to lat/lng on the frontend) — saved as verified immediately,
+// no peer confirmation needed.
+router.post("/admin", requireAuth, requireRole("admin"), async (req, res) => {
+  const { institution_id, name, zone, latitude, longitude } = req.body;
+  if (!institution_id || !name || latitude == null || longitude == null) {
+    return res.status(400).json({ error: "institution_id, name, latitude and longitude are required" });
+  }
+  try {
+    const id = await adminCreateLandmark({ institutionId: institution_id, name, zone, latitude, longitude });
+    res.status(201).json({ id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message || "Couldn't create this landmark right now" });
+  }
 });
 
 module.exports = router;

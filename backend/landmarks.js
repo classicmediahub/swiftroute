@@ -150,7 +150,43 @@ async function reviewSubmission(submissionId, adminId, decision) {
   }
 }
 
+// ---------- ADMIN-PLACED LANDMARKS — an admin dropping/dragging a pin (or
+// searching an address) on the map goes straight into the real `landmarks`
+// table as verified. This deliberately skips landmark_submissions
+// entirely: there's no submitter to reward and nothing to confirm, since
+// an admin manually placing the pin already *is* the verification. Reuses
+// the same `landmarks` table + unique (institution_id, name) constraint
+// as promoteSubmission, so an admin can also use this to fix/move a pin
+// that a crowd-sourced submission got slightly wrong.
+async function adminCreateLandmark({ institutionId, name, zone, latitude, longitude }) {
+  if (!institutionId || !name) throw new Error("institutionId and name are required");
+  if (latitude == null || longitude == null) throw new Error("A location must be set on the map before saving");
+
+  const id = uuidv4();
+  await pool.query(
+    `INSERT INTO landmarks (id, institution_id, name, zone, latitude, longitude, is_verified)
+     VALUES ($1,$2,$3,$4,$5,$6,true)
+     ON CONFLICT (institution_id, name)
+     DO UPDATE SET zone = EXCLUDED.zone, latitude = EXCLUDED.latitude, longitude = EXCLUDED.longitude, is_verified = true`,
+    [id, institutionId, name, zone || null, latitude, longitude]
+  );
+  return id;
+}
+
+// Full list across every institution, for the admin table — includes the
+// institution's name since the raw id is meaningless in that UI.
+async function listAllLandmarks() {
+  const { rows } = await pool.query(
+    `SELECT l.id, l.institution_id, i.name AS institution_name, l.name, l.zone, l.latitude, l.longitude, l.is_verified
+     FROM landmarks l
+     JOIN institutions i ON i.id = l.institution_id
+     ORDER BY i.name, l.name`
+  );
+  return rows;
+}
+
 module.exports = {
   submitLandmark, listPendingSubmissions, confirmLandmark, reviewSubmission,
+  adminCreateLandmark, listAllLandmarks,
   CONFIRMATION_THRESHOLD, SUBMISSION_REWARD,
 };
