@@ -62,6 +62,8 @@ export default function AgentDashboard() {
   const [section, setSection] = useState("deliveries"); // "deliveries" | "rides" — rides only shown to cab agents
   const [tab, setTab] = useState("available");
   const [available, setAvailable] = useState([]);
+  const [boostEnabled, setBoostEnabled] = useState(Boolean(agentProfile?.boost_enabled));
+  const [boostBusy, setBoostBusy] = useState(false);
   const [assigned, setAssigned] = useState([]);
   const [pools, setPools] = useState([]);
   const [poolBusyId, setPoolBusyId] = useState(null);
@@ -201,6 +203,20 @@ export default function AgentDashboard() {
       alert(err.message);
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function handleToggleBoost() {
+    const next = !boostEnabled;
+    setBoostBusy(true);
+    try {
+      await api.setAgentBoost(token, next);
+      setBoostEnabled(next);
+      await loadAll(); // refreshes /available now that visibility rules changed
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setBoostBusy(false);
     }
   }
 
@@ -457,41 +473,65 @@ export default function AgentDashboard() {
               {loading ? (
                 <SkeletonCardList count={2} />
               ) : tab === "available" ? (
-                available.length === 0 ? (
-                  <EmptyState icon={Package} title="Nothing available right now" description="No pending deliveries match your vehicle type at the moment — check back soon." className="border border-dashed border-slate-300 dark:border-line rounded-2xl" />
-                ) : (
-                  <div className="space-y-3">
-                    {available.map((d) => (
-                      <div key={d.id} className="border border-slate-200 dark:border-line rounded-xl p-4 bg-white dark:bg-ink-soft flex items-start justify-between gap-4">
-                        <div>
-                          <div className="font-mono text-xs text-slate dark:text-slate-light mb-1">{d.tracking_code}</div>
-                          <div className="font-semibold text-sm mb-1">
-                            {d.package_type} · {d.pickup_city} → {d.dropoff_city}
-                            {d.distance_km && <span className="text-slate dark:text-slate-light font-normal"> · {d.distance_km} km</span>}
-                          </div>
-                          <div className="text-xs text-slate dark:text-slate-light space-y-0.5">
-                            <div>Pickup: {d.pickup_address}{d.pickup_landmark && ` (${d.pickup_landmark})`}</div>
-                            <div>Drop-off: {d.dropoff_address}{d.dropoff_landmark && ` (${d.dropoff_landmark})`}</div>
-                            <div>Customer: {d.customer_name} · {d.customer_phone}</div>
-                          </div>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <div className="font-mono font-semibold mb-2">₦{d.price.toLocaleString()}</div>
-                          <Button
-                            variant="dark"
-                            size="sm"
-                            className="dark:bg-route dark:text-ink"
-                            loading={busyId === d.id}
-                            loadingText="Accepting…"
-                            onClick={() => handleAccept(d.id)}
-                          >
-                            Accept job
-                          </Button>
-                        </div>
+                <>
+                  <div className="flex items-center justify-between gap-3 border border-slate-200 dark:border-line rounded-xl p-3.5 mb-4 bg-white dark:bg-ink-soft">
+                    <div>
+                      <div className="text-sm font-semibold">Job Boost</div>
+                      <div className="text-xs text-slate dark:text-slate-light mt-0.5">
+                        See new jobs before other agents. Free to enable — a ₦150 fee only applies if you claim one in its first minute.
                       </div>
-                    ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleToggleBoost}
+                      disabled={boostBusy}
+                      className={`shrink-0 relative w-11 h-6 rounded-full transition-colors disabled:opacity-50 ${boostEnabled ? "bg-route" : "bg-slate-300 dark:bg-line"}`}
+                      aria-pressed={boostEnabled}
+                    >
+                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${boostEnabled ? "translate-x-5" : ""}`} />
+                    </button>
                   </div>
-                )
+                  {available.length === 0 ? (
+                    <EmptyState icon={Package} title="Nothing available right now" description="No pending deliveries match your vehicle type at the moment — check back soon." className="border border-dashed border-slate-300 dark:border-line rounded-2xl" />
+                  ) : (
+                    <div className="space-y-3">
+                      {available.map((d) => (
+                        <div key={d.id} className="border border-slate-200 dark:border-line rounded-xl p-4 bg-white dark:bg-ink-soft flex items-start justify-between gap-4">
+                          <div>
+                            <div className="font-mono text-xs text-slate dark:text-slate-light mb-1">{d.tracking_code}</div>
+                            <div className="font-semibold text-sm mb-1">
+                              {d.package_type} · {d.pickup_city} → {d.dropoff_city}
+                              {d.distance_km && <span className="text-slate dark:text-slate-light font-normal"> · {d.distance_km} km</span>}
+                            </div>
+                            <div className="text-xs text-slate dark:text-slate-light space-y-0.5">
+                              <div>Pickup: {d.pickup_address}{d.pickup_landmark && ` (${d.pickup_landmark})`}</div>
+                              <div>Drop-off: {d.dropoff_address}{d.dropoff_landmark && ` (${d.dropoff_landmark})`}</div>
+                              <div>Customer: {d.customer_name} · {d.customer_phone}</div>
+                            </div>
+                            {d.boost_fee_applies && (
+                              <div className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 mt-1.5">
+                                Early access · ₦150 boost fee · public in {d.boost_seconds_remaining}s
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="font-mono font-semibold mb-2">₦{d.price.toLocaleString()}</div>
+                            <Button
+                              variant="dark"
+                              size="sm"
+                              className="dark:bg-route dark:text-ink"
+                              loading={busyId === d.id}
+                              loadingText="Accepting…"
+                              onClick={() => handleAccept(d.id)}
+                            >
+                              {d.boost_fee_applies ? "Accept (₦150 fee)" : "Accept job"}
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
               ) : assigned.length === 0 ? (
                 <EmptyState icon={Inbox} title="No deliveries accepted yet" description="Deliveries you accept from the Available tab will show up here." className="border border-dashed border-slate-300 dark:border-line rounded-2xl" />
               ) : (

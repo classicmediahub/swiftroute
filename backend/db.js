@@ -174,6 +174,12 @@ async function initSchema() {
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS date_of_birth DATE;`);
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS nin TEXT;`);
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS nin_verified BOOLEAN NOT NULL DEFAULT false;`);
+  // Job Boost — a free toggle (see boost.js). When true, this agent sees
+  // brand-new jobs in /available immediately instead of after the public
+  // delay window; the actual fee only gets charged if they go on to claim
+  // one before that window opens, so turning this on carries no cost by
+  // itself.
+  await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS boost_enabled BOOLEAN NOT NULL DEFAULT false;`);
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS nin_verified_at TIMESTAMPTZ;`);
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS nin_verification_method TEXT NOT NULL DEFAULT 'format_only';`);
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS face_liveness_verified BOOLEAN NOT NULL DEFAULT false;`);
@@ -864,14 +870,14 @@ async function initSchema() {
     await pool.query(`ALTER TABLE wallet_transactions DROP CONSTRAINT IF EXISTS wallet_transactions_type_check;`);
     await pool.query(`
       ALTER TABLE wallet_transactions ADD CONSTRAINT wallet_transactions_type_check
-      CHECK (type IN ('topup','delivery_payment','ride_payment','gas_payment','food_payment','refund','streak_reward','referral_reward','landmark_reward','withdrawal','withdrawal_refund'));
+      CHECK (type IN ('topup','delivery_payment','ride_payment','gas_payment','food_payment','refund','streak_reward','referral_reward','landmark_reward','withdrawal','withdrawal_refund','job_boost'));
     `);
   } catch (err) {
     console.error(
       "WARNING: couldn't re-apply wallet_transactions_type_check — a row exists with a 'type' value outside the allowed list. " +
       "The app will keep running, but please investigate: run " +
       "`SELECT id, type, created_at FROM wallet_transactions WHERE type NOT IN " +
-      "('topup','delivery_payment','ride_payment','gas_payment','food_payment','refund','streak_reward','referral_reward','landmark_reward','withdrawal','withdrawal_refund');` " +
+      "('topup','delivery_payment','ride_payment','gas_payment','food_payment','refund','streak_reward','referral_reward','landmark_reward','withdrawal','withdrawal_refund','job_boost');` " +
       "as soon as possible to find it. Underlying error: " + err.message
     );
   }

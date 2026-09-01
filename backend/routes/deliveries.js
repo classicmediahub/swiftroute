@@ -15,6 +15,7 @@ const { findOrCreatePool, rebalancePoolPricing, discountForSize, getPool, listPo
 const { checkGuaranteeBreach, GUARANTEE_FEE } = require("../guarantee");
 const { isEliteAgent, ELITE_FEE } = require("../elite");
 const { calculatePremium, fileClaim } = require("../insurance");
+const { JOB_BOOST_FEE, BOOST_WINDOW_SECONDS, isWithinBoostWindow, boostSecondsRemaining } = require("../boost");
 
 // Same shape-check as auth.js uses for the agent signup photo — not
 // verifying it's a real photo of anything in particular, just that it's
@@ -776,16 +777,33 @@ router.get("/available", requireAuth, requireRole("agent"), async (req, res) => 
       return res.status(403).json({ error: "Your agent account is pending admin approval" });
     }
 
+    // Non-boosted agents don't even see a job until its public window has
+    // opened — see boost.js. Boosted agents get everything, no age filter.
+    const boostClause = profile.boost_enabled ? "" : "AND d.created_at <= now() - make_interval(secs => $2)";
+    const params = profile.boost_enabled
+      ? [profile.vehicle_type]
+      : [profile.vehicle_type, BOOST_WINDOW_SECONDS];
+
     const { rows } = await pool.query(
       `SELECT d.*, u.full_name AS customer_name, u.phone AS customer_phone
        FROM deliveries d JOIN users u ON u.id = d.customer_id
        WHERE d.status = 'pending'
          AND d.payment_status = 'paid'
          AND (d.preferred_vehicle = 'any' OR d.preferred_vehicle = $1)
+         ${boostClause}
        ORDER BY d.created_at ASC`,
-      [profile.vehicle_type]
+      params
     );
-    res.json(rows);
+
+    // Tells the frontend whether accepting THIS job right now would incur
+    // the boost fee, and if so how many seconds until it wouldn't —
+    // purely informational, the real charge/gate happens in /:id/accept.
+    const annotated = rows.map((d) => ({
+      ...d,
+      boost_fee_applies: isWithinBoostWindow(d),
+      boost_seconds_remaining: isWithinBoostWindow(d) ? boostSecondsRemaining(d) : 0,
+    }));
+    res.json(annotated);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong loading available deliveries" });
@@ -900,6 +918,27 @@ router.post("/:id/accept", requireAuth, requireRole("agent"), async (req, res) =
         await client.query("ROLLBACK");
         return res.status(403).json({ error: "This delivery requires an Elite-rated agent. Keep up strong ratings and on-time deliveries to qualify." });
       }
+    }
+
+    // Job Boost — claiming a job before its public window opens costs a
+    // small fee, charged here rather than at toggle-time (see boost.js).
+    // Applies regardless of the agent's current boost_enabled value: what
+    // matters is that they're benefiting from early access right now, not
+    // whether their toggle happens to still be on.
+    if (isWithinBoostWindow(delivery)) {
+      if (Number(profile.wallet_balance) < JOB_BOOST_FEE) {
+        await client.query("ROLLBACK");
+        return res.status(402).json({
+          error: `This job is still in its early-access window for another ${boostSecondsRemaining(delivery)}s. Claiming it now costs a ₦${JOB_BOOST_FEE} Job Boost fee, but your wallet balance is too low — top up, or wait for it to open to everyone.`,
+        });
+      }
+      const newBalance = Number(profile.wallet_balance) - JOB_BOOST_FEE;
+      await client.query("UPDATE agent_profiles SET wallet_balance = $1 WHERE user_id = $2", [newBalance, req.user.id]);
+      await client.query(
+        `INSERT INTO wallet_transactions (id, user_id, type, amount, balance_after, status, delivery_id, note)
+         VALUES ($1,$2,'job_boost',$3,$4,'success',$5,$6)`,
+        [uuidv4(), req.user.id, -JOB_BOOST_FEE, newBalance, delivery.id, `Job Boost \u2014 claimed ${boostSecondsRemaining(delivery)}s before the public window opened`]
+      );
     }
 
     await client.query(

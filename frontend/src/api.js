@@ -196,6 +196,7 @@ export const api = {
   availableDeliveries: (token) => request("/deliveries/available", { token }),
   assignedDeliveries: (token) => request("/deliveries/assigned", { token }),
   acceptDelivery: (token, id) => request(`/deliveries/${id}/accept`, { method: "POST", token }),
+  setAgentBoost: (token, enabled) => request("/agent/boost", { method: "PATCH", body: { enabled }, token }),
   advanceDelivery: (token, id, payload) => request(`/deliveries/${id}/advance`, { method: "PATCH", body: payload, token }),
   updateLocation: (token, id, payload) => request(`/deliveries/${id}/location`, { method: "PATCH", body: payload, token }),
 

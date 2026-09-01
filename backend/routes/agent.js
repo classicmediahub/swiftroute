@@ -63,5 +63,23 @@ router.post("/offline", async (req, res) => {
   }
 });
 
+// Free to flip on/off anytime — turning it on doesn't cost anything by
+// itself. See boost.js: the actual fee is only ever charged at the
+// moment an agent successfully claims a job before its public window
+// opens, not for having this switched on.
+router.patch("/boost", async (req, res) => {
+  const { enabled } = req.body;
+  if (typeof enabled !== "boolean") {
+    return res.status(400).json({ error: "enabled must be true or false" });
+  }
+  try {
+    await pool.query("UPDATE agent_profiles SET boost_enabled = $1 WHERE user_id = $2", [enabled, req.user.id]);
+    res.json({ boost_enabled: enabled });
+  } catch (err) {
+    console.error("Boost toggle failed:", err);
+    res.status(500).json({ error: "Couldn't update your Job Boost setting" });
+  }
+});
+
 module.exports = router;
 module.exports.STALE_AFTER_SECONDS = STALE_AFTER_SECONDS;
