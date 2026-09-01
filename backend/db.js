@@ -315,11 +315,16 @@ async function initSchema() {
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS longest_streak INTEGER NOT NULL DEFAULT 0;`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_streak_date DATE;`);
 
-  await pool.query(`ALTER TABLE wallet_transactions DROP CONSTRAINT IF EXISTS wallet_transactions_type_check;`);
-  await pool.query(`
-    ALTER TABLE wallet_transactions ADD CONSTRAINT wallet_transactions_type_check
-    CHECK (type IN ('topup','delivery_payment','ride_payment','refund','streak_reward','referral_reward','landmark_reward'));
-  `);
+  // NOTE: wallet_transactions_type_check is defined once, near the bottom
+  // of this file, after every order type (gas/food/etc.) that writes a
+  // wallet_transactions row has been introduced. Earlier drafts of this
+  // schema re-defined this same constraint multiple times as new types
+  // were added — each with a narrower list than the types actually in use
+  // by then — which meant every single boot re-validated ALL existing
+  // rows against a stale, incomplete list and could crash the whole
+  // server the moment a real gas/food/withdrawal transaction existed.
+  // Consolidated to the one definition below; don't reintroduce an
+  // earlier, narrower copy of this constraint.
 
   // --- Crowdsourced landmarks — extends the institution/landmark system
   // (originally seeded manually, see seed-landmarks.js) so it improves
@@ -604,11 +609,7 @@ async function initSchema() {
     );
   `);
 
-  await pool.query(`ALTER TABLE wallet_transactions DROP CONSTRAINT IF EXISTS wallet_transactions_type_check;`);
-  await pool.query(`
-    ALTER TABLE wallet_transactions ADD CONSTRAINT wallet_transactions_type_check
-    CHECK (type IN ('topup','delivery_payment','ride_payment','gas_payment','refund','streak_reward','referral_reward','landmark_reward','withdrawal','withdrawal_refund'));
-  `);
+  // (wallet_transactions_type_check consolidated further down — see note above)
 
   // --- In-app chat between customer and agent, for a specific ride or
   // delivery. One table covers both trip types (rather than
@@ -846,11 +847,34 @@ async function initSchema() {
   await pool.query(`ALTER TABLE trip_messages ADD CONSTRAINT trip_messages_trip_type_check CHECK (trip_type IN ('ride','delivery','gas','food'));`);
   await pool.query(`ALTER TABLE sos_alerts DROP CONSTRAINT IF EXISTS sos_alerts_trip_type_check;`);
   await pool.query(`ALTER TABLE sos_alerts ADD CONSTRAINT sos_alerts_trip_type_check CHECK (trip_type IN ('ride','delivery','gas','food'));`);
-  await pool.query(`ALTER TABLE wallet_transactions DROP CONSTRAINT IF EXISTS wallet_transactions_type_check;`);
-  await pool.query(`
-    ALTER TABLE wallet_transactions ADD CONSTRAINT wallet_transactions_type_check
-    CHECK (type IN ('topup','delivery_payment','ride_payment','gas_payment','food_payment','refund','streak_reward','referral_reward','landmark_reward','withdrawal','withdrawal_refund'));
-  `);
+  // Wrapped defensively: this re-applies a whitelist of valid `type`
+  // values by dropping and re-adding the constraint on every boot, which
+  // means it validates every existing row each time. If a live request
+  // (topup, bonus payout, etc.) has ever written a `type` not on this
+  // list — even a row that's since been corrected or cleaned up by
+  // another process — this can fail the ALTER *at the exact moment a
+  // deploy happens to catch a transient bad row*, which previously took
+  // the entire server down. A data-quality issue in one row should never
+  // block every customer from using the app, so this now logs loudly
+  // instead of crashing startup. The underlying cause (something writing
+  // an off-list type) still needs finding and fixing — see the warning
+  // this prints, which is the fastest way to catch it in the act next
+  // time it happens.
+  try {
+    await pool.query(`ALTER TABLE wallet_transactions DROP CONSTRAINT IF EXISTS wallet_transactions_type_check;`);
+    await pool.query(`
+      ALTER TABLE wallet_transactions ADD CONSTRAINT wallet_transactions_type_check
+      CHECK (type IN ('topup','delivery_payment','ride_payment','gas_payment','food_payment','refund','streak_reward','referral_reward','landmark_reward','withdrawal','withdrawal_refund'));
+    `);
+  } catch (err) {
+    console.error(
+      "WARNING: couldn't re-apply wallet_transactions_type_check — a row exists with a 'type' value outside the allowed list. " +
+      "The app will keep running, but please investigate: run " +
+      "`SELECT id, type, created_at FROM wallet_transactions WHERE type NOT IN " +
+      "('topup','delivery_payment','ride_payment','gas_payment','food_payment','refund','streak_reward','referral_reward','landmark_reward','withdrawal','withdrawal_refund');` " +
+      "as soon as possible to find it. Underlying error: " + err.message
+    );
+  }
 
   // --- SAVED ADDRESSES — a reusable label ("Home", "Work", "Hostel") for
   // an address a customer types once and picks again later, rather than
