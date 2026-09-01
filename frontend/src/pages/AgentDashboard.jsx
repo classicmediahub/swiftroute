@@ -3,6 +3,7 @@ import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { useLiveLocation } from "../hooks/useLiveLocation";
 import { useRideLocation } from "../hooks/useRideLocation";
+import { enqueueAdvance, flushQueuedAdvances, isNetworkError } from "../lib/offlineQueue";
 import RideMeter from "../components/RideMeter";
 import TripStatusStepper, { RIDE_STEPS, DELIVERY_STEPS } from "../components/TripStatusStepper";
 import StatusBadge from "../components/StatusBadge";
@@ -37,6 +38,17 @@ function nextLabelFor(d) {
   return null; // covers 'at_locker' too — no further agent action, see the pickup-code card instead
 }
 
+// Mirrors backend/routes/deliveries.js's nextStatusFor exactly — needed
+// here so an offline "mark delivered" tap can optimistically move the
+// stepper forward immediately, instead of just showing a spinner until a
+// connection that may not come back for a while.
+function nextStatusFor(delivery) {
+  if (delivery.status === "accepted") return "picked_up";
+  if (delivery.status === "picked_up") return "in_transit";
+  if (delivery.status === "in_transit") return delivery.locker_id ? "at_locker" : "delivered";
+  return null;
+}
+
 const RIDE_NEXT_LABEL = {
   accepted: "Start trip",
   in_progress: "End trip",
@@ -54,6 +66,10 @@ export default function AgentDashboard() {
   const [pools, setPools] = useState([]);
   const [poolBusyId, setPoolBusyId] = useState(null);
   const [proofPhotos, setProofPhotos] = useState({}); // deliveryId -> data URL, cleared once submitted
+  // Delivery ids with an offline-queued status advance not yet confirmed
+  // by the server — drives the "Queued — will sync" badge so an agent
+  // isn't left guessing whether their tap actually registered.
+  const [pendingSyncIds, setPendingSyncIds] = useState(() => new Set());
 
   function handleProofPhotoSelected(deliveryId, file) {
     if (!file) return;
@@ -127,6 +143,39 @@ export default function AgentDashboard() {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
+  // Replays any offline-queued status advances whenever the browser comes
+  // back online, and once on mount (covers "reopened the app after being
+  // offline" as well as "regained signal mid-session"). A full loadAll()
+  // afterward reconciles the optimistic local state with server truth —
+  // cheap insurance against any drift.
+  const flushQueue = useCallback(async () => {
+    await flushQueuedAdvances({
+      advanceFn: (id, body) => api.advanceDelivery(token, id, body),
+      onSuccess: (item) => {
+        setPendingSyncIds((prev) => {
+          const next = new Set(prev);
+          next.delete(item.deliveryId);
+          return next;
+        });
+      },
+      onError: (item, err) => {
+        setPendingSyncIds((prev) => {
+          const next = new Set(prev);
+          next.delete(item.deliveryId);
+          return next;
+        });
+        setError(`A queued update for one delivery couldn't be applied: ${err.message}. Please check its status.`);
+      },
+    });
+    loadAll();
+  }, [token, loadAll]);
+
+  useEffect(() => {
+    flushQueue(); // in case we reopened the app already back online with a stale queue
+    window.addEventListener("online", flushQueue);
+    return () => window.removeEventListener("online", flushQueue);
+  }, [flushQueue]);
+
   const loadRides = useCallback(async () => {
     if (!isLiveRideCandidate) { setLoadingRides(false); return; }
     try {
@@ -178,14 +227,27 @@ export default function AgentDashboard() {
       alert("Please attach a proof-of-delivery photo before marking this delivered.");
       return;
     }
+    const body = isFinalDeliveredStep ? { proof_photo: proofPhotos[id] } : undefined;
     setBusyId(id);
     try {
-      await api.advanceDelivery(token, id, isFinalDeliveredStep ? { proof_photo: proofPhotos[id] } : undefined);
+      await api.advanceDelivery(token, id, body);
       setProofPhotos((p) => { const next = { ...p }; delete next[id]; return next; });
       await loadAll();
       await refresh();
     } catch (err) {
-      alert(err.message);
+      // A genuine connectivity failure — e.g. an agent inside a building
+      // with no signal — gets queued instead of shown as an error. The
+      // tap still "works" from the agent's point of view: the stepper
+      // advances now, and the real request replays the moment signal
+      // comes back (see the online-listener effect above).
+      if (isNetworkError(err)) {
+        await enqueueAdvance(id, body);
+        setProofPhotos((p) => { const next = { ...p }; delete next[id]; return next; });
+        setPendingSyncIds((prev) => new Set(prev).add(id));
+        setAssigned((prev) => prev.map((d) => (d.id === id ? { ...d, status: nextStatusFor(d) } : d)));
+      } else {
+        alert(err.message);
+      }
     } finally {
       setBusyId(null);
     }
@@ -446,6 +508,12 @@ export default function AgentDashboard() {
                         </div>
                       </div>
                       <TripStatusStepper steps={DELIVERY_STEPS} currentKey={d.status} className="mb-3" />
+                      {pendingSyncIds.has(d.id) && (
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 mb-3">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                          No connection — saved on this device, will sync automatically once you're back online
+                        </div>
+                      )}
                       <div className="text-xs text-slate dark:text-slate-light space-y-0.5 mb-3">
                         <div>Pickup: {d.pickup_address}{d.pickup_landmark && ` (${d.pickup_landmark})`}</div>
                         <div>Drop-off: {d.dropoff_address}{d.dropoff_landmark && ` (${d.dropoff_landmark})`} · to {d.recipient_name} ({d.recipient_phone})</div>
@@ -453,7 +521,7 @@ export default function AgentDashboard() {
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="font-mono text-sm font-semibold">₦{d.price.toLocaleString()}</span>
-                        {nextLabelFor(d) && (
+                        {nextLabelFor(d) && !pendingSyncIds.has(d.id) && (
                           <Button
                             size="sm"
                             disabled={d.status === "in_transit" && !d.locker_id && !proofPhotos[d.id]}

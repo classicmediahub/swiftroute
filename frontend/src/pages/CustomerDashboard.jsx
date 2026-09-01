@@ -25,6 +25,7 @@ import EmergencyContactCard from "../components/EmergencyContactCard";
 import SOSButton from "../components/SOSButton";
 import AddressAutocomplete from "../components/AddressAutocomplete";
 import SettingsPanel from "../components/SettingsPanel";
+import NotificationsToggle from "../components/NotificationsToggle";
 import { useUnreadMessages } from "../hooks/useUnreadMessages";
 import { lazy, Suspense } from "react";
 const DeliveryMap = lazy(() => import("../components/DeliveryMap"));
@@ -1143,7 +1144,12 @@ export default function CustomerDashboard() {
       {tab === "invoices" && isBusiness && <Invoices deliveries={deliveries} />}
       {tab === "reports" && isBusiness && <Reports deliveries={deliveries} />}
       {tab === "api" && isBusiness && <ApiSettings token={token} />}
-      {tab === "settings" && <SettingsPanel token={token} user={user} onUpdated={refresh} />}
+      {tab === "settings" && (
+        <div>
+          <NotificationsToggle className="mb-6" />
+          <SettingsPanel token={token} user={user} onUpdated={refresh} />
+        </div>
+      )}
     </div>
   );
 }

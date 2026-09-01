@@ -47,6 +47,11 @@ export const api = {
   adminGazetteerPoints: (token) => request("/gazetteer/admin/all", { token }),
   adminGazetteerQueue: (token) => request("/gazetteer/admin/queue", { token }),
   adminCreateGazetteerPoint: (token, payload) => request("/gazetteer/admin", { method: "POST", body: payload, token }),
+
+  // Web Push
+  pushVapidPublicKey: () => request("/push/vapid-public-key"),
+  pushSubscribe: (token, subscription) => request("/push/subscribe", { method: "POST", body: { subscription }, token }),
+  pushUnsubscribe: (token, endpoint) => request("/push/unsubscribe", { method: "POST", body: { endpoint }, token }),
   listLockers: (token, { institutionId, city } = {}) => {
     const params = new URLSearchParams();
     if (institutionId) params.set("institution_id", institutionId);

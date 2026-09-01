@@ -899,6 +899,24 @@ async function initSchema() {
       UNIQUE (name, city)
     );
   `);
+
+  // --- Web Push subscriptions. One row per browser/device a user has
+  // granted notification permission on (a user can have several — phone +
+  // laptop, etc.), so no UNIQUE on user_id alone. `endpoint` itself is
+  // already unique per browser install, which is what we actually
+  // deduplicate on when a re-subscribe happens (permission re-granted,
+  // token rotated by the browser, etc.).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      endpoint TEXT NOT NULL UNIQUE,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user ON push_subscriptions (user_id);`);
 }
 
 module.exports = { pool, initSchema };
