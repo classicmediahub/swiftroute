@@ -26,6 +26,10 @@ import SOSButton from "../components/SOSButton";
 import AddressAutocomplete from "../components/AddressAutocomplete";
 import SettingsPanel from "../components/SettingsPanel";
 import NotificationsToggle from "../components/NotificationsToggle";
+import ServiceSwitcher from "../components/ServiceSwitcher";
+import RequestRide from "./RequestRide";
+import RequestGas from "./RequestGas";
+import FoodHome from "./FoodHome";
 import { useUnreadMessages } from "../hooks/useUnreadMessages";
 import { lazy, Suspense } from "react";
 const DeliveryMap = lazy(() => import("../components/DeliveryMap"));
@@ -59,6 +63,7 @@ export default function CustomerDashboard() {
   const { token, user, refresh } = useAuth();
   const isBusiness = user?.account_type === "business";
   const [tab, setTab] = useState("send");
+  const [bookingService, setBookingService] = useState("delivery");
 
   const [form, setForm] = useState(emptyForm);
   const [estimate, setEstimate] = useState(null);
@@ -1106,13 +1111,15 @@ export default function CustomerDashboard() {
           className="mb-8"
         />
       )}
-      <h1 className="font-display text-3xl font-semibold mb-8">
-        {tab === "send" ? "Send a new delivery" : tab === "bulk" ? "Bulk upload" : tab === "invoices" ? "Invoices" : tab === "reports" ? "Reports" : tab === "settings" ? "Settings" : "API access"}
-      </h1>
+      {tab !== "send" && (
+        <h1 className="font-display text-3xl font-semibold mb-8">
+          {tab === "bulk" ? "Bulk upload" : tab === "invoices" ? "Invoices" : tab === "reports" ? "Reports" : tab === "settings" ? "Settings" : "API access"}
+        </h1>
+      )}
 
       <div className="flex gap-2 mb-8 border-b border-slate-200 dark:border-line overflow-x-auto">
         {[
-          { id: "send", label: "Send a delivery" },
+          { id: "send", label: "Book" },
           ...(isBusiness ? [
             { id: "bulk", label: "Bulk upload" },
             { id: "invoices", label: "Invoices" },
@@ -1133,7 +1140,15 @@ export default function CustomerDashboard() {
         ))}
       </div>
 
-      {tab === "send" && sendDeliveryView}
+      {tab === "send" && (
+        <div>
+          <ServiceSwitcher active={bookingService} onChange={setBookingService} />
+          {bookingService === "delivery" && sendDeliveryView}
+          {bookingService === "ride" && <RequestRide />}
+          {bookingService === "food" && <FoodHome />}
+          {bookingService === "gas" && <RequestGas />}
+        </div>
+      )}
       {tab === "bulk" && isBusiness && (
         <BulkUpload
           token={token}
