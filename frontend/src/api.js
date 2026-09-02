@@ -213,6 +213,7 @@ export const api = {
   publicStats: () => request("/public/stats"),
   publicAutocomplete: (query) => request("/public/autocomplete", { method: "POST", body: { query } }),
   publicEstimate: (payload) => request("/public/estimate", { method: "POST", body: payload }),
+  publicGasEstimate: (payload) => request("/public/estimate-gas", { method: "POST", body: payload }),
   publicTrack: (code) => request(`/public/track/${code}`),
   publicReviews: () => request("/public/reviews"),
   publicRideEstimate: (payload) => request("/public/estimate-ride", { method: "POST", body: payload }),

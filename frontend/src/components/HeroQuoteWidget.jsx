@@ -31,12 +31,9 @@ const MODES = [
   { id: "gas", label: "Gas" },
 ];
 
-// No public gas-pricing endpoint exists yet, so gas mode deliberately
-// skips a live quote — just a size picker to orient a first-time visitor,
-// same spirit as food mode skipping a quote entirely (food pricing only
-// makes sense once you've picked an outlet and items, which is what
-// /food's own browse flow is for). A live gas quote can be added later
-// by mirroring /public/estimate and /public/estimate-ride.
+// Gas mode calls the same getGasQuote() logic as the authenticated
+// /gas/estimate endpoint, via /public/estimate-gas — just without
+// requiring login, same public-preview role as delivery/ride above.
 const GAS_SIZES = [3, 6, 12.5, 25, 50];
 
 export default function HeroQuoteWidget() {
@@ -46,38 +43,53 @@ export default function HeroQuoteWidget() {
   const [price, setPrice] = useState(null);
   const [loading, setLoading] = useState(false);
   const [cylinderSize, setCylinderSize] = useState(GAS_SIZES[1]);
+  const [gasAddress, setGasAddress] = useState(null);
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const isQuoteMode = mode === "delivery" || mode === "ride";
+  const isRouteQuote = mode === "delivery" || mode === "ride"; // needs pickup + dropoff
+  const isGasQuote = mode === "gas"; // needs one address + cylinder size
+  const isQuoteMode = isRouteQuote || isGasQuote;
 
   useEffect(() => {
-    if (!isQuoteMode || !pickup || !dropoff) {
-      setPrice(null);
+    if (isRouteQuote) {
+      if (!pickup || !dropoff) { setPrice(null); return; }
+      setLoading(true);
+      const request =
+        mode === "ride"
+          ? api.publicRideEstimate({ pickup_coords: pickup, dropoff_coords: dropoff })
+          : api.publicEstimate({
+              pickup_coords: pickup,
+              dropoff_coords: dropoff,
+              pickup_city: pickup.city,
+              dropoff_city: dropoff.city,
+              preferred_vehicle: "any",
+            });
+      request.then((res) => setPrice(res.price)).catch(() => setPrice(null)).finally(() => setLoading(false));
       return;
     }
-    setLoading(true);
-    const request =
-      mode === "ride"
-        ? api.publicRideEstimate({ pickup_coords: pickup, dropoff_coords: dropoff })
-        : api.publicEstimate({
-            pickup_coords: pickup,
-            dropoff_coords: dropoff,
-            pickup_city: pickup.city,
-            dropoff_city: dropoff.city,
-            preferred_vehicle: "any",
-          });
 
-    request
-      .then((res) => setPrice(res.price))
-      .catch(() => setPrice(null))
-      .finally(() => setLoading(false));
-  }, [pickup, dropoff, mode, isQuoteMode]);
+    if (isGasQuote) {
+      if (!gasAddress) { setPrice(null); return; }
+      setLoading(true);
+      api.publicGasEstimate({
+        city: gasAddress.city,
+        address_coords: { lat: gasAddress.lat, lng: gasAddress.lng },
+        cylinder_size_kg: cylinderSize,
+      })
+        .then((res) => setPrice(res.price))
+        .catch(() => setPrice(null))
+        .finally(() => setLoading(false));
+      return;
+    }
+
+    setPrice(null); // food — no quote
+  }, [pickup, dropoff, mode, gasAddress, cylinderSize, isRouteQuote, isGasQuote]);
 
   function handleModeChange(next) {
     if (next === mode) return;
     setMode(next);
-    setPrice(null); // re-fetches under the new mode's pricing once both points are still set (quote modes only)
+    setPrice(null); // re-fetches under the new mode's pricing once its required fields are still set
   }
 
   function handleContinue() {
@@ -89,6 +101,8 @@ export default function HeroQuoteWidget() {
     }
 
     if (mode === "gas") {
+      // Coordinates picked here aren't carried over — /gas uses its own
+      // location picker, same reasoning as delivery/ride below.
       navigate(user?.role === "customer" ? "/gas" : "/signup/customer");
       return;
     }
@@ -109,13 +123,13 @@ export default function HeroQuoteWidget() {
 
   const continueLabel = isQuoteMode
     ? (loading ? "Getting price…" : "See prices")
-    : mode === "food"
-    ? "Browse restaurants & shops"
-    : user?.role === "customer"
-    ? "Order gas"
-    : "Sign up to order gas";
+    : "Browse restaurants & shops";
 
-  const continueDisabled = isQuoteMode ? (!pickup || !dropoff || loading) : false;
+  const continueDisabled = isRouteQuote
+    ? (!pickup || !dropoff || loading)
+    : isGasQuote
+    ? (!gasAddress || loading)
+    : false;
 
   return (
     // Slightly lighter than the hero's own background (not the same dark
@@ -137,7 +151,7 @@ export default function HeroQuoteWidget() {
         ))}
       </div>
 
-      {isQuoteMode && (
+      {isRouteQuote && (
         <div className="flex flex-col sm:flex-row gap-2.5">
           <div className="flex-1 min-w-0">
             <AddressAutocomplete
@@ -167,23 +181,32 @@ export default function HeroQuoteWidget() {
       )}
 
       {mode === "gas" && (
-        <div>
-          <div className="text-xs text-slate-light mb-2 px-1">Cylinder size</div>
-          <div className="flex flex-wrap gap-2">
-            {GAS_SIZES.map((size) => (
-              <button
-                key={size}
-                type="button"
-                onClick={() => setCylinderSize(size)}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${
-                  cylinderSize === size
-                    ? "bg-route text-ink border-route"
-                    : "border-line text-slate-light hover:text-paper"
-                }`}
-              >
-                {size}kg
-              </button>
-            ))}
+        <div className="space-y-2.5">
+          <AddressAutocomplete
+            value={gasAddress}
+            onSelect={setGasAddress}
+            placeholder="Delivery address"
+            theme="dark"
+            icon={<span className="w-2.5 h-2.5 rounded-sm bg-delivered shrink-0" />}
+          />
+          <div>
+            <div className="text-xs text-slate-light mb-2 px-1">Cylinder size</div>
+            <div className="flex flex-wrap gap-2">
+              {GAS_SIZES.map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => setCylinderSize(size)}
+                  className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${
+                    cylinderSize === size
+                      ? "bg-route text-ink border-route"
+                      : "border-line text-slate-light hover:text-paper"
+                  }`}
+                >
+                  {size}kg
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -214,7 +237,7 @@ export default function HeroQuoteWidget() {
             : mode === "food"
             ? "Live order tracking"
             : mode === "gas"
-            ? "Same-day refills available"
+            ? "Same-day refills, priced upfront"
             : "Parcels insured up to ₦50,000"}
         </span>
       </div>

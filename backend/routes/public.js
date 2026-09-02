@@ -1,6 +1,7 @@
 const express = require("express");
 const { pool } = require("../db");
 const { getQuote, getRideQuote } = require("../quote");
+const { getGasQuote } = require("../gas-quote");
 const { suggest } = require("../maps");
 
 const router = express.Router();
@@ -93,6 +94,24 @@ router.post("/estimate-ride", async (req, res) => {
     return res.status(502).json({ error: "Couldn't calculate a fare for this route right now" });
   }
   res.json(quote);
+});
+
+// ---------- GAS PRICE ESTIMATE (landing page — no login required). Same
+// public-preview role as /estimate and /estimate-ride above, calling the
+// exact same getGasQuote() used by the authenticated version in
+// routes/gas.js — this never re-implements the pricing logic, just skips
+// the login requirement so a first-time visitor can see a real number
+// before signing up. ----------
+router.post("/estimate-gas", async (req, res) => {
+  const { city, address, address_coords, cylinder_size_kg } = req.body;
+  if (!city) return res.status(400).json({ error: "city is required" });
+  if (!cylinder_size_kg) return res.status(400).json({ error: "cylinder_size_kg is required" });
+  try {
+    const quote = await getGasQuote({ city, address, address_coords: address_coords || null, cylinder_size_kg });
+    res.json(quote);
+  } catch (err) {
+    res.status(400).json({ error: "Enter a valid cylinder size" });
+  }
 });
 
 // ---------- TRACK A DELIVERY BY CODE (no login required — the tracking
