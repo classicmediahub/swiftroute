@@ -87,7 +87,7 @@ router.post("/airtime", requireAuth, requireRole("customer"), async (req, res) =
   }
 
   try {
-    const { status } = await buyAirtime({ network, phone, amount: naira, requestId });
+    const { status, result } = await buyAirtime({ network, phone, amount: naira, requestId });
     await pool.query("UPDATE bill_payments SET status = $1 WHERE id = $2", [status === "delivered" ? "delivered" : status, paymentId]);
     if (status === "delivered") {
       await pool.query("UPDATE wallet_transactions SET status = 'success' WHERE id = $1", [walletTxnId]);
@@ -101,7 +101,8 @@ router.post("/airtime", requireAuth, requireRole("customer"), async (req, res) =
       // flow itself.
       return res.json({ status: "pending", balance: newBalance, message: "Your purchase is processing — check back shortly." });
     }
-    throw new Error("VTpass reported this purchase failed");
+    console.error("VTpass airtime purchase failed \u2014 full response:", JSON.stringify(result));
+    throw new Error(result?.response_description || "VTpass reported this purchase failed");
   } catch (err) {
     console.error("VTpass airtime purchase failed:", err.message);
     await refundBillPayment(paymentId, req.user.id, naira, `Airtime purchase failed \u2014 refunded (${phone})`);
@@ -166,7 +167,7 @@ router.post("/data", requireAuth, requireRole("customer"), async (req, res) => {
   }
 
   try {
-    const { status } = await buyData({ network, phone, variationCode: variation_code, requestId });
+    const { status, result } = await buyData({ network, phone, variationCode: variation_code, requestId });
     await pool.query("UPDATE bill_payments SET status = $1 WHERE id = $2", [status === "delivered" ? "delivered" : status, paymentId]);
     if (status === "delivered") {
       await pool.query("UPDATE wallet_transactions SET status = 'success' WHERE id = $1", [walletTxnId]);
@@ -175,7 +176,8 @@ router.post("/data", requireAuth, requireRole("customer"), async (req, res) => {
     if (status === "pending") {
       return res.json({ status: "pending", balance: newBalance, message: "Your purchase is processing — check back shortly." });
     }
-    throw new Error("VTpass reported this purchase failed");
+    console.error("VTpass data purchase failed \u2014 full response:", JSON.stringify(result));
+    throw new Error(result?.response_description || "VTpass reported this purchase failed");
   } catch (err) {
     console.error("VTpass data purchase failed:", err.message);
     await refundBillPayment(paymentId, req.user.id, plan.amount, `Data purchase failed \u2014 refunded (${phone})`);
