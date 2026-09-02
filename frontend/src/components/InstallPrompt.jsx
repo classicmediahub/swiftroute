@@ -64,7 +64,7 @@ export default function InstallPrompt() {
   if (!showIOSHint && !deferredPrompt) return null; // Android/Chrome hasn't fired the event yet — nothing to show
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 sm:right-auto sm:max-w-sm z-40">
+    <div className="fixed bottom-20 sm:bottom-4 left-4 right-4 sm:right-auto sm:max-w-sm z-40">
       <div className="bg-ink text-paper border border-line rounded-2xl p-4 shadow-lg flex items-start gap-3">
         <div className="w-10 h-10 rounded-xl bg-route/20 flex items-center justify-center shrink-0">
           <Download className="w-5 h-5 text-route" />
@@ -81,13 +81,13 @@ export default function InstallPrompt() {
           {!showIOSHint && (
             <button
               onClick={handleInstallClick}
-              className="mt-2.5 text-xs font-semibold text-ink bg-route hover:bg-route-dark rounded-lg px-3.5 py-1.5 transition-colors"
+              className="mt-2.5 text-xs font-semibold text-ink bg-route hover:bg-route-dark rounded-lg px-4 py-3 transition-colors"
             >
               Install
             </button>
           )}
         </div>
-        <button onClick={dismiss} className="text-slate-light hover:text-paper shrink-0" aria-label="Dismiss">
+        <button onClick={dismiss} className="text-slate-light hover:text-paper shrink-0 p-2 -m-2" aria-label="Dismiss">
           <X className="w-4 h-4" />
         </button>
       </div>

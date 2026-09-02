@@ -772,7 +772,7 @@ export default function CustomerDashboard() {
           <div className="grid grid-cols-4 gap-2 mb-4">
             {VEHICLES.map((v) => (
               <button type="button" key={v.value} onClick={() => update("preferred_vehicle", v.value)}
-                className={`text-xs font-medium rounded-lg px-2 py-2 border transition-colors ${
+                className={`flex items-center justify-center min-h-[44px] text-xs font-medium rounded-lg px-2 py-2 border transition-colors ${
                   form.preferred_vehicle === v.value ? "border-ink bg-ink text-paper dark:bg-route dark:text-ink" : "border-slate-300 hover:border-slate-400"
                 }`}>
                 {v.label}
@@ -847,7 +847,7 @@ export default function CustomerDashboard() {
             <button
               type="button"
               onClick={() => update("payment_method", "paystack")}
-              className={`text-xs font-medium rounded-lg px-2 py-2.5 border transition-colors ${
+              className={`flex items-center justify-center text-center min-h-[44px] text-xs font-medium rounded-lg px-2 py-2.5 border transition-colors ${
                 form.payment_method === "paystack" ? "border-ink bg-ink text-paper dark:bg-route dark:text-ink" : "border-slate-300 hover:border-slate-400"
               }`}
             >
@@ -857,7 +857,7 @@ export default function CustomerDashboard() {
               type="button"
               disabled={estimate !== null && walletBalance < estimate}
               onClick={() => update("payment_method", "wallet")}
-              className={`text-xs font-medium rounded-lg px-2 py-2.5 border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+              className={`flex items-center justify-center text-center min-h-[44px] text-xs font-medium rounded-lg px-2 py-2.5 border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                 form.payment_method === "wallet" ? "border-ink bg-ink text-paper dark:bg-route dark:text-ink" : "border-slate-300 hover:border-slate-400"
               }`}
             >

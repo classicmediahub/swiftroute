@@ -392,7 +392,17 @@ export default function AdminDashboard() {
       </aside>
 
       <main className="flex-1 min-w-0 px-5 py-8 md:px-8 md:py-10">
-        <div className="font-mono text-xs text-slate dark:text-slate-light mb-2 md:hidden">ADMIN DASHBOARD</div>
+        <div className="flex items-center justify-between mb-2 md:hidden">
+          <div className="font-mono text-xs text-slate dark:text-slate-light">ADMIN DASHBOARD</div>
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            aria-label="Search"
+            className="flex items-center justify-center w-9 h-9 -mr-1.5 text-slate dark:text-slate-light"
+          >
+            <Search className="w-4.5 h-4.5" />
+          </button>
+        </div>
         <h1 className="font-display text-3xl font-semibold mb-8 text-ink dark:text-paper hidden md:block">
           {SIDEBAR_ITEMS.find((i) => i.key === tab)?.label}
         </h1>
