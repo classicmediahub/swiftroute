@@ -198,6 +198,13 @@ export const api = {
   acceptDelivery: (token, id) => request(`/deliveries/${id}/accept`, { method: "POST", token }),
   setAgentBoost: (token, enabled) => request("/agent/boost", { method: "PATCH", body: { enabled }, token }),
   setAgentProfilePhoto: (token, photo) => request("/agent/profile-photo", { method: "PATCH", body: { photo }, token }),
+
+  // Airtime & Data (VTpass)
+  billNetworks: (token) => request("/bills/networks", { token }),
+  billDataPlans: (token, network) => request(`/bills/data-plans/${network}`, { token }),
+  buyAirtime: (token, payload) => request("/bills/airtime", { method: "POST", body: payload, token }),
+  buyData: (token, payload) => request("/bills/data", { method: "POST", body: payload, token }),
+  myBillPayments: (token) => request("/bills/mine", { token }),
   advanceDelivery: (token, id, payload) => request(`/deliveries/${id}/advance`, { method: "PATCH", body: payload, token }),
   updateLocation: (token, id, payload) => request(`/deliveries/${id}/location`, { method: "PATCH", body: payload, token }),
 

@@ -1,10 +1,11 @@
-import { Package, Car, UtensilsCrossed, Flame } from "lucide-react";
+import { Package, Car, UtensilsCrossed, Flame, Smartphone } from "lucide-react";
 
 const SERVICES = [
   { id: "delivery", label: "Delivery", icon: Package },
   { id: "ride", label: "Ride", icon: Car },
   { id: "food", label: "Food", icon: UtensilsCrossed },
   { id: "gas", label: "Gas", icon: Flame },
+  { id: "bills", label: "Airtime", icon: Smartphone },
 ];
 
 // Purely visual — the parent owns `active` state and decides what renders

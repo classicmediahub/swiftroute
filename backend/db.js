@@ -180,6 +180,31 @@ async function initSchema() {
   // one before that window opens, so turning this on carries no cost by
   // itself.
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS boost_enabled BOOLEAN NOT NULL DEFAULT false;`);
+
+  // --- Airtime/data purchases via VTpass (see backend/vtpass.js). Kept
+  // separate from wallet_transactions (which still gets a matching debit
+  // row for the customer's own history view) because a purchase carries
+  // real structured detail — network, phone, VTpass's own request/
+  // transaction ids for support lookups and requery — that doesn't fit
+  // wallet_transactions' generic shape without bloating every other type
+  // that table already serves.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS bill_payments (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type TEXT NOT NULL CHECK (type IN ('airtime','data')),
+      network TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      amount NUMERIC NOT NULL,
+      variation_code TEXT,
+      variation_name TEXT,
+      vtpass_request_id TEXT NOT NULL UNIQUE,
+      vtpass_transaction_id TEXT,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','delivered','failed')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_bill_payments_user ON bill_payments (user_id, created_at DESC);`);
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS nin_verified_at TIMESTAMPTZ;`);
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS nin_verification_method TEXT NOT NULL DEFAULT 'format_only';`);
   await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS face_liveness_verified BOOLEAN NOT NULL DEFAULT false;`);
@@ -870,14 +895,14 @@ async function initSchema() {
     await pool.query(`ALTER TABLE wallet_transactions DROP CONSTRAINT IF EXISTS wallet_transactions_type_check;`);
     await pool.query(`
       ALTER TABLE wallet_transactions ADD CONSTRAINT wallet_transactions_type_check
-      CHECK (type IN ('topup','delivery_payment','ride_payment','gas_payment','food_payment','refund','streak_reward','referral_reward','landmark_reward','withdrawal','withdrawal_refund','job_boost'));
+      CHECK (type IN ('topup','delivery_payment','ride_payment','gas_payment','food_payment','refund','streak_reward','referral_reward','landmark_reward','withdrawal','withdrawal_refund','job_boost','airtime_purchase','data_purchase'));
     `);
   } catch (err) {
     console.error(
       "WARNING: couldn't re-apply wallet_transactions_type_check — a row exists with a 'type' value outside the allowed list. " +
       "The app will keep running, but please investigate: run " +
       "`SELECT id, type, created_at FROM wallet_transactions WHERE type NOT IN " +
-      "('topup','delivery_payment','ride_payment','gas_payment','food_payment','refund','streak_reward','referral_reward','landmark_reward','withdrawal','withdrawal_refund','job_boost');` " +
+      "('topup','delivery_payment','ride_payment','gas_payment','food_payment','refund','streak_reward','referral_reward','landmark_reward','withdrawal','withdrawal_refund','job_boost','airtime_purchase','data_purchase');` " +
       "as soon as possible to find it. Underlying error: " + err.message
     );
   }

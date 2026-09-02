@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import StatusBadge from "../components/StatusBadge";
@@ -30,6 +31,7 @@ import ServiceSwitcher from "../components/ServiceSwitcher";
 import RequestRide from "./RequestRide";
 import RequestGas from "./RequestGas";
 import FoodHome from "./FoodHome";
+import AirtimeData from "./AirtimeData";
 import { useUnreadMessages } from "../hooks/useUnreadMessages";
 import { lazy, Suspense } from "react";
 const DeliveryMap = lazy(() => import("../components/DeliveryMap"));
@@ -63,7 +65,11 @@ export default function CustomerDashboard() {
   const { token, user, refresh } = useAuth();
   const isBusiness = user?.account_type === "business";
   const [tab, setTab] = useState("send");
-  const [bookingService, setBookingService] = useState("delivery");
+  const location = useLocation();
+  // Arriving from HeroQuoteWidget on the landing page passes which service
+  // was picked there (e.g. { bookingService: "gas" }) — falls back to
+  // "delivery" for a normal direct visit to the dashboard.
+  const [bookingService, setBookingService] = useState(location.state?.bookingService || "delivery");
 
   const [form, setForm] = useState(emptyForm);
   const [estimate, setEstimate] = useState(null);
@@ -1147,6 +1153,7 @@ export default function CustomerDashboard() {
           {bookingService === "ride" && <RequestRide />}
           {bookingService === "food" && <FoodHome />}
           {bookingService === "gas" && <RequestGas />}
+          {bookingService === "bills" && <AirtimeData />}
         </div>
       )}
       {tab === "bulk" && isBusiness && (
