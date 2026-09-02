@@ -81,5 +81,24 @@ router.patch("/boost", async (req, res) => {
   }
 });
 
+// Photo is resized client-side to a small JPEG before it ever reaches
+// here (see AgentDashboard.jsx) — this same photo string gets embedded in
+// every delivery/ride row returned to every customer this agent has ever
+// worked with, so keeping it small matters far more than for a one-off
+// upload.
+router.patch("/profile-photo", async (req, res) => {
+  const { photo } = req.body;
+  if (!photo || typeof photo !== "string") {
+    return res.status(400).json({ error: "photo is required" });
+  }
+  try {
+    await pool.query("UPDATE users SET profile_photo = $1 WHERE id = $2", [photo, req.user.id]);
+    res.json({ profile_photo: photo });
+  } catch (err) {
+    console.error("Profile photo update failed:", err);
+    res.status(500).json({ error: "Couldn't update your profile photo" });
+  }
+});
+
 module.exports = router;
 module.exports.STALE_AFTER_SECONDS = STALE_AFTER_SECONDS;

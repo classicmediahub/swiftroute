@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { useLiveLocation } from "../hooks/useLiveLocation";
@@ -11,7 +11,7 @@ import StarRating from "../components/StarRating";
 import ShareLocationToggle from "../components/ShareLocationToggle";
 import { SkeletonCardList, SkeletonStatGrid } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
-import { Inbox, Package, Car, MessageCircle } from "lucide-react";
+import { Inbox, Package, Car, MessageCircle, Camera } from "lucide-react";
 import DashboardGreeting from "../components/DashboardGreeting";
 import StreakCalendar, { buildStreakDays, nextMilestone } from "../components/StreakCalendar";
 import { useStreakMilestone } from "../hooks/useStreakMilestone";
@@ -47,6 +47,39 @@ function nextStatusFor(delivery) {
   if (delivery.status === "picked_up") return "in_transit";
   if (delivery.status === "in_transit") return delivery.locker_id ? "at_locker" : "delivered";
   return null;
+}
+
+// Shrinks a photo to a small square-ish JPEG before it ever reaches the
+// server. This one photo string gets embedded in every delivery/ride row
+// returned to every customer this agent has ever worked with, so keeping
+// it small (a few KB, not a multi-MB phone camera photo) matters far more
+// here than it would for a one-off upload.
+function resizeImageFile(file, maxDim = 320, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Couldn't read that file"));
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("That doesn't look like a valid image"));
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > height && width > maxDim) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else if (height > maxDim) {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 const RIDE_NEXT_LABEL = {
@@ -220,6 +253,25 @@ export default function AgentDashboard() {
     }
   }
 
+  const photoInputRef = useRef(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+
+  async function handlePhotoSelected(e) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // lets the same file be re-selected later if needed
+    if (!file) return;
+    setPhotoUploading(true);
+    try {
+      const resized = await resizeImageFile(file);
+      await api.setAgentProfilePhoto(token, resized);
+      await refresh();
+    } catch (err) {
+      alert(err.message || "Couldn't update your photo");
+    } finally {
+      setPhotoUploading(false);
+    }
+  }
+
   async function handleAcceptPool(poolId) {
     setPoolBusyId(poolId);
     try {
@@ -342,9 +394,25 @@ export default function AgentDashboard() {
       )}
       <div className="font-mono text-xs text-slate dark:text-slate-light mb-2">AGENT DASHBOARD</div>
       <div className="flex items-center gap-3 mb-6">
-        {user?.profile_photo && (
-          <img src={user.profile_photo} alt={user.full_name} className="w-12 h-12 rounded-full object-cover border border-slate-200 dark:border-line" />
-        )}
+        <button
+          type="button"
+          onClick={() => photoInputRef.current?.click()}
+          disabled={photoUploading}
+          className="relative shrink-0 disabled:opacity-60"
+          title={user?.profile_photo ? "Change your photo" : "Add a photo — customers see this when you pick up their delivery"}
+        >
+          {user?.profile_photo ? (
+            <img src={user.profile_photo} alt={user.full_name} className="w-12 h-12 rounded-full object-cover border border-slate-200 dark:border-line" />
+          ) : (
+            <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-white/10 border border-slate-200 dark:border-line flex items-center justify-center text-slate dark:text-slate-light font-semibold text-sm">
+              {user?.full_name?.[0]?.toUpperCase() || "?"}
+            </div>
+          )}
+          <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-route flex items-center justify-center border-2 border-paper dark:border-ink">
+            <Camera className="w-2.5 h-2.5 text-ink" />
+          </span>
+        </button>
+        <input ref={photoInputRef} type="file" accept="image/*" capture="user" onChange={handlePhotoSelected} className="hidden" />
         <DashboardGreeting name={user?.full_name} subtitle={pendingJobsSubtitle} />
         {isLiveRideCandidate && (
           <span className="ml-auto flex items-center gap-1.5 text-xs font-mono text-slate dark:text-slate-light">
@@ -356,6 +424,14 @@ export default function AgentDashboard() {
           </span>
         )}
       </div>
+      {!user?.profile_photo && (
+        <p className="text-xs text-slate dark:text-slate-light mb-6 -mt-4">
+          <button type="button" onClick={() => photoInputRef.current?.click()} className="underline font-medium">
+            Add a profile photo
+          </button>
+          {" "}— customers see this when you pick up their delivery.
+        </p>
+      )}
 
       {streak && streakDays && (
         <StreakCalendar
