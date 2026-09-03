@@ -254,9 +254,27 @@ export default function AgentDashboard() {
     }
   }
 
+  useEffect(() => {
+    api.myUniformOrder(token).then(setUniformOrder).catch(() => {});
+  }, [token]);
+
+  async function handleSubmitUniformSize(size) {
+    setUniformSubmitting(true);
+    try {
+      const updated = await api.submitUniformSize(token, size);
+      setUniformOrder(updated);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setUniformSubmitting(false);
+    }
+  }
+
   const photoInputRef = useRef(null);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [idCardOpen, setIdCardOpen] = useState(false);
+  const [uniformOrder, setUniformOrder] = useState(null);
+  const [uniformSubmitting, setUniformSubmitting] = useState(false);
 
   async function handlePhotoSelected(e) {
     const file = e.target.files?.[0];
@@ -441,6 +459,40 @@ export default function AgentDashboard() {
           </button>
           {" "}— customers see this when you pick up their delivery.
         </p>
+      )}
+
+      {uniformOrder?.status === "awaiting_size" && (
+        <div className="border border-route bg-route/10 rounded-xl p-4 mb-6">
+          <div className="text-sm font-semibold text-ink dark:text-paper mb-1">Select your uniform size</div>
+          <p className="text-xs text-slate dark:text-slate-light mb-3">
+            Your uniform kit (cloth + cap) has been charged to your wallet — ₦{Number(uniformOrder.amount).toLocaleString()}.
+            Pick your cloth size so we can get it made and sent to you.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {["S", "M", "L", "XL", "XXL"].map((size) => (
+              <button
+                key={size}
+                type="button"
+                disabled={uniformSubmitting}
+                onClick={() => handleSubmitUniformSize(size)}
+                className="min-h-[44px] px-4 py-2 rounded-lg border border-slate-300 dark:border-line bg-white dark:bg-ink-soft text-sm font-semibold hover:border-ink dark:hover:border-paper transition-colors disabled:opacity-50"
+              >
+                {size}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {uniformOrder && uniformOrder.status !== "awaiting_size" && (
+        <div className="flex items-center gap-2 text-xs text-slate dark:text-slate-light mb-6 -mt-2">
+          <span className="font-medium">Uniform ({uniformOrder.cloth_size}):</span>
+          <span className={`font-semibold px-2 py-0.5 rounded-full ${
+            uniformOrder.status === "delivered" ? "bg-delivered/15 text-delivered" :
+            uniformOrder.status === "shipped" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"
+          }`}>
+            {uniformOrder.status === "pending" ? "Being prepared" : uniformOrder.status === "shipped" ? "Shipped" : "Delivered"}
+          </span>
+        </div>
       )}
 
       {streak && streakDays && (

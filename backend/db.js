@@ -895,14 +895,14 @@ async function initSchema() {
     await pool.query(`ALTER TABLE wallet_transactions DROP CONSTRAINT IF EXISTS wallet_transactions_type_check;`);
     await pool.query(`
       ALTER TABLE wallet_transactions ADD CONSTRAINT wallet_transactions_type_check
-      CHECK (type IN ('topup','delivery_payment','ride_payment','gas_payment','food_payment','refund','streak_reward','referral_reward','landmark_reward','withdrawal','withdrawal_refund','job_boost','airtime_purchase','data_purchase'));
+      CHECK (type IN ('topup','delivery_payment','ride_payment','gas_payment','food_payment','refund','streak_reward','referral_reward','landmark_reward','withdrawal','withdrawal_refund','job_boost','airtime_purchase','data_purchase','uniform_purchase'));
     `);
   } catch (err) {
     console.error(
       "WARNING: couldn't re-apply wallet_transactions_type_check — a row exists with a 'type' value outside the allowed list. " +
       "The app will keep running, but please investigate: run " +
       "`SELECT id, type, created_at FROM wallet_transactions WHERE type NOT IN " +
-      "('topup','delivery_payment','ride_payment','gas_payment','food_payment','refund','streak_reward','referral_reward','landmark_reward','withdrawal','withdrawal_refund','job_boost','airtime_purchase','data_purchase');` " +
+      "('topup','delivery_payment','ride_payment','gas_payment','food_payment','refund','streak_reward','referral_reward','landmark_reward','withdrawal','withdrawal_refund','job_boost','airtime_purchase','data_purchase','uniform_purchase');` " +
       "as soon as possible to find it. Underlying error: " + err.message
     );
   }
@@ -972,6 +972,30 @@ async function initSchema() {
     );
   `);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user ON push_subscriptions (user_id);`);
+
+  // --- Uniform kit (cloth + cap) — automatically charged once when an
+  // agent is first approved (see uniform.js's chargeUniformKit, called
+  // from routes/admin.js's approval endpoint). UNIQUE on agent_id means
+  // an agent who gets suspended and later re-approved is never charged a
+  // second time — the charge check itself also guards on "already has a
+  // row" for the same reason, this constraint is the backstop.
+  // wallet_balance is allowed to go negative from this charge (a new
+  // agent typically starts at ₦0) — it's a starter-kit-on-credit model,
+  // worked off naturally as the agent completes paid jobs, same as any
+  // other wallet debit already in this codebase.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS uniform_orders (
+      id TEXT PRIMARY KEY,
+      agent_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+      cloth_size TEXT CHECK (cloth_size IN ('S','M','L','XL','XXL')),
+      amount NUMERIC NOT NULL,
+      status TEXT NOT NULL DEFAULT 'awaiting_size' CHECK (status IN ('awaiting_size','pending','shipped','delivered')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      size_submitted_at TIMESTAMPTZ,
+      shipped_at TIMESTAMPTZ,
+      delivered_at TIMESTAMPTZ
+    );
+  `);
 }
 
 module.exports = { pool, initSchema };

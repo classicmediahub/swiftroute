@@ -3,6 +3,7 @@ const { pool } = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { listAllLockers } = require("../lockers");
 const { listClaims, reviewClaim } = require("../insurance");
+const { chargeUniformKit, listUniformOrders, advanceUniformStatus } = require("../uniform");
 
 const router = express.Router();
 router.use(requireAuth, requireRole("admin"));
@@ -80,9 +81,23 @@ router.patch("/agents/:id/status", async (req, res) => {
       return res.status(400).json({ error: "Invalid approval status" });
     }
     const { rows } = await pool.query("SELECT * FROM agent_profiles WHERE user_id = $1", [req.params.id]);
-    if (!rows[0]) return res.status(404).json({ error: "Agent not found" });
+    const profile = rows[0];
+    if (!profile) return res.status(404).json({ error: "Agent not found" });
 
     await pool.query("UPDATE agent_profiles SET approval_status = $1 WHERE user_id = $2", [approval_status, req.params.id]);
+
+    // Charge the uniform kit the moment an agent is genuinely newly
+    // approved — not on every PATCH that happens to already say
+    // "approved" (e.g. an idempotent re-save), only a real transition
+    // into it. chargeUniformKit is itself idempotent too (see uniform.js),
+    // so this is belt-and-suspenders, not the only thing preventing a
+    // double charge.
+    if (approval_status === "approved" && profile.approval_status !== "approved") {
+      chargeUniformKit(req.params.id).catch((err) =>
+        console.error("Uniform kit charge failed (fire-and-forget):", err.message)
+      );
+    }
+
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -207,6 +222,30 @@ router.patch("/claims/:id/review", async (req, res) => {
   const result = await reviewClaim(req.params.id, req.user.id, decision);
   if (!result.ok) return res.status(400).json({ error: result.error });
   res.json({ success: true });
+});
+
+// ---------- UNIFORM ORDERS — the charge itself happens automatically on
+// approval above; this is the admin fulfillment view (who still needs a
+// size submitted, who's ready to ship, who's already been sent theirs). ----------
+router.get("/uniform-orders", async (req, res) => {
+  try {
+    res.json(await listUniformOrders());
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong loading uniform orders" });
+  }
+});
+
+router.patch("/uniform-orders/:id/status", async (req, res) => {
+  const { status } = req.body;
+  if (!["shipped", "delivered"].includes(status)) {
+    return res.status(400).json({ error: "status must be 'shipped' or 'delivered'" });
+  }
+  const updated = await advanceUniformStatus(req.params.id, status);
+  if (!updated) {
+    return res.status(409).json({ error: `Couldn't mark as ${status} — check this order's current status` });
+  }
+  res.json(updated);
 });
 
 module.exports = router;

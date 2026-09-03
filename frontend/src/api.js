@@ -199,6 +199,12 @@ export const api = {
   setAgentBoost: (token, enabled) => request("/agent/boost", { method: "PATCH", body: { enabled }, token }),
   setAgentProfilePhoto: (token, photo) => request("/agent/profile-photo", { method: "PATCH", body: { photo }, token }),
 
+  // Uniform kit
+  myUniformOrder: (token) => request("/agent/uniform", { token }),
+  submitUniformSize: (token, cloth_size) => request("/agent/uniform/size", { method: "PATCH", body: { cloth_size }, token }),
+  adminUniformOrders: (token) => request("/admin/uniform-orders", { token }),
+  adminAdvanceUniformStatus: (token, id, status) => request(`/admin/uniform-orders/${id}/status`, { method: "PATCH", body: { status }, token }),
+
   // Airtime & Data (VTpass)
   billNetworks: (token) => request("/bills/networks", { token }),
   billDataPlans: (token, network) => request(`/bills/data-plans/${network}`, { token }),

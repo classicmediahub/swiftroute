@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import StatusBadge from "../components/StatusBadge";
-import { Users, UserCheck, Package, Car, Lock, Landmark, AlertTriangle, Store, MapPin, Compass } from "lucide-react";
+import { Users, UserCheck, Package, Car, Lock, Landmark, AlertTriangle, Store, MapPin, Compass, Shirt } from "lucide-react";
 import { SkeletonStatGrid, SkeletonTable } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
 import CountUp from "../components/CountUp";
@@ -18,6 +18,7 @@ const SIDEBAR_ITEMS = [
   { key: "lockers", label: "Lockers", icon: Lock },
   { key: "landmarks", label: "Landmarks", icon: MapPin },
   { key: "areas", label: "Areas", icon: Compass },
+  { key: "uniforms", label: "Uniforms", icon: Shirt },
   { key: "withdrawals", label: "Withdrawals", icon: Landmark },
   { key: "outlets", label: "Outlets", icon: Store },
   { key: "sos", label: "SOS Alerts", icon: AlertTriangle },
@@ -106,21 +107,35 @@ export default function AdminDashboard() {
   });
   const [gazetteerFormError, setGazetteerFormError] = useState("");
   const [gazetteerSubmitting, setGazetteerSubmitting] = useState(false);
+  const [uniformOrders, setUniformOrders] = useState([]);
+  const [uniformBusyId, setUniformBusyId] = useState(null);
 
   const loadAll = useCallback(async () => {
     try {
-      const [s, a, c, d, r, l, i, w, sos, o, lm, gp, gq] = await Promise.all([
+      const [s, a, c, d, r, l, i, w, sos, o, lm, gp, gq, uo] = await Promise.all([
         api.adminStats(token), api.adminAgents(token), api.adminCustomers(token), api.adminDeliveries(token), api.adminRides(token),
         api.adminLockers(token), api.listInstitutions(token), api.adminPendingWithdrawals(token), api.adminActiveSOS(token), api.adminPendingOutlets(token),
-        api.adminListLandmarks(token), api.adminGazetteerPoints(token), api.adminGazetteerQueue(token),
+        api.adminListLandmarks(token), api.adminGazetteerPoints(token), api.adminGazetteerQueue(token), api.adminUniformOrders(token),
       ]);
-      setStats(s); setAgents(a); setCustomers(c); setDeliveries(d); setRides(r); setLockers(l); setInstitutions(i); setWithdrawals(w); setSosAlerts(sos); setOutlets(o); setLandmarks(lm); setGazetteerPoints(gp); setGazetteerQueue(gq);
+      setStats(s); setAgents(a); setCustomers(c); setDeliveries(d); setRides(r); setLockers(l); setInstitutions(i); setWithdrawals(w); setSosAlerts(sos); setOutlets(o); setLandmarks(lm); setGazetteerPoints(gp); setGazetteerQueue(gq); setUniformOrders(uo);
     } finally {
       setLoading(false);
     }
   }, [token]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  async function handleAdvanceUniform(id, status) {
+    setUniformBusyId(id);
+    try {
+      await api.adminAdvanceUniformStatus(token, id, status);
+      await loadAll();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setUniformBusyId(null);
+    }
+  }
 
   // Runs independently of loadAll and much faster — an active SOS alert
   // needs to surface within seconds, not whenever the admin happens to
@@ -370,7 +385,7 @@ export default function AdminDashboard() {
         <nav className="flex md:flex-col overflow-x-auto md:overflow-visible px-3 md:px-3 py-3 md:py-0 gap-1">
           {SIDEBAR_ITEMS.map(({ key, label, icon: Icon }) => {
             const active = tab === key;
-            const count = { agents, customers, deliveries, rides, lockers, landmarks, areas: gazetteerQueue, withdrawals, outlets, sos: sosAlerts }[key].length;
+            const count = { agents, customers, deliveries, rides, lockers, landmarks, areas: gazetteerQueue, uniforms: uniformOrders.filter((o) => o.status === "pending"), withdrawals, outlets, sos: sosAlerts }[key].length;
             const isSosWithAlerts = key === "sos" && count > 0;
             return (
               <button
@@ -977,6 +992,69 @@ export default function AdminDashboard() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+      {tab === "uniforms" && (
+        <div className="overflow-x-auto border border-slate-200 dark:border-line rounded-xl">
+          <table className="w-full text-sm">
+            <thead className="bg-paper dark:bg-white/5 text-left text-xs text-slate dark:text-slate-light uppercase font-mono">
+              <tr>
+                <th className="px-4 py-3">Agent</th>
+                <th className="px-4 py-3">City</th>
+                <th className="px-4 py-3">Size</th>
+                <th className="px-4 py-3">Charged</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {uniformOrders.map((o) => (
+                <tr key={o.id} className="border-t border-slate-100 dark:border-line">
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{o.agent_name}</div>
+                    <div className="text-xs text-slate dark:text-slate-light">{o.agent_phone}</div>
+                  </td>
+                  <td className="px-4 py-3">{o.city}</td>
+                  <td className="px-4 py-3">
+                    {o.cloth_size || <span className="text-slate dark:text-slate-light">Awaiting agent</span>}
+                  </td>
+                  <td className="px-4 py-3 font-mono">₦{Number(o.amount).toLocaleString()}</td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                      o.status === "delivered" ? "bg-delivered/15 text-delivered" :
+                      o.status === "shipped" ? "bg-amber-100 text-amber-800" :
+                      o.status === "pending" ? "bg-route/20 text-route-dark" : "bg-slate-100 text-slate-600"
+                    }`}>
+                      {o.status === "awaiting_size" ? "Awaiting size" : o.status === "pending" ? "Ready to ship" : o.status === "shipped" ? "Shipped" : "Delivered"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {o.status === "pending" && (
+                      <button
+                        disabled={uniformBusyId === o.id}
+                        onClick={() => handleAdvanceUniform(o.id, "shipped")}
+                        className="text-xs font-semibold text-route-dark underline disabled:opacity-50"
+                      >
+                        Mark shipped
+                      </button>
+                    )}
+                    {o.status === "shipped" && (
+                      <button
+                        disabled={uniformBusyId === o.id}
+                        onClick={() => handleAdvanceUniform(o.id, "delivered")}
+                        className="text-xs font-semibold text-route-dark underline disabled:opacity-50"
+                      >
+                        Mark delivered
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {uniformOrders.length === 0 && (
+                <tr><td colSpan={6}><EmptyState icon={Shirt} title="No uniform orders yet" description="Orders are created automatically when an agent is approved." /></td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
       )}
       {tab === "withdrawals" && (

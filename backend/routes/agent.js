@@ -1,6 +1,7 @@
 const express = require("express");
 const { pool } = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
+const { getMyUniformOrder, submitUniformSize } = require("../uniform");
 
 const router = express.Router();
 router.use(requireAuth, requireRole("agent"));
@@ -97,6 +98,33 @@ router.patch("/profile-photo", async (req, res) => {
   } catch (err) {
     console.error("Profile photo update failed:", err);
     res.status(500).json({ error: "Couldn't update your profile photo" });
+  }
+});
+
+router.get("/uniform", async (req, res) => {
+  try {
+    const order = await getMyUniformOrder(req.user.id);
+    res.json(order); // null if not yet approved/charged — frontend treats that as "nothing to show"
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Couldn't load your uniform order" });
+  }
+});
+
+router.patch("/uniform/size", async (req, res) => {
+  const { cloth_size } = req.body;
+  if (!["S", "M", "L", "XL", "XXL"].includes(cloth_size)) {
+    return res.status(400).json({ error: "Select a valid size" });
+  }
+  try {
+    const updated = await submitUniformSize(req.user.id, cloth_size);
+    if (!updated) {
+      return res.status(409).json({ error: "Your size has already been submitted, or there's no uniform order to update" });
+    }
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Couldn't save your size" });
   }
 });
 
