@@ -131,7 +131,7 @@ export default function AirtimeData() {
                   key={n.id}
                   type="button"
                   onClick={() => setNetwork(n.id)}
-                  className={`text-sm font-medium px-4 py-2 rounded-full border transition-colors ${
+                  className={`text-sm font-medium px-4 py-3 min-h-[44px] rounded-full border transition-colors ${
                     network === n.id
                       ? "bg-route text-ink border-route"
                       : "border-slate-300 dark:border-line text-slate dark:text-slate-light hover:text-ink dark:hover:text-paper"
@@ -166,7 +166,7 @@ export default function AirtimeData() {
                     key={a}
                     type="button"
                     onClick={() => setAmount(String(a))}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${
+                    className={`text-xs font-semibold px-3.5 py-2.5 min-h-[40px] rounded-full border transition-colors ${
                       Number(amount) === a ? "bg-route text-ink border-route" : "border-slate-300 dark:border-line text-slate dark:text-slate-light"
                     }`}
                   >

@@ -155,7 +155,7 @@ export default function RequestGas() {
                 <button
                   key={kg}
                   onClick={() => setCylinderSize(kg)}
-                  className={`text-center border rounded-lg py-2.5 text-sm font-mono font-semibold transition-colors ${
+                  className={`text-center border rounded-lg py-3 min-h-[44px] text-sm font-mono font-semibold transition-colors ${
                     cylinderSize === kg
                       ? "border-ink dark:border-paper bg-ink text-paper dark:bg-paper dark:text-ink"
                       : "border-slate-300 dark:border-line hover:border-slate-400 dark:hover:border-slate-light text-ink dark:text-paper"
@@ -251,18 +251,18 @@ export default function RequestGas() {
 
           {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <button
               disabled={requesting || estimating || !quote}
               onClick={() => handleRequest("wallet")}
-              className="flex-1 bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-2.5 text-sm transition-colors disabled:opacity-60"
+              className="flex-1 min-h-[44px] bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-3 text-sm transition-colors disabled:opacity-60"
             >
               {requesting ? "Placing order…" : `Pay with wallet (₦${walletBalance.toLocaleString()})`}
             </button>
             <button
               disabled={requesting || estimating || !quote}
               onClick={() => handleRequest("paystack")}
-              className="flex-1 bg-ink dark:bg-paper hover:opacity-90 text-paper dark:text-ink font-semibold rounded-lg px-4 py-2.5 text-sm transition-colors disabled:opacity-60"
+              className="flex-1 min-h-[44px] bg-ink dark:bg-paper hover:opacity-90 text-paper dark:text-ink font-semibold rounded-lg px-4 py-3 text-sm transition-colors disabled:opacity-60"
             >
               Pay with card
             </button>
