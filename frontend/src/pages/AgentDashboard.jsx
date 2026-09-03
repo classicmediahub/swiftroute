@@ -11,7 +11,8 @@ import StarRating from "../components/StarRating";
 import ShareLocationToggle from "../components/ShareLocationToggle";
 import { SkeletonCardList, SkeletonStatGrid } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
-import { Inbox, Package, Car, MessageCircle, Camera } from "lucide-react";
+import { Inbox, Package, Car, MessageCircle, Camera, CreditCard } from "lucide-react";
+import AgentIdCardModal from "../components/AgentIdCardModal";
 import DashboardGreeting from "../components/DashboardGreeting";
 import StreakCalendar, { buildStreakDays, nextMilestone } from "../components/StreakCalendar";
 import { useStreakMilestone } from "../hooks/useStreakMilestone";
@@ -255,6 +256,7 @@ export default function AgentDashboard() {
 
   const photoInputRef = useRef(null);
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [idCardOpen, setIdCardOpen] = useState(false);
 
   async function handlePhotoSelected(e) {
     const file = e.target.files?.[0];
@@ -414,8 +416,16 @@ export default function AgentDashboard() {
         </button>
         <input ref={photoInputRef} type="file" accept="image/*" capture="user" onChange={handlePhotoSelected} className="hidden" />
         <DashboardGreeting name={user?.full_name} subtitle={pendingJobsSubtitle} />
+        <button
+          type="button"
+          onClick={() => setIdCardOpen(true)}
+          className="ml-auto flex items-center gap-1.5 text-xs font-medium text-slate dark:text-slate-light border border-slate-300 dark:border-line rounded-full px-3 py-2 hover:text-ink dark:hover:text-paper transition-colors shrink-0"
+        >
+          <CreditCard className="w-3.5 h-3.5" />
+          ID Card
+        </button>
         {isLiveRideCandidate && (
-          <span className="ml-auto flex items-center gap-1.5 text-xs font-mono text-slate dark:text-slate-light">
+          <span className="flex items-center gap-1.5 text-xs font-mono text-slate dark:text-slate-light">
             <span className="relative flex h-1.5 w-1.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-delivered opacity-75" />
               <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-delivered" />
@@ -876,6 +886,9 @@ function SummaryCard({ label, value, custom }) {
     <div className="border border-slate-200 dark:border-line rounded-xl p-4 bg-white dark:bg-ink-soft">
       <div className="text-xs text-slate dark:text-slate-light mb-1">{label}</div>
       {custom || <div className="font-mono font-semibold capitalize">{value}</div>}
+      {idCardOpen && (
+        <AgentIdCardModal user={user} agentProfile={agentProfile} onClose={() => setIdCardOpen(false)} />
+      )}
     </div>
   );
 }
