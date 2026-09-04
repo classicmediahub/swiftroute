@@ -272,7 +272,7 @@ export default function AgentDashboard() {
 
   const photoInputRef = useRef(null);
   const [photoUploading, setPhotoUploading] = useState(false);
-  const [idCardOpen, setIdCardOpen] = useState(false);
+  const [showAgentIdCard, setShowAgentIdCard] = useState(false);
   const [uniformOrder, setUniformOrder] = useState(null);
   const [uniformSubmitting, setUniformSubmitting] = useState(false);
 
@@ -436,7 +436,7 @@ export default function AgentDashboard() {
         <DashboardGreeting name={user?.full_name} subtitle={pendingJobsSubtitle} />
         <button
           type="button"
-          onClick={() => setIdCardOpen(true)}
+          onClick={() => setShowAgentIdCard(true)}
           className="ml-auto flex items-center gap-1.5 text-xs font-medium text-slate dark:text-slate-light border border-slate-300 dark:border-line rounded-full px-3 py-2 hover:text-ink dark:hover:text-paper transition-colors shrink-0"
         >
           <CreditCard className="w-3.5 h-3.5" />
@@ -938,8 +938,8 @@ function SummaryCard({ label, value, custom }) {
     <div className="border border-slate-200 dark:border-line rounded-xl p-4 bg-white dark:bg-ink-soft">
       <div className="text-xs text-slate dark:text-slate-light mb-1">{label}</div>
       {custom || <div className="font-mono font-semibold capitalize">{value}</div>}
-      {idCardOpen && (
-        <AgentIdCardModal user={user} agentProfile={agentProfile} onClose={() => setIdCardOpen(false)} />
+      {showAgentIdCard && (
+        <AgentIdCardModal user={user} agentProfile={agentProfile} onClose={() => setShowAgentIdCard(false)} />
       )}
     </div>
   );
