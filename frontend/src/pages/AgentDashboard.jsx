@@ -938,9 +938,7 @@ function SummaryCard({ label, value, custom }) {
     <div className="border border-slate-200 dark:border-line rounded-xl p-4 bg-white dark:bg-ink-soft">
       <div className="text-xs text-slate dark:text-slate-light mb-1">{label}</div>
       {custom || <div className="font-mono font-semibold capitalize">{value}</div>}
-      {showAgentIdCard && (
-        <AgentIdCardModal user={user} agentProfile={agentProfile} onClose={() => setShowAgentIdCard(false)} />
-      )}
+      <AgentIdCardModal open={showAgentIdCard} user={user} agentProfile={agentProfile} onClose={() => setShowAgentIdCard(false)} />
     </div>
   );
 }

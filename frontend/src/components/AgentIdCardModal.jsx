@@ -88,7 +88,9 @@ function openPrintWindow({ name, photo, agentCode, vehicleType, city, joinDate, 
   win.document.close();
 }
 
-export default function AgentIdCardModal({ user, agentProfile, onClose }) {
+export default function AgentIdCardModal({ open, user, agentProfile, onClose }) {
+  if (!open) return null;
+
   const name = user?.full_name || "Agent";
   const photo = user?.profile_photo || null;
   const agentCode = `PAE-${(user?.id || "").replace(/-/g, "").slice(0, 8).toUpperCase()}`;
