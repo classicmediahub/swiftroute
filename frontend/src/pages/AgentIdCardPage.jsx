@@ -1,4 +1,6 @@
-import { X, Printer } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ChevronLeft, Printer } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 // Standard CR80 card size (credit-card / ID-card dimensions) — same size
 // as a real physical ID card, so printing "actual size" produces
@@ -19,8 +21,7 @@ function vehicleLabel(vehicleType) {
 // Opens a brand-new, completely isolated browser window containing ONLY
 // the card markup with inline styles (no Tailwind, no shared CSS) — this
 // guarantees the printed/saved-as-PDF output is exactly the card and
-// nothing else, regardless of whatever else is on the dashboard page
-// behind it. window.print() inside that window lets the person either
+// nothing else. window.print() inside that window lets the person either
 // print physically or choose "Save as PDF" from their browser's own
 // print dialog — no PDF-generation library needed for either case.
 function openPrintWindow({ name, photo, agentCode, vehicleType, city, joinDate, qrUrl }) {
@@ -88,8 +89,13 @@ function openPrintWindow({ name, photo, agentCode, vehicleType, city, joinDate, 
   win.document.close();
 }
 
-export default function AgentIdCardModal({ open, user, agentProfile, onClose }) {
-  if (!open) return null;
+// Standalone page rather than a modal inside AgentDashboard.jsx — a
+// separate route gets its own clean bundle, sidestepping a bundler quirk
+// that surfaced specifically when this lived as extra state inside the
+// already-large AgentDashboard component.
+export default function AgentIdCardPage() {
+  const { user, agentProfile } = useAuth();
+  const navigate = useNavigate();
 
   const name = user?.full_name || "Agent";
   const photo = user?.profile_photo || null;
@@ -107,63 +113,60 @@ export default function AgentIdCardModal({ open, user, agentProfile, onClose }) 
   )}`;
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-5" onClick={onClose}>
-      <div
-        className="bg-white dark:bg-ink-soft rounded-2xl p-6 max-w-sm w-full"
-        onClick={(e) => e.stopPropagation()}
+    <div className="max-w-sm mx-auto px-5 py-10">
+      <button
+        onClick={() => navigate("/agent/dashboard")}
+        className="flex items-center gap-1 text-sm text-slate dark:text-slate-light mb-6 -ml-1"
       >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-lg font-semibold text-ink dark:text-paper">Your Agent ID</h3>
-          <button onClick={onClose} aria-label="Close" className="p-2 -m-2 text-slate dark:text-slate-light">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        <ChevronLeft className="w-4 h-4" />
+        Back to dashboard
+      </button>
 
-        {/* On-screen preview — Tailwind-styled, matches the printed
-            version's content and layout but doesn't need to pixel-match
-            it exactly, since the actual printed output comes from the
-            isolated window above, not from this preview's DOM. */}
-        <div className="bg-ink text-paper rounded-xl p-4 relative overflow-hidden mb-5" style={{ aspectRatio: `${CARD_WIDTH_IN} / ${CARD_HEIGHT_IN}` }}>
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-route" />
-          <div className="text-[10px] tracking-widest uppercase text-route font-bold mt-1">PickAndEarn · Agent ID</div>
-          <div className="flex items-start gap-3 mt-2">
-            {photo ? (
-              <img src={photo} alt={name} className="w-14 h-14 rounded-lg object-cover border border-white/20" />
-            ) : (
-              <div className="w-14 h-14 rounded-lg bg-white/10 flex items-center justify-center font-semibold text-lg">
-                {name[0]?.toUpperCase()}
-              </div>
-            )}
-            <div>
-              <div className="font-semibold">{name}</div>
-              <div className="text-[9px] uppercase tracking-wide text-slate-light mt-1">Role</div>
-              <div className="text-xs font-medium">{vehicleLabel(vehicleType)}</div>
+      <h1 className="font-display text-2xl font-semibold mb-5 text-ink dark:text-paper">Your Agent ID</h1>
+
+      <div
+        className="bg-ink text-paper rounded-xl p-4 relative overflow-hidden mb-5"
+        style={{ aspectRatio: `${CARD_WIDTH_IN} / ${CARD_HEIGHT_IN}` }}
+      >
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-route" />
+        <div className="text-[10px] tracking-widest uppercase text-route font-bold mt-1">PickAndEarn · Agent ID</div>
+        <div className="flex items-start gap-3 mt-2">
+          {photo ? (
+            <img src={photo} alt={name} className="w-14 h-14 rounded-lg object-cover border border-white/20" />
+          ) : (
+            <div className="w-14 h-14 rounded-lg bg-white/10 flex items-center justify-center font-semibold text-lg">
+              {name[0]?.toUpperCase()}
             </div>
-          </div>
-          <div className="flex items-end justify-between mt-3">
-            <div>
-              <div className="text-[9px] uppercase tracking-wide text-slate-light">Agent code</div>
-              <div className="text-xs font-medium">{agentCode}</div>
-              <div className="text-[9px] uppercase tracking-wide text-slate-light mt-1">
-                City{joinDate ? " · Since" : ""}
-              </div>
-              <div className="text-xs font-medium">{city || "—"}{joinDate ? ` · ${joinDate}` : ""}</div>
-            </div>
-            <img src={qrUrl} alt="Verification QR code" className="w-12 h-12 rounded" />
+          )}
+          <div>
+            <div className="font-semibold">{name}</div>
+            <div className="text-[9px] uppercase tracking-wide text-slate-light mt-1">Role</div>
+            <div className="text-xs font-medium">{vehicleLabel(vehicleType)}</div>
           </div>
         </div>
-
-        <button
-          onClick={() => openPrintWindow({ name, photo, agentCode, vehicleType, city, joinDate, qrUrl })}
-          className="w-full flex items-center justify-center gap-2 bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-3 transition-colors"
-        >
-          <Printer className="w-4 h-4" />
-          Print / Save as PDF
-        </button>
-        <p className="text-xs text-slate dark:text-slate-light text-center mt-2.5">
-          Opens a print dialog — choose "Save as PDF" there to download instead of printing.
-        </p>
+        <div className="flex items-end justify-between mt-3">
+          <div>
+            <div className="text-[9px] uppercase tracking-wide text-slate-light">Agent code</div>
+            <div className="text-xs font-medium">{agentCode}</div>
+            <div className="text-[9px] uppercase tracking-wide text-slate-light mt-1">
+              City{joinDate ? " · Since" : ""}
+            </div>
+            <div className="text-xs font-medium">{city || "—"}{joinDate ? ` · ${joinDate}` : ""}</div>
+          </div>
+          <img src={qrUrl} alt="Verification QR code" className="w-12 h-12 rounded" />
+        </div>
       </div>
+
+      <button
+        onClick={() => openPrintWindow({ name, photo, agentCode, vehicleType, city, joinDate, qrUrl })}
+        className="w-full flex items-center justify-center gap-2 bg-route hover:bg-route-dark text-ink font-semibold rounded-lg px-4 py-3 transition-colors"
+      >
+        <Printer className="w-4 h-4" />
+        Print / Save as PDF
+      </button>
+      <p className="text-xs text-slate dark:text-slate-light text-center mt-2.5">
+        Opens a print dialog — choose "Save as PDF" there to download instead of printing.
+      </p>
     </div>
   );
 }

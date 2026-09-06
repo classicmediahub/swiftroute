@@ -12,7 +12,7 @@ import ShareLocationToggle from "../components/ShareLocationToggle";
 import { SkeletonCardList, SkeletonStatGrid } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
 import { Inbox, Package, Car, MessageCircle, Camera, CreditCard } from "lucide-react";
-import AgentIdCardModal from "../components/AgentIdCardModal";
+import { Link } from "react-router-dom";
 import DashboardGreeting from "../components/DashboardGreeting";
 import StreakCalendar, { buildStreakDays, nextMilestone } from "../components/StreakCalendar";
 import { useStreakMilestone } from "../hooks/useStreakMilestone";
@@ -272,7 +272,6 @@ export default function AgentDashboard() {
 
   const photoInputRef = useRef(null);
   const [photoUploading, setPhotoUploading] = useState(false);
-  const [showAgentIdCard, setShowAgentIdCard] = useState(false);
   const [uniformOrder, setUniformOrder] = useState(null);
   const [uniformSubmitting, setUniformSubmitting] = useState(false);
 
@@ -434,14 +433,13 @@ export default function AgentDashboard() {
         </button>
         <input ref={photoInputRef} type="file" accept="image/*" capture="user" onChange={handlePhotoSelected} className="hidden" />
         <DashboardGreeting name={user?.full_name} subtitle={pendingJobsSubtitle} />
-        <button
-          type="button"
-          onClick={() => setShowAgentIdCard(true)}
+        <Link
+          to="/agent/id-card"
           className="ml-auto flex items-center gap-1.5 text-xs font-medium text-slate dark:text-slate-light border border-slate-300 dark:border-line rounded-full px-3 py-2 hover:text-ink dark:hover:text-paper transition-colors shrink-0"
         >
           <CreditCard className="w-3.5 h-3.5" />
           ID Card
-        </button>
+        </Link>
         {isLiveRideCandidate && (
           <span className="flex items-center gap-1.5 text-xs font-mono text-slate dark:text-slate-light">
             <span className="relative flex h-1.5 w-1.5">
@@ -938,7 +936,6 @@ function SummaryCard({ label, value, custom }) {
     <div className="border border-slate-200 dark:border-line rounded-xl p-4 bg-white dark:bg-ink-soft">
       <div className="text-xs text-slate dark:text-slate-light mb-1">{label}</div>
       {custom || <div className="font-mono font-semibold capitalize">{value}</div>}
-      <AgentIdCardModal open={showAgentIdCard} user={user} agentProfile={agentProfile} onClose={() => setShowAgentIdCard(false)} />
     </div>
   );
 }

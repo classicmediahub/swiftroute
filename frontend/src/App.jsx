@@ -12,6 +12,7 @@ import SignupOutlet from "./pages/SignupOutlet";
 import OutletDashboard from "./pages/OutletDashboard";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import AgentDashboard from "./pages/AgentDashboard";
+import AgentIdCardPage from "./pages/AgentIdCardPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import PaymentCallback from "./pages/PaymentCallback";
 import WalletCallback from "./pages/WalletCallback";
@@ -154,6 +155,14 @@ const routes = [
         element: (
           <ProtectedRoute role="agent">
             <AgentDashboard />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "agent/id-card",
+        element: (
+          <ProtectedRoute role="agent">
+            <AgentIdCardPage />
           </ProtectedRoute>
         ),
       },
