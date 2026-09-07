@@ -1,5 +1,5 @@
 const express = require("express");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const { v4: uuidv4 } = require("uuid");
 const { pool } = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
@@ -291,7 +291,7 @@ router.post("/team", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = bcrypt.hashSync(password, 10);
     const userId = uuidv4();
     await client.query(
       `INSERT INTO users (id, full_name, email, phone, password_hash, role, status)
