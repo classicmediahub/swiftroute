@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { api } from "../api";
 import { useAuth } from "../context/AuthContext";
 import StatusBadge from "../components/StatusBadge";
-import { Users, UserCheck, Package, Car, Lock, Landmark, AlertTriangle, Store, MapPin, Compass, Shirt } from "lucide-react";
+import { Users, UserCheck, Package, Car, Lock, Landmark, AlertTriangle, Store, MapPin, Compass, Shirt, UserCog } from "lucide-react";
 import { SkeletonStatGrid, SkeletonTable } from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
 import CountUp from "../components/CountUp";
@@ -19,6 +19,7 @@ const SIDEBAR_ITEMS = [
   { key: "landmarks", label: "Landmarks", icon: MapPin },
   { key: "areas", label: "Areas", icon: Compass },
   { key: "uniforms", label: "Uniforms", icon: Shirt },
+  { key: "team", label: "Team", icon: UserCog },
   { key: "withdrawals", label: "Withdrawals", icon: Landmark },
   { key: "outlets", label: "Outlets", icon: Store },
   { key: "sos", label: "SOS Alerts", icon: AlertTriangle },
@@ -109,15 +110,20 @@ export default function AdminDashboard() {
   const [gazetteerSubmitting, setGazetteerSubmitting] = useState(false);
   const [uniformOrders, setUniformOrders] = useState([]);
   const [uniformBusyId, setUniformBusyId] = useState(null);
+  const [team, setTeam] = useState([]);
+  const [showTeamForm, setShowTeamForm] = useState(false);
+  const [teamForm, setTeamForm] = useState({ full_name: "", email: "", phone: "", password: "", role: "supervisor", state: "", city: "" });
+  const [teamFormError, setTeamFormError] = useState("");
+  const [teamSubmitting, setTeamSubmitting] = useState(false);
 
   const loadAll = useCallback(async () => {
     try {
-      const [s, a, c, d, r, l, i, w, sos, o, lm, gp, gq, uo] = await Promise.all([
+      const [s, a, c, d, r, l, i, w, sos, o, lm, gp, gq, uo, tm] = await Promise.all([
         api.adminStats(token), api.adminAgents(token), api.adminCustomers(token), api.adminDeliveries(token), api.adminRides(token),
         api.adminLockers(token), api.listInstitutions(token), api.adminPendingWithdrawals(token), api.adminActiveSOS(token), api.adminPendingOutlets(token),
-        api.adminListLandmarks(token), api.adminGazetteerPoints(token), api.adminGazetteerQueue(token), api.adminUniformOrders(token),
+        api.adminListLandmarks(token), api.adminGazetteerPoints(token), api.adminGazetteerQueue(token), api.adminUniformOrders(token), api.adminListTeam(token),
       ]);
-      setStats(s); setAgents(a); setCustomers(c); setDeliveries(d); setRides(r); setLockers(l); setInstitutions(i); setWithdrawals(w); setSosAlerts(sos); setOutlets(o); setLandmarks(lm); setGazetteerPoints(gp); setGazetteerQueue(gq); setUniformOrders(uo);
+      setStats(s); setAgents(a); setCustomers(c); setDeliveries(d); setRides(r); setLockers(l); setInstitutions(i); setWithdrawals(w); setSosAlerts(sos); setOutlets(o); setLandmarks(lm); setGazetteerPoints(gp); setGazetteerQueue(gq); setUniformOrders(uo); setTeam(tm);
     } finally {
       setLoading(false);
     }
@@ -134,6 +140,30 @@ export default function AdminDashboard() {
       alert(err.message);
     } finally {
       setUniformBusyId(null);
+    }
+  }
+
+  async function handleCreateTeamMember(e) {
+    e.preventDefault();
+    if (!teamForm.full_name.trim() || !teamForm.email.trim() || !teamForm.phone.trim() || !teamForm.password || !teamForm.state.trim() || !teamForm.city.trim()) {
+      setTeamFormError("Every field is required.");
+      return;
+    }
+    if (teamForm.password.length < 8) {
+      setTeamFormError("Password must be at least 8 characters.");
+      return;
+    }
+    setTeamSubmitting(true);
+    setTeamFormError("");
+    try {
+      await api.adminCreateTeamMember(token, teamForm);
+      setTeamForm({ full_name: "", email: "", phone: "", password: "", role: "supervisor", state: "", city: "" });
+      setShowTeamForm(false);
+      await loadAll();
+    } catch (err) {
+      setTeamFormError(err.message);
+    } finally {
+      setTeamSubmitting(false);
     }
   }
 
@@ -385,7 +415,7 @@ export default function AdminDashboard() {
         <nav className="flex md:flex-col overflow-x-auto md:overflow-visible px-3 md:px-3 py-3 md:py-0 gap-1">
           {SIDEBAR_ITEMS.map(({ key, label, icon: Icon }) => {
             const active = tab === key;
-            const count = { agents, customers, deliveries, rides, lockers, landmarks, areas: gazetteerQueue, uniforms: uniformOrders.filter((o) => o.status === "pending"), withdrawals, outlets, sos: sosAlerts }[key].length;
+            const count = { agents, customers, deliveries, rides, lockers, landmarks, areas: gazetteerQueue, uniforms: uniformOrders.filter((o) => o.status === "pending"), team, withdrawals, outlets, sos: sosAlerts }[key].length;
             const isSosWithAlerts = key === "sos" && count > 0;
             return (
               <button
@@ -1055,6 +1085,99 @@ export default function AdminDashboard() {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+      {tab === "team" && (
+        <div>
+          <div className="mb-4">
+            <button
+              onClick={() => setShowTeamForm((v) => !v)}
+              className="text-sm font-semibold bg-ink text-paper rounded-lg px-4 py-2.5"
+            >
+              {showTeamForm ? "Cancel" : "+ Add supervisor or ambassador"}
+            </button>
+          </div>
+
+          {showTeamForm && (
+            <form onSubmit={handleCreateTeamMember} className="border border-slate-200 dark:border-line rounded-xl p-5 mb-6 bg-white dark:bg-ink-soft grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-mono text-slate dark:text-slate-light uppercase mb-1.5">Full name</label>
+                <input required className="w-full border border-slate-300 dark:border-line rounded-lg px-3 py-2 text-sm"
+                  value={teamForm.full_name} onChange={(e) => setTeamForm((f) => ({ ...f, full_name: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs font-mono text-slate dark:text-slate-light uppercase mb-1.5">Role</label>
+                <select className="w-full border border-slate-300 dark:border-line rounded-lg px-3 py-2 text-sm"
+                  value={teamForm.role} onChange={(e) => setTeamForm((f) => ({ ...f, role: e.target.value }))}>
+                  <option value="supervisor">Supervisor</option>
+                  <option value="ambassador">Ambassador</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-mono text-slate dark:text-slate-light uppercase mb-1.5">Email</label>
+                <input required type="email" className="w-full border border-slate-300 dark:border-line rounded-lg px-3 py-2 text-sm"
+                  value={teamForm.email} onChange={(e) => setTeamForm((f) => ({ ...f, email: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs font-mono text-slate dark:text-slate-light uppercase mb-1.5">Phone</label>
+                <input required className="w-full border border-slate-300 dark:border-line rounded-lg px-3 py-2 text-sm"
+                  value={teamForm.phone} onChange={(e) => setTeamForm((f) => ({ ...f, phone: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs font-mono text-slate dark:text-slate-light uppercase mb-1.5">State</label>
+                <input required placeholder="e.g. Delta" className="w-full border border-slate-300 dark:border-line rounded-lg px-3 py-2 text-sm"
+                  value={teamForm.state} onChange={(e) => setTeamForm((f) => ({ ...f, state: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs font-mono text-slate dark:text-slate-light uppercase mb-1.5">City</label>
+                <input required placeholder="e.g. Warri" className="w-full border border-slate-300 dark:border-line rounded-lg px-3 py-2 text-sm"
+                  value={teamForm.city} onChange={(e) => setTeamForm((f) => ({ ...f, city: e.target.value }))} />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-mono text-slate dark:text-slate-light uppercase mb-1.5">Temporary password</label>
+                <input required type="password" minLength={8} placeholder="At least 8 characters" className="w-full border border-slate-300 dark:border-line rounded-lg px-3 py-2 text-sm"
+                  value={teamForm.password} onChange={(e) => setTeamForm((f) => ({ ...f, password: e.target.value }))} />
+              </div>
+              {teamFormError && <p className="sm:col-span-2 text-sm text-red-600">{teamFormError}</p>}
+              <div className="sm:col-span-2">
+                <button disabled={teamSubmitting} className="text-sm font-semibold bg-route hover:bg-route-dark text-ink rounded-lg px-4 py-2.5 disabled:opacity-60">
+                  {teamSubmitting ? "Creating…" : "Create account"}
+                </button>
+              </div>
+            </form>
+          )}
+
+          <div className="overflow-x-auto border border-slate-200 dark:border-line rounded-xl">
+            <table className="w-full text-sm">
+              <thead className="bg-paper dark:bg-white/5 text-left text-xs text-slate dark:text-slate-light uppercase font-mono">
+                <tr>
+                  <th className="px-4 py-3">Name</th>
+                  <th className="px-4 py-3">Role</th>
+                  <th className="px-4 py-3">Area</th>
+                  <th className="px-4 py-3">Contact</th>
+                  <th className="px-4 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {team.map((t) => (
+                  <tr key={t.id} className="border-t border-slate-100 dark:border-line">
+                    <td className="px-4 py-3 font-medium">{t.full_name}</td>
+                    <td className="px-4 py-3 capitalize">{t.team_role}</td>
+                    <td className="px-4 py-3">{t.city}, {t.state}</td>
+                    <td className="px-4 py-3 text-xs">{t.email}<br />{t.phone}</td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${t.status === "active" ? "bg-delivered/15 text-delivered" : "bg-red-100 text-red-700"}`}>
+                        {t.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {team.length === 0 && (
+                  <tr><td colSpan={5}><EmptyState icon={UserCog} title="No supervisors or ambassadors yet" description="Add one above to delegate agent approvals or agent recruitment for a specific area." /></td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
       {tab === "withdrawals" && (

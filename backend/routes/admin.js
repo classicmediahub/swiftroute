@@ -1,9 +1,12 @@
 const express = require("express");
+const bcrypt = require("bcrypt");
+const { v4: uuidv4 } = require("uuid");
 const { pool } = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { listAllLockers } = require("../lockers");
 const { listClaims, reviewClaim } = require("../insurance");
 const { chargeUniformKit, listUniformOrders, advanceUniformStatus } = require("../uniform");
+const { assignUniqueReferralCode } = require("../referrals");
 
 const router = express.Router();
 router.use(requireAuth, requireRole("admin"));
@@ -246,6 +249,99 @@ router.patch("/uniform-orders/:id/status", async (req, res) => {
     return res.status(409).json({ error: `Couldn't mark as ${status} — check this order's current status` });
   }
   res.json(updated);
+});
+
+// ---------- SUPERVISORS & AMBASSADORS — admin-created staff accounts,
+// no self-signup. A supervisor's real access-control lives in
+// routes/supervisor.js (scoped agent approval); an ambassador has no
+// elevated permissions at all, just a dedicated view of the same
+// referral mechanism every user already has (see routes/ambassador.js).
+// Suspending/reactivating either uses the existing generic
+// PATCH /admin/users/:id/status route above — no separate endpoint
+// needed for that.
+router.get("/team", async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT u.id, u.full_name, u.email, u.phone, u.status, u.created_at, u.referral_code,
+             la.role AS team_role, la.state, la.city
+      FROM location_admins la
+      JOIN users u ON u.id = la.user_id
+      ORDER BY la.created_at DESC
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong loading your team" });
+  }
+});
+
+router.post("/team", async (req, res) => {
+  const { full_name, email, phone, password, role, state, city } = req.body;
+  if (!full_name || !email || !phone || !password || !state || !city) {
+    return res.status(400).json({ error: "full_name, email, phone, password, state, and city are all required" });
+  }
+  if (!["supervisor", "ambassador"].includes(role)) {
+    return res.status(400).json({ error: "role must be 'supervisor' or 'ambassador'" });
+  }
+  if (password.length < 8) {
+    return res.status(400).json({ error: "Password must be at least 8 characters" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const userId = uuidv4();
+    await client.query(
+      `INSERT INTO users (id, full_name, email, phone, password_hash, role, status)
+       VALUES ($1,$2,$3,$4,$5,$6,'active')`,
+      [userId, full_name, email.toLowerCase(), phone, passwordHash, role]
+    );
+
+    const teamId = uuidv4();
+    await client.query(
+      `INSERT INTO location_admins (id, user_id, role, state, city, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [teamId, userId, role, state, city, req.user.id]
+    );
+
+    await client.query("COMMIT");
+
+    // Referral code assignment isn't security/approval-critical — worth
+    // having (ambassadors specifically need it), not worth failing the
+    // whole account creation over if it hiccups.
+    assignUniqueReferralCode(userId).catch((err) =>
+      console.error("Referral code assignment failed for new team member:", err.message)
+    );
+
+    res.status(201).json({ id: userId, role, state, city });
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    if (err.code === "23505") {
+      return res.status(409).json({ error: "An account with this email or phone already exists" });
+    }
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong creating this account" });
+  } finally {
+    client.release();
+  }
+});
+
+router.patch("/team/:id/scope", async (req, res) => {
+  const { state, city } = req.body;
+  if (!state || !city) return res.status(400).json({ error: "state and city are required" });
+  try {
+    const { rows } = await pool.query(
+      "UPDATE location_admins SET state = $1, city = $2 WHERE user_id = $3 RETURNING *",
+      [state, city, req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "No team assignment found for this user" });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong updating this assignment" });
+  }
 });
 
 module.exports = router;

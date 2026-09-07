@@ -768,9 +768,43 @@ async function initSchema() {
   // (CREATE TABLE above only sets the right constraint on a truly fresh
   // install). Without this, every outlet signup fails with a
   // users_role_check violation on any database created before this line
-  // was added.
+  // was added. 'supervisor' and 'ambassador' added later, same reasoning
+  // — see location_admins below for what distinguishes them.
   await pool.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;`);
-  await pool.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('customer','agent','admin','outlet'));`);
+  await pool.query(`ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('customer','agent','admin','outlet','supervisor','ambassador'));`);
+
+  // --- SUPERVISORS & AMBASSADORS — both are location-scoped staff roles
+  // an admin creates directly (no self-signup), distinguished by what
+  // they're allowed to do once logged in:
+  //   - supervisor: can approve/reject agents, but ONLY those whose
+  //     agent_profiles.state/city matches theirs (see routes/supervisor.js)
+  //   - ambassador: no elevated permissions at all — they just get a
+  //     dedicated view of their own existing referral_code and whichever
+  //     agents they've referred (referrals.js's existing mechanism,
+  //     unchanged), since "recruit agents in an area" is exactly what
+  //     the referral system already rewards, just needing a nicer window
+  //     into it for someone whose whole job is doing that on purpose.
+  // state/city are freeform per-admin's discretion at creation time
+  // (Delta State expansion doesn't require its own schema — it's just a
+  // value here and in agent_profiles.state below), not a fixed enum,
+  // since new states/cities will keep getting added as the business grows.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS location_admins (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+      role TEXT NOT NULL CHECK (role IN ('supervisor','ambassador')),
+      state TEXT NOT NULL,
+      city TEXT NOT NULL,
+      created_by TEXT REFERENCES users(id),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
+  // Needed so a supervisor's scope check has something to match against —
+  // agent_profiles already had `city` but nothing distinguishing e.g.
+  // Ota, Ogun from a same-named town in a different state, which matters
+  // now that Delta State is a real, separate rollout area.
+  await pool.query(`ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS state TEXT;`);
 
   // --- FOOD ORDERING — outlets (restaurants/eateries/supermarkets)
   // self-register like agents do, but always start 'pending' and need

@@ -13,6 +13,8 @@ import OutletDashboard from "./pages/OutletDashboard";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import AgentDashboard from "./pages/AgentDashboard";
 import AgentIdCardPage from "./pages/AgentIdCardPage";
+import SupervisorDashboard from "./pages/SupervisorDashboard";
+import AmbassadorDashboard from "./pages/AmbassadorDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import PaymentCallback from "./pages/PaymentCallback";
 import WalletCallback from "./pages/WalletCallback";
@@ -179,6 +181,22 @@ const routes = [
         element: (
           <ProtectedRoute role="outlet">
             <OutletDashboard />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "supervisor/dashboard",
+        element: (
+          <ProtectedRoute role="supervisor">
+            <SupervisorDashboard />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "ambassador/dashboard",
+        element: (
+          <ProtectedRoute role="ambassador">
+            <AmbassadorDashboard />
           </ProtectedRoute>
         ),
       },

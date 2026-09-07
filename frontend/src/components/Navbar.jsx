@@ -51,7 +51,9 @@ export default function Navbar() {
     user?.role === "customer" ? "/customer/dashboard" :
     user?.role === "agent" ? "/agent/dashboard" :
     user?.role === "admin" ? "/admin/dashboard" :
-    user?.role === "outlet" ? "/outlet/dashboard" : "/";
+    user?.role === "outlet" ? "/outlet/dashboard" :
+    user?.role === "supervisor" ? "/supervisor/dashboard" :
+    user?.role === "ambassador" ? "/ambassador/dashboard" : "/";
 
   // Customer-facing ordering links — shown to logged-out visitors (routes
   // through the login gate, same as any protected link) and logged-in
